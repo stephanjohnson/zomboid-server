@@ -11,12 +11,15 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 409, message: 'No active server profile available to start' })
     }
 
+    const serverIniOverrides = profile.serverIniOverrides as Record<string, string> | null
+
     await startGameContainer({
       servername: profile.servername,
       gamePort: profile.gamePort,
       directPort: profile.directPort,
       rconPort: profile.rconPort,
       steamBuild: profile.steamBuild,
+      serverIniOverrides: serverIniOverrides ?? undefined,
     })
 
     await prisma.auditLog.create({

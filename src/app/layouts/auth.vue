@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Skull } from 'lucide-vue-next'
 import { Toaster } from '@/components/ui/sonner'
+
+const route = useRoute()
+
+const contentWidthClass = computed(() => {
+  return route.path === '/onboarding'
+    ? 'max-w-sm md:max-w-xl lg:max-w-2xl'
+    : 'max-w-sm'
+})
 </script>
 
 <template>
@@ -17,14 +25,14 @@ import { Toaster } from '@/components/ui/sonner'
           </a>
         </div>
         <div class="flex flex-1 items-center justify-center">
-          <div class="w-full max-w-sm">
+          <div class="w-full" :class="contentWidthClass">
             <slot />
           </div>
         </div>
       </div>
       <div class="bg-muted relative hidden overflow-hidden lg:block">
         <img
-          src="/sidebar.webp"
+          src="/sidebar.jpg"
           alt="Project Zomboid"
           class="absolute inset-0 h-full w-full object-cover"
         >

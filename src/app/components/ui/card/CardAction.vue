@@ -8,7 +8,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <div :class="cn('grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 p-6 has-data-[slot=card-action]:grid-cols-[1fr_auto]', props.class)">
+  <div data-slot="card-action" :class="cn('self-start justify-self-end', props.class)">
     <slot />
   </div>
 </template>

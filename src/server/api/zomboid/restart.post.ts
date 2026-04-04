@@ -38,7 +38,22 @@ export default defineEventHandler(async (event) => {
       // RCON may not be available
     }
 
-    await restartGameContainer()
+    const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
+
+    if (!profile) {
+      throw createError({ statusCode: 409, message: 'No active server profile' })
+    }
+
+    const serverIniOverrides = profile.serverIniOverrides as Record<string, string> | null
+
+    await reconcileGameContainer({
+      servername: profile.servername,
+      gamePort: profile.gamePort,
+      directPort: profile.directPort,
+      rconPort: profile.rconPort,
+      steamBuild: profile.steamBuild,
+      serverIniOverrides: serverIniOverrides ?? undefined,
+    })
 
     await prisma.auditLog.create({
       data: {

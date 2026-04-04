@@ -48,23 +48,24 @@ const navSecondary = [
 </script>
 
 <template>
-  <Sidebar v-bind="props">
+  <Sidebar collapsible="offcanvas" v-bind="props">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton size="lg" as-child>
+          <SidebarMenuButton
+            as-child
+            class="data-[slot=sidebar-menu-button]:!p-1.5"
+          >
             <NuxtLink to="/">
-              <div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <Skull class="size-4" />
-              </div>
+              <Skull class="!size-5" />
               <div class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-medium">ZM Manager</span>
+                <span class="truncate font-semibold">ZM Manager</span>
                 <span class="truncate text-xs flex items-center gap-1.5">
                   <span
-                    class="h-2 w-2 rounded-full"
-                    :class="status?.container?.running ? 'bg-green-500' : status?.container?.exists ? 'bg-yellow-500' : 'bg-slate-400'"
+                    class="size-2 rounded-full"
+                    :class="status?.container?.running ? 'bg-emerald-500' : status?.container?.exists ? 'bg-yellow-500' : 'bg-muted-foreground/50'"
                   />
-                    {{ status?.container?.running ? 'Server Online' : status?.container?.exists ? 'Server Offline' : 'Server Not Created' }}
+                  {{ status?.container?.running ? 'Server Online' : status?.container?.exists ? 'Server Offline' : 'Not Created' }}
                 </span>
               </div>
             </NuxtLink>
