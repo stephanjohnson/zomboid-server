@@ -1,5 +1,7 @@
 import * as v from 'valibot'
 
+import { writeActiveServernameOverride } from '../../utils/servername-override'
+
 const UpdateProfileSchema = v.object({
   name: v.optional(v.pipe(v.string(), v.minLength(1))),
   servername: v.optional(v.string()),
@@ -38,6 +40,10 @@ export default defineEventHandler(async (event) => {
     where: { id: profileId },
     data: body,
   })
+
+  if (profile.isActive) {
+    await writeActiveServernameOverride(profile.servername)
+  }
 
   await prisma.auditLog.create({
     data: {

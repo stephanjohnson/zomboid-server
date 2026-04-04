@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client'
 
 import { hashPassword } from './auth'
 import { prisma } from './db'
+import { writeActiveServernameOverride } from './servername-override'
 import { defaultActionRules, defaultTelemetryListeners } from './telemetry-config'
 
 const { TriggerSourceKind, UserRole } = prismaClient
@@ -58,7 +59,7 @@ export async function seedInitialSetup(
   const adminEmail = input.adminEmail?.trim() || getLocalAdminEmail(adminUsername)
   const passwordHash = await hashPassword(input.adminPassword)
 
-  return client.$transaction(async (transaction) => {
+  const result = await client.$transaction(async (transaction) => {
     await transaction.serverProfile.updateMany({
       data: { isActive: false },
     })
@@ -110,4 +111,7 @@ export async function seedInitialSetup(
 
     return { user, profile }
   })
+
+  await writeActiveServernameOverride(result.profile.servername)
+  return result
 }

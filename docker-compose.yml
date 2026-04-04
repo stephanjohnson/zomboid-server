@@ -80,8 +80,8 @@ services:
   # ---------------------------------------------------------------------------
   worker:
     build:
-      context: ./worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: worker/Dockerfile
     container_name: pzm-worker
     restart: unless-stopped
     depends_on:

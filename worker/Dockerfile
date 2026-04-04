@@ -1,10 +1,14 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine
 
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci
 
-COPY . .
+COPY worker/package.json worker/package-lock.json* ./
+COPY src/prisma ./prisma/
+
+RUN npm ci \
+	&& npx prisma generate --schema=./prisma/schema.prisma
+
+COPY worker/ ./
 RUN npm run build
 
 ENV NODE_ENV=production

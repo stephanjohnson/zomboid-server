@@ -21,6 +21,24 @@ fi
 
 # --- Everything below runs as steam user ---
 
+# Servername override from shared volume (written by the web UI/profile flows)
+SERVERNAME_FILE="/home/steam/Zomboid/.servername"
+if [ -f "$SERVERNAME_FILE" ]; then
+    OVERRIDE_SERVERNAME=$(tr -d '\r\n' < "$SERVERNAME_FILE")
+    if [ -n "$OVERRIDE_SERVERNAME" ]; then
+        SERVERNAME="$OVERRIDE_SERVERNAME"
+        export SERVERNAME
+        echo "[entrypoint] Servername override: $SERVERNAME"
+    fi
+fi
+
+STEAMCMD_BIN="${STEAMCMD_BIN:-$(command -v steamcmd || command -v steamcmd.sh || true)}"
+if [ -z "$STEAMCMD_BIN" ]; then
+    echo "[entrypoint] FATAL: SteamCMD executable not found in image."
+    sleep infinity
+    exit 1
+fi
+
 # Apply server configuration from environment variables
 bash /home/steam/configure-server.sh
 
@@ -51,7 +69,7 @@ fi
 if [ ! -f /home/steam/pzserver/start-server.sh ] || [ "${PZ_FORCE_UPDATE:-false}" = "true" ]; then
     echo "[entrypoint] Installing/updating PZ server (branch: $BRANCH)..."
     for attempt in 1 2 3; do
-        /home/steam/Steam/steamcmd.sh \
+        "$STEAMCMD_BIN" \
             +@sSteamCmdForcePlatformType linux \
             +force_install_dir /home/steam/pzserver \
             +login anonymous \
