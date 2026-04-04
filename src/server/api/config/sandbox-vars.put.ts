@@ -1,5 +1,7 @@
 import * as v from 'valibot'
 
+import { getProfileSandboxVarsOverrides } from '../../utils/profile-runtime-config'
+
 const UpdateSandboxSchema = v.object({
   servername: v.optional(v.string()),
   vars: v.record(v.string(), v.unknown()),
@@ -12,40 +14,31 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, v.parser(UpdateSandboxSchema))
+  const profile = body.servername
+    ? await prisma.serverProfile.findFirst({ where: { servername: body.servername } })
+    : await prisma.serverProfile.findFirst({ where: { isActive: true } })
 
-  const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
-  const name = body.servername || profile?.servername || 'servertest'
-
-  try {
-    let existing: Record<string, unknown> = {}
-    try {
-      existing = readSandboxVars(name)
-    }
-    catch {
-      // File doesn't exist yet
-    }
-
-    const merged = { ...existing, ...body.vars }
-    writeSandboxVars(name, merged)
-
-    if (profile) {
-      await prisma.serverProfile.update({
-        where: { id: profile.id },
-        data: { sandboxVarsOverrides: body.vars as Record<string, unknown> },
-      })
-    }
-
-    await prisma.auditLog.create({
-      data: {
-        actorId: user.sub,
-        action: 'config.sandbox_vars.update',
-        details: { servername: name, keys: Object.keys(body.vars) },
-      },
-    })
-
-    return { message: 'SandboxVars.lua updated', servername: name }
+  if (!profile) {
+    throw createError({ statusCode: 404, message: 'No matching server profile found for sandbox config' })
   }
-  catch (error) {
-    handleApiError(error, { message: 'Failed to update SandboxVars.lua' })
+
+  const merged = {
+    ...getProfileSandboxVarsOverrides(profile),
+    ...body.vars,
   }
+
+  await prisma.serverProfile.update({
+    where: { id: profile.id },
+    data: { sandboxVarsOverrides: merged },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: user.sub,
+      action: 'config.sandbox_vars.update',
+      details: { servername: profile.servername, keys: Object.keys(body.vars) },
+    },
+  })
+
+  return { message: 'SandboxVars config saved', servername: profile.servername }
 })

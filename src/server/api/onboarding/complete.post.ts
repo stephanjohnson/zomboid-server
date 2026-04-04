@@ -1,5 +1,7 @@
 import * as v from 'valibot'
 
+import { steamBuildValues } from '../../../shared/game-build'
+
 const OnboardingSchema = v.object({
   admin: v.object({
     username: v.pipe(v.string(), v.trim(), v.minLength(3)),
@@ -7,6 +9,7 @@ const OnboardingSchema = v.object({
   }),
   server: v.object({
     name: v.pipe(v.string(), v.trim(), v.minLength(1)),
+    build: v.optional(v.picklist(steamBuildValues), 'public'),
   }),
 })
 
@@ -28,6 +31,7 @@ export default defineEventHandler(async (event) => {
 
   const { user } = await seedInitialSetup({
     serverName: body.server.name,
+    steamBuild: body.server.build,
     adminUsername: body.admin.username,
     adminPassword: body.admin.password,
   })
@@ -43,5 +47,8 @@ export default defineEventHandler(async (event) => {
   })
 
   setResponseStatus(event, 201)
-  return { message: 'Onboarding complete' }
+  return {
+    message: 'Onboarding complete',
+    build: body.server.build,
+  }
 })

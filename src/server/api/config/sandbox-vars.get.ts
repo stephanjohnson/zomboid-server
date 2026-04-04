@@ -1,5 +1,7 @@
 import * as v from 'valibot'
 
+import { getProfileSandboxVarsOverrides } from '../../utils/profile-runtime-config'
+
 const QuerySchema = v.object({
   servername: v.optional(v.string()),
 })
@@ -7,14 +9,16 @@ const QuerySchema = v.object({
 export default defineEventHandler(async (event) => {
   const { servername } = await getValidatedQuery(event, v.parser(QuerySchema))
 
-  const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
-  const name = servername || profile?.servername || 'servertest'
+  const profile = servername
+    ? await prisma.serverProfile.findFirst({ where: { servername } })
+    : await prisma.serverProfile.findFirst({ where: { isActive: true } })
 
-  try {
-    const vars = readSandboxVars(name)
-    return { servername: name, vars }
+  if (!profile) {
+    throw createError({ statusCode: 404, message: 'No matching server profile found for sandbox config' })
   }
-  catch (error) {
-    handleApiError(error, { message: 'Failed to read SandboxVars.lua' })
+
+  return {
+    servername: profile.servername,
+    vars: getProfileSandboxVarsOverrides(profile),
   }
 })

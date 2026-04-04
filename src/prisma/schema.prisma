@@ -28,8 +28,9 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  sessions  Session[]
-  auditLogs AuditLog[] @relation("AuditActor")
+  sessions    Session[]
+  auditLogs   AuditLog[]   @relation("AuditActor")
+  storeOrders StoreOrder[]
 
   @@map("users")
 }
@@ -56,6 +57,7 @@ model ServerProfile {
   name       String  @unique
   isActive   Boolean @default(false) @map("is_active")
   servername String  @default("servertest")
+  steamBuild String  @default("public") @map("steam_build")
 
   // Network
   gamePort   Int @default(16261) @map("game_port")
@@ -63,33 +65,37 @@ model ServerProfile {
   rconPort   Int @default(27015) @map("rcon_port")
 
   // Game settings
-  mapName    String @default("Muldraugh, KY") @map("map_name")
-  maxPlayers Int    @default(16) @map("max_players")
+  mapName    String  @default("Muldraugh, KY") @map("map_name")
+  maxPlayers Int     @default(16) @map("max_players")
   pvp        Boolean @default(true)
   difficulty String  @default("Normal")
 
   // Additional settings stored as JSON
-  serverIniOverrides  Json? @map("server_ini_overrides")
-  sandboxVarsOverrides Json? @map("sandbox_vars_overrides")
-  lastGameState        Json? @map("last_game_state")
+  serverIniOverrides   Json?     @map("server_ini_overrides")
+  sandboxVarsOverrides Json?     @map("sandbox_vars_overrides")
+  lastGameState        Json?     @map("last_game_state")
   lastTelemetryAt      DateTime? @map("last_telemetry_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  mods            Mod[]
-  backups         Backup[]
-  jobs            Job[]
-  players         ServerPlayer[]
-  snapshots       PlayerSnapshot[]
-  telemetryEvents PlayerTelemetryEvent[]
+  mods               Mod[]
+  backups            Backup[]
+  jobs               Job[]
+  players            ServerPlayer[]
+  snapshots          PlayerSnapshot[]
+  telemetryEvents    PlayerTelemetryEvent[]
   telemetryListeners TelemetryListener[]
-  workflows       WorkflowDefinition[]
-  workflowRuns    WorkflowRun[]
-  actionRules     ActionRule[]
-  rewardRules     RewardRule[]
-  rewardGrants    RewardGrant[]
-  xpGrants        XpGrant[]
+  workflows          WorkflowDefinition[]
+  workflowRuns       WorkflowRun[]
+  actionRules        ActionRule[]
+  rewardRules        RewardRule[]
+  rewardGrants       RewardGrant[]
+  xpGrants           XpGrant[]
+  storeCategories    StoreCategory[]
+  storeProducts      StoreProduct[]
+  storeBundles       StoreBundle[]
+  storeOrders        StoreOrder[]
 
   @@map("server_profiles")
 }
@@ -114,12 +120,12 @@ model GameSetting {
 // =============================================================================
 
 model Mod {
-  id          String @id @default(cuid())
-  profileId   String @map("profile_id")
-  workshopId  String @map("workshop_id")
-  modName     String @map("mod_name")
+  id          String  @id @default(cuid())
+  profileId   String  @map("profile_id")
+  workshopId  String  @map("workshop_id")
+  modName     String  @map("mod_name")
   displayName String? @map("display_name")
-  order       Int    @default(0)
+  order       Int     @default(0)
   isEnabled   Boolean @default(true) @map("is_enabled")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -229,8 +235,8 @@ model WhitelistEntry {
 model ScheduledTask {
   id        String  @id @default(cuid())
   name      String
-  type      String  // "backup", "restart", "message"
-  cron      String  // Cron expression
+  type      String // "backup", "restart", "message"
+  cron      String // Cron expression
   payload   Json?
   isEnabled Boolean @default(true) @map("is_enabled")
 
@@ -275,30 +281,30 @@ enum WorkflowRunStatus {
 }
 
 model ServerPlayer {
-  id              String   @id @default(cuid())
-  profileId       String   @map("profile_id")
+  id              String    @id @default(cuid())
+  profileId       String    @map("profile_id")
   username        String
-  steamId         String?  @map("steam_id")
-  displayName     String?  @map("display_name")
-  isOnline        Boolean  @default(false) @map("is_online")
-  isDead          Boolean  @default(false) @map("is_dead")
-  isGhost         Boolean  @default(false) @map("is_ghost")
+  steamId         String?   @map("steam_id")
+  displayName     String?   @map("display_name")
+  isOnline        Boolean   @default(false) @map("is_online")
+  isDead          Boolean   @default(false) @map("is_dead")
+  isGhost         Boolean   @default(false) @map("is_ghost")
   x               Float?
   y               Float?
   z               Int?
-  zombieKills     Int      @default(0) @map("zombie_kills")
-  playerKills     Int      @default(0) @map("player_kills")
-  hoursSurvived   Float    @default(0) @map("hours_survived")
+  zombieKills     Int       @default(0) @map("zombie_kills")
+  playerKills     Int       @default(0) @map("player_kills")
+  hoursSurvived   Float     @default(0) @map("hours_survived")
   profession      String?
   skills          Json?
   inventory       Json?
-  firstSeenAt     DateTime @default(now()) @map("first_seen_at")
-  lastSeenAt      DateTime @default(now()) @map("last_seen_at")
+  firstSeenAt     DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt      DateTime  @default(now()) @map("last_seen_at")
   lastTelemetryAt DateTime? @map("last_telemetry_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  profile         ServerProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profile         ServerProfile             @relation(fields: [profileId], references: [id], onDelete: Cascade)
   snapshots       PlayerSnapshot[]
   telemetryEvents PlayerTelemetryEvent[]
   workflowRuns    WorkflowRun[]
@@ -307,6 +313,7 @@ model ServerPlayer {
   xpGrants        XpGrant[]
   wallet          PlayerWallet?
   rewardGrants    RewardGrant[]
+  storeOrders     StoreOrder[]
 
   @@unique([profileId, username])
   @@index([profileId, isOnline])
@@ -341,20 +348,20 @@ model PlayerSnapshot {
 }
 
 model PlayerTelemetryEvent {
-  id         String             @id @default(cuid())
-  profileId  String             @map("profile_id")
-  playerId   String?            @map("player_id")
+  id         String              @id @default(cuid())
+  profileId  String              @map("profile_id")
+  playerId   String?             @map("player_id")
   type       TelemetryEventType?
-  eventKey   String             @map("event_key")
-  quantity   Int                @default(1)
-  occurredAt DateTime           @map("occurred_at")
-  source     String             @default("lua_mod")
+  eventKey   String              @map("event_key")
+  quantity   Int                 @default(1)
+  occurredAt DateTime            @map("occurred_at")
+  source     String              @default("lua_mod")
   metadata   Json?
-  createdAt  DateTime           @default(now()) @map("created_at")
+  createdAt  DateTime            @default(now()) @map("created_at")
 
-  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  player  ServerPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
-  grants  RewardGrant[]
+  profile  ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  player   ServerPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  grants   RewardGrant[]
   xpGrants XpGrant[]
 
   @@index([profileId, eventKey, occurredAt])
@@ -382,14 +389,14 @@ model TelemetryListener {
 }
 
 model WorkflowDefinition {
-  id         String   @id @default(cuid())
-  profileId  String   @map("profile_id")
-  key        String
-  name       String
-  isEnabled  Boolean  @default(true) @map("is_enabled")
-  config     Json?
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  profileId String   @map("profile_id")
+  key       String
+  name      String
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  config    Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   profile ServerProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   steps   WorkflowStep[]
@@ -466,15 +473,15 @@ model ActionRule {
 }
 
 model RewardRule {
-  id           String            @id @default(cuid())
-  profileId    String            @map("profile_id")
-  name         String
-  triggerType  RewardTriggerType @map("trigger_type")
-  rewardAmount Int               @default(0) @map("reward_amount")
-  isEnabled    Boolean           @default(true) @map("is_enabled")
-  triggerConfig Json?            @map("trigger_config")
-  createdAt    DateTime          @default(now()) @map("created_at")
-  updatedAt    DateTime          @updatedAt @map("updated_at")
+  id            String            @id @default(cuid())
+  profileId     String            @map("profile_id")
+  name          String
+  triggerType   RewardTriggerType @map("trigger_type")
+  rewardAmount  Int               @default(0) @map("reward_amount")
+  isEnabled     Boolean           @default(true) @map("is_enabled")
+  triggerConfig Json?             @map("trigger_config")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
 
   profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   grants  RewardGrant[]
@@ -485,12 +492,12 @@ model RewardRule {
 
 model PlayerWallet {
   id          String   @id @default(cuid())
-  playerId     String   @unique @map("player_id")
-  balance      Int      @default(0)
-  totalEarned  Int      @default(0) @map("total_earned")
-  totalSpent   Int      @default(0) @map("total_spent")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  playerId    String   @unique @map("player_id")
+  balance     Int      @default(0)
+  totalEarned Int      @default(0) @map("total_earned")
+  totalSpent  Int      @default(0) @map("total_spent")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   player ServerPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -499,10 +506,10 @@ model PlayerWallet {
 
 model PlayerXpBalance {
   id        String   @id @default(cuid())
-  playerId   String   @unique @map("player_id")
-  totalXp    Int      @default(0) @map("total_xp")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  playerId  String   @unique @map("player_id")
+  totalXp   Int      @default(0) @map("total_xp")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   player ServerPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -511,11 +518,11 @@ model PlayerXpBalance {
 
 model PlayerXpCategoryBalance {
   id        String   @id @default(cuid())
-  playerId   String   @map("player_id")
-  category   String
-  totalXp    Int      @default(0) @map("total_xp")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  playerId  String   @map("player_id")
+  category  String
+  totalXp   Int      @default(0) @map("total_xp")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   player ServerPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
@@ -526,16 +533,16 @@ model PlayerXpCategoryBalance {
 
 model RewardGrant {
   id            String   @id @default(cuid())
-  profileId      String   @map("profile_id")
-  playerId       String   @map("player_id")
-  ruleId         String?  @map("rule_id")
-  actionRuleId   String?  @map("action_rule_id")
-  sourceEventId  String?  @map("source_event_id")
-  uniqueKey      String?  @unique @map("unique_key")
-  amount         Int
-  reason         String
-  metadata       Json?
-  grantedAt      DateTime @default(now()) @map("granted_at")
+  profileId     String   @map("profile_id")
+  playerId      String   @map("player_id")
+  ruleId        String?  @map("rule_id")
+  actionRuleId  String?  @map("action_rule_id")
+  sourceEventId String?  @map("source_event_id")
+  uniqueKey     String?  @unique @map("unique_key")
+  amount        Int
+  reason        String
+  metadata      Json?
+  grantedAt     DateTime @default(now()) @map("granted_at")
 
   profile     ServerProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
   player      ServerPlayer          @relation(fields: [playerId], references: [id], onDelete: Cascade)
@@ -572,4 +579,287 @@ model XpGrant {
   @@index([playerId, grantedAt])
   @@index([playerId, category, grantedAt])
   @@map("xp_grants")
+}
+
+// =============================================================================
+// Storefront
+// =============================================================================
+
+enum StoreOptionDisplayType {
+  TEXT
+  COLOR
+}
+
+enum StoreOrderStatus {
+  PROCESSING
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum StoreOrderLineKind {
+  VARIANT
+  BUNDLE
+}
+
+model StoreCategory {
+  id              String   @id @default(cuid())
+  profileId       String   @map("profile_id")
+  name            String
+  slug            String
+  description     String?
+  heroTitle       String?  @map("hero_title")
+  heroDescription String?  @map("hero_description")
+  accentColor     String?  @map("accent_color")
+  icon            String?
+  sortOrder       Int      @default(0) @map("sort_order")
+  isFeatured      Boolean  @default(false) @map("is_featured")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  profile      ServerProfile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  productLinks StoreProductCategory[]
+
+  @@unique([profileId, slug])
+  @@unique([profileId, name])
+  @@index([profileId, isActive, sortOrder])
+  @@map("store_categories")
+}
+
+model StoreProduct {
+  id             String   @id @default(cuid())
+  profileId      String   @map("profile_id")
+  name           String
+  slug           String
+  summary        String?
+  description    String?
+  overview       String?
+  featureBullets Json?    @map("feature_bullets")
+  specs          Json?
+  badge          String?
+  accentColor    String?  @map("accent_color")
+  isFeatured     Boolean  @default(false) @map("is_featured")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  profile             ServerProfile                @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  categories          StoreProductCategory[]
+  optionGroups        StoreProductOptionGroup[]
+  variants            StoreProductVariant[]
+  orderLines          StoreOrderLine[]
+  recommendationsFrom StoreProductRecommendation[] @relation("StoreProductRecommendationSource")
+  recommendationsTo   StoreProductRecommendation[] @relation("StoreProductRecommendationTarget")
+
+  @@unique([profileId, slug])
+  @@index([profileId, isActive, isFeatured, sortOrder])
+  @@map("store_products")
+}
+
+model StoreProductCategory {
+  productId  String @map("product_id")
+  categoryId String @map("category_id")
+  sortOrder  Int    @default(0) @map("sort_order")
+
+  product  StoreProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category StoreCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+  @@index([categoryId, sortOrder])
+  @@map("store_product_categories")
+}
+
+model StoreProductOptionGroup {
+  id          String                 @id @default(cuid())
+  productId   String                 @map("product_id")
+  name        String
+  slug        String
+  displayType StoreOptionDisplayType @default(TEXT) @map("display_type")
+  sortOrder   Int                    @default(0) @map("sort_order")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  product StoreProduct              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  StoreProductOptionValue[]
+
+  @@unique([productId, slug])
+  @@index([productId, sortOrder])
+  @@map("store_product_option_groups")
+}
+
+model StoreProductOptionValue {
+  id            String   @id @default(cuid())
+  optionGroupId String   @map("option_group_id")
+  label         String
+  slug          String
+  description   String?
+  colorHex      String?  @map("color_hex")
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  optionGroup       StoreProductOptionGroup          @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
+  variantSelections StoreProductVariantOptionValue[]
+
+  @@unique([optionGroupId, slug])
+  @@index([optionGroupId, sortOrder])
+  @@map("store_product_option_values")
+}
+
+model StoreProductVariant {
+  id             String   @id @default(cuid())
+  productId      String   @map("product_id")
+  name           String
+  sku            String   @unique
+  itemCode       String   @map("item_code")
+  gameName       String?  @map("game_name")
+  gameCategory   String?  @map("game_category")
+  price          Int
+  compareAtPrice Int?     @map("compare_at_price")
+  quantity       Int      @default(1)
+  stock          Int?
+  weight         Decimal? @db.Decimal(10, 2)
+  badge          String?
+  imageUrl       String?  @map("image_url")
+  isDefault      Boolean  @default(false) @map("is_default")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  product     StoreProduct                     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  selections  StoreProductVariantOptionValue[]
+  bundleItems StoreBundleItem[]
+  orderLines  StoreOrderLine[]
+
+  @@index([productId, isActive, sortOrder])
+  @@index([itemCode])
+  @@map("store_product_variants")
+}
+
+model StoreProductVariantOptionValue {
+  variantId     String @map("variant_id")
+  optionValueId String @map("option_value_id")
+
+  variant     StoreProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  optionValue StoreProductOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, optionValueId])
+  @@index([optionValueId])
+  @@map("store_product_variant_option_values")
+}
+
+model StoreBundle {
+  id             String   @id @default(cuid())
+  profileId      String   @map("profile_id")
+  name           String
+  slug           String
+  summary        String?
+  description    String?
+  badge          String?
+  accentColor    String?  @map("accent_color")
+  price          Int
+  compareAtPrice Int?     @map("compare_at_price")
+  isFeatured     Boolean  @default(false) @map("is_featured")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  profile    ServerProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  items      StoreBundleItem[]
+  orderLines StoreOrderLine[]
+
+  @@unique([profileId, slug])
+  @@index([profileId, isActive, isFeatured, sortOrder])
+  @@map("store_bundles")
+}
+
+model StoreBundleItem {
+  bundleId  String @map("bundle_id")
+  variantId String @map("variant_id")
+  quantity  Int    @default(1)
+  sortOrder Int    @default(0) @map("sort_order")
+
+  bundle  StoreBundle         @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  variant StoreProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, variantId])
+  @@index([variantId])
+  @@map("store_bundle_items")
+}
+
+model StoreProductRecommendation {
+  sourceProductId String  @map("source_product_id")
+  targetProductId String  @map("target_product_id")
+  reason          String?
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  sourceProduct StoreProduct @relation("StoreProductRecommendationSource", fields: [sourceProductId], references: [id], onDelete: Cascade)
+  targetProduct StoreProduct @relation("StoreProductRecommendationTarget", fields: [targetProductId], references: [id], onDelete: Cascade)
+
+  @@id([sourceProductId, targetProductId])
+  @@index([targetProductId])
+  @@map("store_product_recommendations")
+}
+
+model StoreOrder {
+  id            String           @id @default(cuid())
+  profileId     String           @map("profile_id")
+  userId        String           @map("user_id")
+  playerId      String?          @map("player_id")
+  status        StoreOrderStatus @default(PROCESSING)
+  subtotal      Int
+  discountTotal Int              @default(0) @map("discount_total")
+  total         Int
+  notes         String?
+  metadata      Json?
+  deliveredAt   DateTime?        @map("delivered_at")
+  failedAt      DateTime?        @map("failed_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  profile ServerProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  player  ServerPlayer?    @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  lines   StoreOrderLine[]
+
+  @@index([profileId, createdAt])
+  @@index([userId, createdAt])
+  @@index([playerId, createdAt])
+  @@map("store_orders")
+}
+
+model StoreOrderLine {
+  id                 String             @id @default(cuid())
+  orderId            String             @map("order_id")
+  kind               StoreOrderLineKind
+  productId          String?            @map("product_id")
+  variantId          String?            @map("variant_id")
+  bundleId           String?            @map("bundle_id")
+  title              String
+  sku                String?
+  itemCode           String?            @map("item_code")
+  quantity           Int
+  unitPrice          Int                @map("unit_price")
+  compareAtUnitPrice Int?               @map("compare_at_unit_price")
+  total              Int
+  snapshot           Json?
+  sortOrder          Int                @default(0) @map("sort_order")
+  createdAt          DateTime           @default(now()) @map("created_at")
+
+  order   StoreOrder           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product StoreProduct?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant StoreProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  bundle  StoreBundle?         @relation(fields: [bundleId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, sortOrder])
+  @@index([productId])
+  @@index([variantId])
+  @@index([bundleId])
+  @@map("store_order_lines")
 }

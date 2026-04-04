@@ -1,6 +1,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { getPzDataPath } from './runtime-paths'
+
 /**
  * Parse a PZ server.ini file into a key-value map.
  */
@@ -31,8 +33,7 @@ export function serializeServerIni(data: Record<string, string>): string {
  * Read and parse server.ini from disk.
  */
 export function readServerIni(servername: string): Record<string, string> {
-  const config = useRuntimeConfig()
-  const iniPath = join(config.pzDataPath, 'Server', `${servername}.ini`)
+  const iniPath = join(getPzDataPath(), 'Server', `${servername}.ini`)
 
   if (!existsSync(iniPath)) {
     throw createError({ statusCode: 404, message: `server.ini not found for "${servername}"` })
@@ -46,8 +47,7 @@ export function readServerIni(servername: string): Record<string, string> {
  * Write server.ini to disk.
  */
 export function writeServerIni(servername: string, data: Record<string, string>): void {
-  const config = useRuntimeConfig()
-  const iniPath = join(config.pzDataPath, 'Server', `${servername}.ini`)
+  const iniPath = join(getPzDataPath(), 'Server', `${servername}.ini`)
   writeFileSync(iniPath, serializeServerIni(data), 'utf-8')
 }
 
@@ -102,8 +102,7 @@ export function serializeSandboxVars(data: Record<string, unknown>): string {
  * Read SandboxVars.lua from disk.
  */
 export function readSandboxVars(servername: string): Record<string, unknown> {
-  const config = useRuntimeConfig()
-  const luaPath = join(config.pzDataPath, 'Server', `${servername}_SandboxVars.lua`)
+  const luaPath = join(getPzDataPath(), 'Server', `${servername}_SandboxVars.lua`)
 
   if (!existsSync(luaPath)) {
     throw createError({ statusCode: 404, message: `SandboxVars.lua not found for "${servername}"` })
@@ -117,7 +116,6 @@ export function readSandboxVars(servername: string): Record<string, unknown> {
  * Write SandboxVars.lua to disk.
  */
 export function writeSandboxVars(servername: string, data: Record<string, unknown>): void {
-  const config = useRuntimeConfig()
-  const luaPath = join(config.pzDataPath, 'Server', `${servername}_SandboxVars.lua`)
+  const luaPath = join(getPzDataPath(), 'Server', `${servername}_SandboxVars.lua`)
   writeFileSync(luaPath, serializeSandboxVars(data), 'utf-8')
 }

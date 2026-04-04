@@ -1,15 +1,17 @@
 <script setup lang="ts">
-const { user, logout } = useAuth()
+const { user, logout, isAdmin } = useAuth()
 const { status } = useServerStatus()
 
-const navigation = [
+const navigation = computed(() => ([
   { name: 'Dashboard', href: '/', icon: 'home' },
   { name: 'Profiles', href: '/profiles', icon: 'server' },
   { name: 'Configuration', href: '/config', icon: 'settings' },
   { name: 'Mods', href: '/mods', icon: 'package' },
   { name: 'Backups', href: '/backups', icon: 'archive' },
   { name: 'Players', href: '/players', icon: 'users' },
-]
+  { name: 'Store', href: '/store', icon: 'shopping-bag' },
+  ...(isAdmin.value ? [{ name: 'Store Admin', href: '/admin/store', icon: 'panel-top' }] : []),
+]))
 </script>
 
 <template>

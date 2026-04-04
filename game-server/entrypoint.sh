@@ -8,6 +8,8 @@ set -e
 # --- Root-only init: fix volume permissions, then re-exec as steam ---
 if [ "$(id -u)" = "0" ]; then
     echo "[entrypoint] Running as root — fixing volume ownership..."
+    touch /home/steam/Zomboid/.servername 2>/dev/null || true
+    chmod 666 /home/steam/Zomboid/.servername 2>/dev/null || true
     chown steam:steam /home/steam/Zomboid 2>/dev/null || true
     chown -R steam:steam /home/steam/Zomboid/Lua 2>/dev/null || true
     chown -R steam:steam /home/steam/Zomboid/mods 2>/dev/null || true
@@ -16,7 +18,7 @@ if [ "$(id -u)" = "0" ]; then
     chown steam:steam /home/steam/Zomboid/Saves 2>/dev/null || true
     chmod -R 1777 /home/steam/Zomboid/Lua 2>/dev/null || true
     echo "[entrypoint] Dropping to steam user..."
-    exec su -p -s /bin/bash steam -- "$0" "$@"
+    exec env HOME=/home/steam su -p -s /bin/bash steam -- "$0" "$@"
 fi
 
 # --- Everything below runs as steam user ---

@@ -1,6 +1,7 @@
 import * as v from 'valibot'
 
 import { buildCompiledModConfig } from '../../utils/telemetry-config'
+import { getProfileSandboxVarsOverrides, getProfileServerIniOverrides } from '../../utils/profile-runtime-config'
 
 const QuerySchema = v.object({
   serverName: v.optional(v.string()),
@@ -32,6 +33,9 @@ export default defineEventHandler(async (event) => {
   return {
     profileId: profile.id,
     serverName: profile.servername,
+    steamBuild: profile.steamBuild,
+    serverIni: getProfileServerIniOverrides(profile),
+    sandboxVars: getProfileSandboxVarsOverrides(profile),
     ...buildCompiledModConfig(listeners),
   }
 })

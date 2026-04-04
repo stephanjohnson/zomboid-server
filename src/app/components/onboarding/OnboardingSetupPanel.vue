@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { steamBuildOptions, type SteamBuild } from '~~/shared/game-build'
+
 const router = useRouter()
 const { fetchStatus } = useOnboardingStatus()
 
@@ -8,6 +10,7 @@ const error = ref('')
 
 const form = reactive({
   serverName: 'My Zomboid Server',
+  build: 'public' as SteamBuild,
   adminUsername: 'admin',
   password: '',
   confirmPassword: '',
@@ -49,6 +52,7 @@ async function handleSubmit() {
       body: {
         server: {
           name: form.serverName,
+          build: form.build,
         },
         admin: {
           username: form.adminUsername,
@@ -129,6 +133,30 @@ async function handleSubmit() {
             />
             <p class="text-sm text-muted-foreground">
               This becomes the name of the initial active profile and the default Project Zomboid server slug.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="server-build">Game build</Label>
+            <Select v-model="form.build">
+              <SelectTrigger id="server-build">
+                <SelectValue placeholder="Select a game build" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="option in steamBuildOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-sm text-muted-foreground">
+              {{ steamBuildOptions.find(option => option.value === form.build)?.description }}
+            </p>
+            <p class="text-sm text-muted-foreground">
+              Selecting the unstable build will restart the game server and apply the matching Steam branch during setup.
             </p>
           </div>
         </div>

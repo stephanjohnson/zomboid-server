@@ -1,3 +1,5 @@
+const readRuntimeEnv = (name: string, fallback: string) => process.env[`NUXT_${name}`] ?? process.env[name] ?? fallback
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
 
@@ -20,24 +22,24 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    // Private (server-only) — set via NUXT_ env vars
-    appSecret: process.env.APP_SECRET || 'dev-secret',
+    // Private (server-only)
+    appSecret: readRuntimeEnv('APP_SECRET', 'dev-secret'),
 
-    databaseUrl: process.env.DATABASE_URL || 'postgresql://zomboid:zomboid@localhost:5432/zomboid',
+    databaseUrl: readRuntimeEnv('DATABASE_URL', 'postgresql://zomboid:zomboid@localhost:5432/zomboid'),
 
-    rabbitmqUrl: process.env.RABBITMQ_URL || 'amqp://zomboid:zomboid@localhost:5672',
+    rabbitmqUrl: readRuntimeEnv('RABBITMQ_URL', 'amqp://zomboid:zomboid@localhost:5672'),
 
-    dockerProxyUrl: process.env.DOCKER_PROXY_URL || 'http://localhost:2375',
-    gameServerContainerName: process.env.GAME_SERVER_CONTAINER_NAME || 'pz-game-server',
+    dockerProxyUrl: readRuntimeEnv('DOCKER_PROXY_URL', 'http://localhost:2375'),
+    gameServerContainerName: readRuntimeEnv('GAME_SERVER_CONTAINER_NAME', 'pz-game-server'),
 
-    pzRconHost: process.env.PZ_RCON_HOST || 'localhost',
-    pzRconPort: Number(process.env.PZ_RCON_PORT) || 27015,
-    pzRconPassword: process.env.PZ_RCON_PASSWORD || '',
+    pzRconHost: readRuntimeEnv('PZ_RCON_HOST', 'localhost'),
+    pzRconPort: Number(readRuntimeEnv('PZ_RCON_PORT', '27015')),
+    pzRconPassword: readRuntimeEnv('PZ_RCON_PASSWORD', ''),
 
-    pzDataPath: process.env.PZ_DATA_PATH || '/pz-data',
-    pzServerPath: process.env.PZ_SERVER_PATH || '/pz-server',
-    backupPath: process.env.BACKUP_PATH || '/backups',
-    luaBridgePath: process.env.LUA_BRIDGE_PATH || '/lua-bridge',
+    pzDataPath: readRuntimeEnv('PZ_DATA_PATH', '/pz-data'),
+    pzServerPath: readRuntimeEnv('PZ_SERVER_PATH', '/pz-server'),
+    backupPath: readRuntimeEnv('BACKUP_PATH', '/backups'),
+    luaBridgePath: readRuntimeEnv('LUA_BRIDGE_PATH', '/lua-bridge'),
 
     public: {
       appName: 'Zomboid Server Manager',

@@ -3,8 +3,8 @@ import type { PrismaClient } from '@prisma/client'
 
 import { hashPassword } from './auth'
 import { prisma } from './db'
-import { writeActiveServernameOverride } from './servername-override'
 import { defaultActionRules, defaultTelemetryListeners } from './telemetry-config'
+import type { SteamBuild } from '../../shared/game-build'
 
 const { TriggerSourceKind, UserRole } = prismaClient
 
@@ -16,6 +16,7 @@ export interface SetupStatus {
 
 interface SeedInitialSetupInput {
   serverName: string
+  steamBuild?: SteamBuild
   adminUsername: string
   adminPassword: string
   adminEmail?: string
@@ -78,6 +79,7 @@ export async function seedInitialSetup(
         name: serverName,
         isActive: true,
         servername: toServerSlug(serverName),
+        steamBuild: input.steamBuild ?? 'public',
         mapName: input.mapName || 'Muldraugh, KY',
         maxPlayers: input.maxPlayers ?? 16,
         pvp: input.pvp ?? true,
@@ -111,7 +113,5 @@ export async function seedInitialSetup(
 
     return { user, profile }
   })
-
-  await writeActiveServernameOverride(result.profile.servername)
   return result
 }
