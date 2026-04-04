@@ -26,12 +26,17 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div>
-    <h1 class="text-2xl font-bold text-center mb-6">
-      Zomboid Server Manager
-    </h1>
-    <form class="space-y-4" @submit.prevent="handleLogin">
-      <div class="space-y-2">
+  <form class="flex flex-col gap-6" @submit.prevent="handleLogin">
+    <div class="flex flex-col items-center gap-1 text-center">
+      <h1 class="text-2xl font-bold">
+        Login to your account
+      </h1>
+      <p class="text-muted-foreground text-sm text-balance">
+        Enter your credentials to access the server manager
+      </p>
+    </div>
+    <div class="grid gap-6">
+      <div class="grid gap-2">
         <Label for="username">Username</Label>
         <Input
           id="username"
@@ -42,7 +47,7 @@ async function handleLogin() {
           placeholder="admin"
         />
       </div>
-      <div class="space-y-2">
+      <div class="grid gap-2">
         <Label for="password">Password</Label>
         <Input
           id="password"
@@ -56,13 +61,9 @@ async function handleLogin() {
       <Alert v-if="error" variant="destructive">
         <AlertDescription>{{ error }}</AlertDescription>
       </Alert>
-      <Button
-        type="submit"
-        :disabled="loading"
-        class="w-full"
-      >
-        {{ loading ? 'Signing in...' : 'Sign in' }}
+      <Button type="submit" class="w-full" :disabled="loading">
+        {{ loading ? 'Signing in...' : 'Login' }}
       </Button>
-    </form>
-  </div>
+    </div>
+  </form>
 </template>

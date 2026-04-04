@@ -74,172 +74,132 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <Card class="border-border/60 bg-background/95 shadow-2xl shadow-slate-950/5">
-    <CardHeader class="space-y-6">
-      <div class="space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-          First-Run Setup
+  <form class="flex flex-col gap-6" @submit.prevent="handleSubmit">
+    <div class="flex flex-col items-center gap-1 text-center">
+      <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+        First-Run Setup
+      </p>
+      <h1 class="text-2xl font-bold">
+        Initialize your server
+      </h1>
+      <p class="text-muted-foreground text-sm text-balance">
+        Create the first admin account and provision the default server profile
+      </p>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 rounded-lg bg-muted/60 p-1">
+      <button
+        type="button"
+        class="rounded-md px-3 py-2 text-left text-sm transition"
+        :class="step === 1 ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'"
+        @click="step = 1"
+      >
+        <span class="text-xs text-muted-foreground">Step 1</span>
+        <p>Server identity</p>
+      </button>
+      <button
+        type="button"
+        class="rounded-md px-3 py-2 text-left text-sm transition"
+        :class="step === 2 ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'"
+        @click="step = canContinue ? 2 : 1"
+      >
+        <span class="text-xs text-muted-foreground">Step 2</span>
+        <p>Admin access</p>
+      </button>
+    </div>
+
+    <div v-if="step === 1" class="grid gap-6">
+      <div class="grid gap-2">
+        <Label for="server-name">Server name</Label>
+        <Input
+          id="server-name"
+          v-model="form.serverName"
+          type="text"
+          required
+          autocomplete="organization"
+          placeholder="Weekend Survivors"
+        />
+        <p class="text-xs text-muted-foreground">
+          Name of the initial active profile and the default server slug.
         </p>
-        <CardTitle class="text-3xl leading-tight">
-          Initialize your Zomboid server manager
-        </CardTitle>
-        <CardDescription class="max-w-xl text-sm leading-6">
-          This creates the first admin account and provisions the default active server profile.
-        </CardDescription>
       </div>
 
-      <div class="grid grid-cols-2 gap-2 rounded-xl bg-muted/60 p-1">
-        <button
-          type="button"
-          class="rounded-lg px-4 py-3 text-left transition"
-          :class="step === 1 ? 'bg-background shadow-sm' : 'text-muted-foreground'"
-          @click="step = 1"
-        >
-          <p class="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-            Step 1
-          </p>
-          <p class="mt-1 text-sm font-medium">
-            Server identity
-          </p>
-        </button>
-        <button
-          type="button"
-          class="rounded-lg px-4 py-3 text-left transition"
-          :class="step === 2 ? 'bg-background shadow-sm' : 'text-muted-foreground'"
-          @click="step = canContinue ? 2 : 1"
-        >
-          <p class="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-            Step 2
-          </p>
-          <p class="mt-1 text-sm font-medium">
-            Admin access
-          </p>
-        </button>
+      <div class="grid gap-2">
+        <Label for="server-build">Game build</Label>
+        <Select v-model="form.build">
+          <SelectTrigger id="server-build">
+            <SelectValue placeholder="Select a game build" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="option in steamBuildOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p class="text-xs text-muted-foreground">
+          {{ steamBuildOptions.find(option => option.value === form.build)?.description }}
+        </p>
       </div>
-    </CardHeader>
 
-    <form @submit.prevent="handleSubmit">
-      <CardContent class="space-y-6">
-        <div v-if="step === 1" class="space-y-5">
-          <div class="space-y-2">
-            <Label for="server-name">Server name</Label>
-            <Input
-              id="server-name"
-              v-model="form.serverName"
-              type="text"
-              required
-              autocomplete="organization"
-              placeholder="Weekend Survivors"
-            />
-            <p class="text-sm text-muted-foreground">
-              This becomes the name of the initial active profile and the default Project Zomboid server slug.
-            </p>
-          </div>
+      <Button type="button" class="w-full" @click="goToAdminStep">
+        Continue
+      </Button>
+    </div>
 
-          <div class="space-y-2">
-            <Label for="server-build">Game build</Label>
-            <Select v-model="form.build">
-              <SelectTrigger id="server-build">
-                <SelectValue placeholder="Select a game build" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in steamBuildOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p class="text-sm text-muted-foreground">
-              {{ steamBuildOptions.find(option => option.value === form.build)?.description }}
-            </p>
-            <p class="text-sm text-muted-foreground">
-              Selecting the unstable build will restart the game server and apply the matching Steam branch during setup.
-            </p>
-          </div>
-        </div>
+    <div v-else class="grid gap-6">
+      <div class="grid gap-2">
+        <Label for="admin-username">Admin username</Label>
+        <Input
+          id="admin-username"
+          v-model="form.adminUsername"
+          type="text"
+          required
+          minlength="3"
+          autocomplete="username"
+          placeholder="admin"
+        />
+      </div>
+      <div class="grid gap-2">
+        <Label for="admin-password">Password</Label>
+        <Input
+          id="admin-password"
+          v-model="form.password"
+          type="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+          placeholder="Minimum 8 characters"
+        />
+      </div>
+      <div class="grid gap-2">
+        <Label for="admin-password-confirm">Confirm password</Label>
+        <Input
+          id="admin-password-confirm"
+          v-model="form.confirmPassword"
+          type="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+          placeholder="Re-enter password"
+        />
+      </div>
 
-        <div v-else class="space-y-5">
-          <div class="grid gap-5 sm:grid-cols-2">
-            <div class="space-y-2 sm:col-span-2">
-              <Label for="admin-username">Admin username</Label>
-              <Input
-                id="admin-username"
-                v-model="form.adminUsername"
-                type="text"
-                required
-                minlength="3"
-                autocomplete="username"
-                placeholder="admin"
-              />
-            </div>
-            <div class="space-y-2">
-              <Label for="admin-password">Admin password</Label>
-              <Input
-                id="admin-password"
-                v-model="form.password"
-                type="password"
-                required
-                minlength="8"
-                autocomplete="new-password"
-                placeholder="Minimum 8 characters"
-              />
-            </div>
-            <div class="space-y-2">
-              <Label for="admin-password-confirm">Confirm password</Label>
-              <Input
-                id="admin-password-confirm"
-                v-model="form.confirmPassword"
-                type="password"
-                required
-                minlength="8"
-                autocomplete="new-password"
-                placeholder="Re-enter password"
-              />
-            </div>
-          </div>
+      <Alert v-if="error" variant="destructive">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
 
-          <Alert>
-            <AlertTitle>What happens next</AlertTitle>
-            <AlertDescription>
-              The app will create your first administrator, seed the initial profile data, and sign you into the dashboard automatically.
-            </AlertDescription>
-          </Alert>
-        </div>
-
-        <Alert v-if="error" variant="destructive">
-          <AlertDescription>{{ error }}</AlertDescription>
-        </Alert>
-      </CardContent>
-
-      <CardFooter class="flex flex-col gap-3 border-t border-border/60 bg-muted/20 sm:flex-row sm:justify-between">
-        <Button
-          v-if="step === 2"
-          type="button"
-          variant="outline"
-          @click="step = 1"
-        >
+      <div class="grid gap-2">
+        <Button type="submit" class="w-full" :disabled="loading">
+          {{ loading ? 'Initializing...' : 'Initialize application' }}
+        </Button>
+        <Button type="button" variant="outline" class="w-full" @click="step = 1">
           Back
         </Button>
-        <div class="sm:ml-auto">
-          <Button
-            v-if="step === 1"
-            type="button"
-            @click="goToAdminStep"
-          >
-            Continue
-          </Button>
-          <Button
-            v-else
-            type="submit"
-            :disabled="loading"
-          >
-            {{ loading ? 'Initializing...' : 'Initialize application' }}
-          </Button>
-        </div>
-      </CardFooter>
-    </form>
-  </Card>
+      </div>
+    </div>
+  </form>
 </template>

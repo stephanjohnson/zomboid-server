@@ -207,6 +207,9 @@ function mapVariantSummary(
     weight: variant.weight ? Number(variant.weight) : null,
     badge: variant.badge,
     imageUrl: variant.imageUrl,
+    metadata: variant.metadata && typeof variant.metadata === 'object' && !Array.isArray(variant.metadata)
+      ? variant.metadata as Record<string, unknown>
+      : null,
     isDefault: variant.isDefault,
     isActive: variant.isActive,
     selections,

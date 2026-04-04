@@ -2,8 +2,9 @@ require("ZM_JSON")
 
 ZM_Utils = {}
 
-local API_TELEMETRY_URL = "http://nitro-app:3000/api/mod/telemetry"
-local API_CONFIG_URL = "http://nitro-app:3000/api/mod/config"
+local API_BASE_URL = os.getenv("ZM_API_BASE_URL") or "http://nitro-app:3000/api/mod"
+local API_TELEMETRY_URL = API_BASE_URL .. "/telemetry"
+local API_CONFIG_URL = API_BASE_URL .. "/config"
 local TEMP_UPLOAD_PATH = "/home/steam/Zomboid/Lua/bridge_payload.json"
 local TEMP_CONFIG_PATH = "/home/steam/Zomboid/Lua/bridge_config.json"
 

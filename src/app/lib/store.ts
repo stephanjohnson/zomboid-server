@@ -43,6 +43,7 @@ export interface StoreProductVariant {
   weight?: number | null
   badge?: string | null
   imageUrl?: string | null
+  metadata?: Record<string, unknown> | null
   isDefault: boolean
   isActive: boolean
   selections: StoreVariantSelection[]

@@ -6,7 +6,8 @@ services:
     build:
       context: ./game-server
       dockerfile: Dockerfile
-    container_name: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
+    image: ${GAME_SERVER_IMAGE:-pz-game-server:local}
+    container_name: ${GAME_SERVER_CONTAINER_NAME:-pz-game-server}
     restart: unless-stopped
     ports:
       - "${PZ_GAME_PORT:-16261}:${PZ_GAME_PORT:-16261}/udp"
@@ -23,9 +24,7 @@ services:
       PZ_RCON_PASSWORD: ${PZ_RCON_PASSWORD:-}
       PZ_ADMIN_PASSWORD: ${PZ_RCON_PASSWORD:-}
       PZ_STEAM_BRANCH: ${PZ_STEAM_BRANCH:-public}
-    depends_on:
-      nitro-app:
-        condition: service_started
+      ZM_API_BASE_URL: ${MOD_API_BASE_URL:-http://nitro-app:3000/api/mod}
     networks:
       - zomboid-net
 

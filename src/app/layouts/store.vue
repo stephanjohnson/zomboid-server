@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { Toaster } from '@/components/ui/sonner'
+
 const { user, logout, isAdmin } = useAuth()
 const { itemCount } = useStoreCart()
 </script>
 
 <template>
   <div class="min-h-screen bg-background">
+    <NuxtLoadingIndicator color="var(--color-primary)" />
     <header class="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
@@ -70,5 +73,6 @@ const { itemCount } = useStoreCart()
     <main>
       <slot />
     </main>
+    <Toaster rich-colors />
   </div>
 </template>

@@ -26,7 +26,7 @@ The design language should read as:
 
 ## Theme Contract
 
-The global theme in `app/assets/css/main.css` is the only place where visual tokens should be defined.
+The global theme in `app/assets/css/theme.css` is the only place where visual tokens should be defined.
 
 Use semantic tokens only:
 

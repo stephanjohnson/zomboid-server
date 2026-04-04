@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineProps<{
   status: {
-    container: { running: boolean, status: string, startedAt: string | null }
+    container: { exists: boolean, running: boolean, status: string, statusLabel: string, startedAt: string | null }
     rcon: boolean
     activeProfile: { id: string, name: string } | null
   } | null
@@ -22,9 +22,9 @@ defineProps<{
           <div class="flex items-center gap-2">
             <span
               class="h-2.5 w-2.5 rounded-full"
-              :class="status?.container?.running ? 'bg-green-500' : 'bg-red-500'"
+              :class="status?.container?.running ? 'bg-green-500' : status?.container?.exists ? 'bg-yellow-500' : 'bg-slate-400'"
             />
-            <span class="font-medium capitalize">{{ status?.container?.status || 'unknown' }}</span>
+            <span class="font-medium">{{ status?.container?.statusLabel || 'Unknown' }}</span>
           </div>
         </div>
         <div>

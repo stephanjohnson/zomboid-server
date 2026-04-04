@@ -1,4 +1,5 @@
 require("ZM_Utils")
+require("ZM_ItemCatalog")
 require("ZM_PvpTracker")
 
 print("[ZomboidManager] Initializing configurable telemetry bridge...")
@@ -173,6 +174,12 @@ end
 local function onServerStarted()
     ZM_Utils.fetchRuntimeConfig(true)
     ZM_PvpTracker.init()
+    local ok, count = pcall(ZM_ItemCatalog.export)
+    if ok then
+        print("[ZomboidManager] Exported item catalog with " .. tostring(count) .. " entries")
+    else
+        print("[ZomboidManager] Failed to export item catalog: " .. tostring(count))
+    end
     uploadTelemetry(true, true, "server_started")
 end
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   status: {
-    container: { running: boolean }
+    container: { exists: boolean, running: boolean }
     rcon: boolean
   } | null
 }>()
@@ -35,7 +35,7 @@ async function serverAction(action: string) {
           class="bg-green-600 hover:bg-green-700"
           @click="serverAction('start')"
         >
-          {{ loading === 'start' ? 'Starting...' : 'Start Server' }}
+          {{ loading === 'start' ? 'Starting...' : status?.container?.exists ? 'Start Server' : 'Create & Start Server' }}
         </Button>
         <Button
           v-if="status?.container?.running"

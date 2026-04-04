@@ -5,7 +5,19 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    await startGameContainer()
+    const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
+
+    if (!profile) {
+      throw createError({ statusCode: 409, message: 'No active server profile available to start' })
+    }
+
+    await startGameContainer({
+      servername: profile.servername,
+      gamePort: profile.gamePort,
+      directPort: profile.directPort,
+      rconPort: profile.rconPort,
+      steamBuild: profile.steamBuild,
+    })
 
     await prisma.auditLog.create({
       data: {

@@ -46,8 +46,64 @@ interface CatalogSearchResult {
   fullType: string
   name: string
   category: string | null
+  displayCategory?: string | null
   iconName: string | null
+  textureIcon?: string | null
+  iconUrl?: string | null
   source: 'lua_bridge' | 'telemetry'
+  weight?: number | null
+  isTwoHandWeapon?: boolean | null
+  maxCondition?: number | null
+}
+
+interface CatalogSpecRow {
+  group: string
+  label: string
+  value: string
+}
+
+interface CatalogImportPayload {
+  product: {
+    name: string
+    summary: string
+    description: string
+    overview: string
+    featureBullets: string[]
+    specs: CatalogSpecRow[]
+  }
+  variant: {
+    name: string
+    itemCode: string
+    gameName: string
+    gameCategory: string | null
+    weight: number | null
+    imageUrl: string | null
+    metadata: Record<string, unknown>
+  }
+}
+
+interface CatalogItemEnrichment {
+  item: CatalogSearchResult & {
+    attachmentType?: string | null
+    attachmentSlots?: string[]
+    tags?: string[]
+    categories?: string[]
+  }
+  wiki: {
+    pageTitle: string | null
+    pageUrl: string | null
+    imageUrl: string | null
+    summary: string | null
+    status: 'fetched' | 'blocked' | 'derived' | 'unavailable'
+    note: string | null
+  }
+  derived: {
+    summary: string
+    overview: string
+    featureBullets: string[]
+    specs: CatalogSpecRow[]
+  }
+  importPayload: CatalogImportPayload
 }
 
 const bootstrapDefault: AdminStoreBootstrap = {
@@ -98,6 +154,10 @@ const activeTab = ref('overview')
 const categoryNotice = ref('')
 const productNotice = ref('')
 const bundleNotice = ref('')
+const catalogImportNotice = ref('')
+const catalogImportError = ref('')
+const catalogImportingFullType = ref('')
+const lastCatalogImport = ref<CatalogItemEnrichment | null>(null)
 
 const categoryForm = reactive({
   name: '',
@@ -152,6 +212,7 @@ const productForm = reactive({
       weight: undefined as number | undefined,
       badge: '',
       imageUrl: '',
+      metadata: null as Record<string, unknown> | null,
       isDefault: true,
       isActive: true,
       selections: { side: 'left' } as Record<string, string>,
@@ -231,6 +292,21 @@ function specsFromText() {
     .filter((row): row is { group: string, label: string, value: string } => Boolean(row))
 }
 
+function formatSpecsText(rows: CatalogSpecRow[]) {
+  return rows.map(row => `${row.group} | ${row.label}: ${row.value}`).join('\n')
+}
+
+function isVariantBlank(variant: typeof productForm.variants[number]) {
+  return !variant.name
+    && !variant.itemCode
+    && !variant.gameName
+    && !variant.gameCategory
+    && !variant.badge
+    && !variant.imageUrl
+    && typeof variant.weight !== 'number'
+    && variant.price === 0
+}
+
 function resetCategoryForm() {
   categoryForm.name = ''
   categoryForm.slug = ''
@@ -284,6 +360,7 @@ function resetProductForm() {
       weight: undefined,
       badge: '',
       imageUrl: '',
+      metadata: null,
       isDefault: true,
       isActive: true,
       selections: { side: 'left' },
@@ -373,10 +450,39 @@ function addVariant(prefill?: Partial<typeof productForm.variants[number]>) {
     weight: prefill?.weight,
     badge: prefill?.badge || '',
     imageUrl: prefill?.imageUrl || '',
+    metadata: prefill?.metadata || null,
     isDefault: Boolean(prefill?.isDefault),
     isActive: prefill?.isActive ?? true,
     selections: prefill?.selections || (firstGroupKey && firstValue ? { [firstGroupKey]: optionValueKey(firstValue, 0) } : {}),
   })
+}
+
+function replaceOrAppendVariant(prefill: Partial<typeof productForm.variants[number]>) {
+  const firstVariant = productForm.variants[0]
+  if (firstVariant && isVariantBlank(firstVariant)) {
+    productForm.variants[0] = {
+      ...firstVariant,
+      name: prefill?.name || '',
+      sku: prefill?.sku || '',
+      itemCode: prefill?.itemCode || '',
+      gameName: prefill?.gameName || '',
+      gameCategory: prefill?.gameCategory || '',
+      price: prefill?.price ?? 0,
+      compareAtPrice: prefill?.compareAtPrice,
+      quantity: prefill?.quantity ?? 1,
+      stock: prefill?.stock,
+      weight: prefill?.weight,
+      badge: prefill?.badge || '',
+      imageUrl: prefill?.imageUrl || '',
+      metadata: prefill?.metadata || null,
+      isDefault: prefill?.isDefault ?? true,
+      isActive: prefill?.isActive ?? true,
+      selections: prefill?.selections || firstVariant.selections,
+    }
+    return
+  }
+
+  addVariant(prefill)
 }
 
 function removeVariant(index: number) {
@@ -400,17 +506,77 @@ function removeBundleItem(index: number) {
 }
 
 function seedVariantFromCatalog(item: CatalogSearchResult) {
-  addVariant({
+  replaceOrAppendVariant({
     name: item.name,
     itemCode: item.fullType,
     gameName: item.name,
-    gameCategory: item.category || '',
+    gameCategory: item.displayCategory || item.category || '',
+    weight: item.weight ?? undefined,
+    imageUrl: item.iconUrl || '',
+    price: 0,
+  })
+}
+
+function applyImportedCatalogItem(enrichment: CatalogItemEnrichment) {
+  const payload = enrichment.importPayload
+
+  if (!productForm.name.trim()) {
+    productForm.name = payload.product.name
+  }
+  if (!productForm.summary.trim()) {
+    productForm.summary = payload.product.summary
+  }
+  if (!productForm.description.trim()) {
+    productForm.description = payload.product.description
+  }
+  if (!productForm.overview.trim()) {
+    productForm.overview = payload.product.overview
+  }
+  if (!productForm.featureBulletsText.trim() && payload.product.featureBullets.length) {
+    productForm.featureBulletsText = payload.product.featureBullets.join('\n')
+  }
+  if (!productForm.specsText.trim() && payload.product.specs.length) {
+    productForm.specsText = formatSpecsText(payload.product.specs)
+  }
+
+  replaceOrAppendVariant({
+    name: payload.variant.name,
+    itemCode: payload.variant.itemCode,
+    gameName: payload.variant.gameName,
+    gameCategory: payload.variant.gameCategory || '',
+    weight: payload.variant.weight ?? undefined,
+    imageUrl: payload.variant.imageUrl || '',
+    metadata: payload.variant.metadata,
     price: 0,
   })
 }
 
 async function searchCatalog() {
   await refreshCatalogSearch()
+}
+
+async function importCatalogItem(fullType: string) {
+  catalogImportingFullType.value = fullType
+  catalogImportError.value = ''
+
+  try {
+    const response = await $fetch<{ enrichment: CatalogItemEnrichment }>('/api/store/admin/catalog/item', {
+      query: { fullType },
+    })
+
+    lastCatalogImport.value = response.enrichment
+    applyImportedCatalogItem(response.enrichment)
+    activeTab.value = 'products'
+    catalogImportNotice.value = `Imported ${response.enrichment.item.name} into the product builder.`
+  }
+  catch (error) {
+    catalogImportError.value = error instanceof Error
+      ? error.message
+      : 'Failed to import item details from the catalog.'
+  }
+  finally {
+    catalogImportingFullType.value = ''
+  }
 }
 
 async function submitCategory() {
@@ -580,6 +746,15 @@ async function deleteBundle(bundleId: string) {
             </CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
+            <Alert v-if="catalogImportNotice || catalogImportError || lastCatalogImport?.wiki.note">
+              <AlertTitle>
+                {{ catalogImportError || catalogImportNotice || 'Catalog import ready' }}
+              </AlertTitle>
+              <AlertDescription>
+                {{ catalogImportError || lastCatalogImport?.wiki.note || 'Imported copy, specs, and variant details can be refined in the Products tab.' }}
+              </AlertDescription>
+            </Alert>
+
             <div class="flex flex-col gap-3 md:flex-row">
               <Input
                 v-model="catalogQuery"
@@ -597,20 +772,56 @@ async function deleteBundle(bundleId: string) {
                 class="border-dashed"
               >
                 <CardHeader class="pb-3">
-                  <CardTitle class="text-base">
-                    {{ item.name }}
-                  </CardTitle>
-                  <CardDescription>
-                    {{ item.fullType }}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent class="flex items-center justify-between gap-3 text-sm">
-                  <div class="text-muted-foreground">
-                    {{ item.category || 'Unknown category' }}
+                  <div class="flex items-start gap-3">
+                    <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
+                      <img
+                        v-if="item.iconUrl"
+                        :src="item.iconUrl"
+                        :alt="item.name"
+                        class="h-full w-full object-contain"
+                      >
+                      <div v-else class="text-xs text-muted-foreground">
+                        No image
+                      </div>
+                    </div>
+                    <div class="min-w-0 space-y-1">
+                      <CardTitle class="text-base">
+                        {{ item.name }}
+                      </CardTitle>
+                      <CardDescription>
+                        {{ item.fullType }}
+                      </CardDescription>
+                    </div>
                   </div>
-                  <Button variant="secondary" @click="seedVariantFromCatalog(item)">
-                    Add as variant
-                  </Button>
+                </CardHeader>
+                <CardContent class="space-y-4 text-sm">
+                  <div class="flex flex-wrap gap-2">
+                    <Badge variant="outline">
+                      {{ item.displayCategory || item.category || 'Unknown category' }}
+                    </Badge>
+                    <Badge v-if="typeof item.weight === 'number'" variant="outline">
+                      {{ item.weight }} enc.
+                    </Badge>
+                    <Badge v-if="item.isTwoHandWeapon" variant="outline">
+                      Two-handed
+                    </Badge>
+                    <Badge v-if="typeof item.maxCondition === 'number'" variant="outline">
+                      Cond. {{ item.maxCondition }}
+                    </Badge>
+                  </div>
+
+                  <div class="flex flex-wrap justify-end gap-2">
+                    <Button variant="outline" @click="seedVariantFromCatalog(item)">
+                      Add variant only
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      :disabled="catalogImportingFullType === item.fullType"
+                      @click="importCatalogItem(item.fullType)"
+                    >
+                      {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import details' }}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -697,6 +908,15 @@ async function deleteBundle(bundleId: string) {
         <Alert v-if="productNotice">
           <AlertTitle>Saved</AlertTitle>
           <AlertDescription>{{ productNotice }}</AlertDescription>
+        </Alert>
+
+        <Alert v-if="catalogImportNotice || catalogImportError || lastCatalogImport?.wiki.note">
+          <AlertTitle>
+            {{ catalogImportError || catalogImportNotice || 'Imported item details' }}
+          </AlertTitle>
+          <AlertDescription>
+            {{ catalogImportError || lastCatalogImport?.wiki.note || 'Review the imported copy, specs, weight, and image fields before creating the product.' }}
+          </AlertDescription>
         </Alert>
 
         <Card>
@@ -912,11 +1132,25 @@ async function deleteBundle(bundleId: string) {
                       <Input v-model="variant.badge" placeholder="Variant badge" />
                     </div>
 
-                    <div class="grid gap-4 lg:grid-cols-4">
+                    <div class="grid gap-4 lg:grid-cols-5">
                       <Input v-model.number="variant.price" type="number" min="0" placeholder="Price" />
                       <Input v-model.number="variant.compareAtPrice" type="number" min="0" placeholder="Compare-at" />
                       <Input v-model.number="variant.quantity" type="number" min="1" placeholder="PZ quantity" />
                       <Input v-model.number="variant.stock" type="number" min="0" placeholder="Stock (blank = unlimited)" />
+                      <Input v-model.number="variant.weight" type="number" min="0" step="0.01" placeholder="Weight" />
+                    </div>
+
+                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px]">
+                      <Input v-model="variant.imageUrl" placeholder="Image URL" />
+                      <div class="flex h-24 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
+                        <img
+                          v-if="variant.imageUrl"
+                          :src="variant.imageUrl"
+                          :alt="variant.gameName || variant.name || 'Variant image'"
+                          class="h-full w-full object-contain"
+                        >
+                        <span v-else class="text-xs text-muted-foreground">No image</span>
+                      </div>
                     </div>
 
                     <div class="grid gap-4 lg:grid-cols-2">

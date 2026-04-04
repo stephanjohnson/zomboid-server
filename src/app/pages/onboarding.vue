@@ -10,7 +10,5 @@ if (status?.isComplete) {
 </script>
 
 <template>
-  <div class="mx-auto max-w-2xl">
-    <OnboardingSetupPanel />
-  </div>
+  <OnboardingSetupPanel />
 </template>

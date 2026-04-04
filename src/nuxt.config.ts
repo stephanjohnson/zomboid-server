@@ -1,24 +1,49 @@
 const readRuntimeEnv = (name: string, fallback: string) => process.env[`NUXT_${name}`] ?? process.env[name] ?? fallback
 
 export default defineNuxtConfig({
-  compatibilityDate: '2025-01-01',
-
-  future: {
-    compatibilityVersion: 4,
-  },
+  compatibilityDate: '2025-07-15',
 
   devtools: { enabled: true },
 
   modules: [
     '@nuxtjs/tailwindcss',
     'shadcn-nuxt',
+    '@nuxt/icon',
+    '@nuxt/fonts',
+    '@nuxtjs/i18n',
+    '@nuxtjs/color-mode',
     '@nuxt/eslint',
     'nuxt-auth-utils',
   ],
 
+  // https://nuxt.com/modules/color-mode
+  colorMode: {
+    preference: 'system',
+    fallback: 'light',
+    classSuffix: '',
+  },
+
+  // https://nuxt.com/modules/fonts
+  fonts: {
+    families: [
+      { name: 'Inter', provider: 'google', global: true },
+    ],
+    provider: 'google',
+  },
+
+  // https://nuxt.com/modules/i18n
+  i18n: {
+    locales: ['en'],
+    defaultLocale: 'en',
+  },
+
+  // https://nuxt.com/modules/icon
+  icon: {},
+
+  // https://nuxt.com/modules/shadcn
   shadcn: {
     prefix: '',
-    componentDir: './app/components/ui',
+    componentDir: '@/components/ui',
   },
 
   runtimeConfig: {
@@ -31,6 +56,9 @@ export default defineNuxtConfig({
 
     dockerProxyUrl: readRuntimeEnv('DOCKER_PROXY_URL', 'http://localhost:2375'),
     gameServerContainerName: readRuntimeEnv('GAME_SERVER_CONTAINER_NAME', 'pz-game-server'),
+    gameServerImageName: readRuntimeEnv('GAME_SERVER_IMAGE', 'pz-game-server:local'),
+    gameServerModSourcePath: readRuntimeEnv('GAME_SERVER_MOD_SOURCE_PATH', '../lua-bridge/ZomboidManager'),
+    modApiBaseUrl: readRuntimeEnv('MOD_API_BASE_URL', 'http://nitro-app:3000/api/mod'),
 
     pzRconHost: readRuntimeEnv('PZ_RCON_HOST', 'localhost'),
     pzRconPort: Number(readRuntimeEnv('PZ_RCON_PORT', '27015')),
@@ -58,10 +86,9 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Zomboid Server Manager',
-      meta: [
-        { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      ],
+      titleTemplate: '%s - Zomboid Server Manager',
+      charset: 'utf-8',
+      viewport: 'width=device-width, initial-scale=1',
     },
   },
 

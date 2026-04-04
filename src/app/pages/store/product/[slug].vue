@@ -86,6 +86,17 @@ function addCurrentVariantToCart() {
     <section class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
       <Card>
         <CardHeader class="space-y-4">
+          <div
+            v-if="activeVariant?.imageUrl"
+            class="overflow-hidden rounded-2xl border bg-muted/20"
+          >
+            <img
+              :src="activeVariant.imageUrl"
+              :alt="activeVariant.gameName || product.name"
+              class="h-72 w-full object-contain p-6"
+            >
+          </div>
+
           <div class="flex flex-wrap gap-2">
             <Badge
               v-for="category in product.categories"
@@ -180,6 +191,8 @@ function addCurrentVariantToCart() {
             </CardHeader>
             <CardContent class="space-y-1 p-4 pt-0 text-sm text-muted-foreground">
               <p>Item code: {{ activeVariant?.itemCode || 'No valid item code for this combination yet.' }}</p>
+              <p v-if="activeVariant?.gameCategory">Game category: {{ activeVariant.gameCategory }}</p>
+              <p v-if="typeof activeVariant?.weight === 'number'">Weight: {{ activeVariant.weight }}</p>
               <p>Gives {{ activeVariant?.quantity || 0 }} in-game item{{ activeVariant?.quantity === 1 ? '' : 's' }} per purchase.</p>
             </CardContent>
           </Card>

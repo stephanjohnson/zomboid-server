@@ -16,6 +16,8 @@ COPY entrypoint.sh /home/steam/entrypoint.sh
 COPY configure-server.sh /home/steam/configure-server.sh
 RUN chmod +x /home/steam/entrypoint.sh /home/steam/configure-server.sh
 
+ENV ZM_API_BASE_URL=http://nitro-app:3000/api/mod
+
 EXPOSE 16261/udp 16262/udp
 
 ENTRYPOINT ["/home/steam/entrypoint.sh"]

@@ -2,8 +2,10 @@ import { useIntervalFn } from '@vueuse/core'
 
 interface ServerStatus {
   container: {
+    exists: boolean
     running: boolean
     status: string
+    statusLabel: string
     startedAt: string | null
   }
   rcon: boolean

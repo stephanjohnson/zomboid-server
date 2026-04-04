@@ -2,12 +2,39 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { loadItemScriptCatalog } from './item-script-catalog'
+import type { ParsedItemScriptRecord } from './item-script-catalog'
+
 export interface GameCatalogEntry {
   fullType: string
   name: string
   category: string | null
+  displayCategory: string | null
   iconName: string | null
+  textureIcon: string | null
+  iconUrl: string | null
   source: 'lua_bridge' | 'telemetry'
+  itemType: string | null
+  weight: number | null
+  tags: string[]
+  categories: string[]
+  attachmentType: string | null
+  attachmentSlots: string[]
+  isTwoHandWeapon: boolean | null
+  maxCondition: number | null
+  conditionLowerChance: number | null
+  minDamage: number | null
+  maxDamage: number | null
+  minRange: number | null
+  maxRange: number | null
+  attackSpeed: number | null
+  critChance: number | null
+  maxHitCount: number | null
+  treeDamage: number | null
+  doorDamage: number | null
+  knockback: number | null
+  sharpness: number | null
+  scriptSource: string | null
 }
 
 function humanizeItemToken(token: string) {
@@ -21,6 +48,42 @@ function humanizeItemToken(token: string) {
 export function humanizeItemCode(fullType: string) {
   const [, rawName = fullType] = fullType.split('.', 2)
   return humanizeItemToken(rawName)
+}
+
+function normalizeString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
+function normalizeNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : typeof value === 'string' && value.trim().length > 0 && Number.isFinite(Number(value))
+      ? Number(value)
+      : null
+}
+
+function normalizeBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : null
+}
+
+function normalizeStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .map(entry => typeof entry === 'string' ? entry.trim() : '')
+        .filter(Boolean)
+    : []
+}
+
+export function buildPzWikiFileUrl(fileName?: string | null) {
+  if (!fileName || !fileName.trim().length) {
+    return null
+  }
+
+  const normalizedFileName = fileName.trim().endsWith('.png')
+    ? fileName.trim()
+    : `${fileName.trim()}.png`
+
+  return `https://pzwiki.net/wiki/Special:FilePath/${encodeURIComponent(normalizedFileName)}`
 }
 
 function normalizeCatalogEntry(
@@ -50,18 +113,65 @@ function normalizeCatalogEntry(
     ? record.category.trim()
     : null
 
+  const displayCategory = normalizeString(record.display_category) ?? category
   const iconName = typeof record.icon_name === 'string'
     ? record.icon_name
     : typeof record.iconName === 'string'
       ? record.iconName
       : null
+  const textureIcon = normalizeString(record.texture_icon) ?? normalizeString(record.textureIcon)
+  const itemType = normalizeString(record.item_type) ?? normalizeString(record.itemType)
+  const weight = normalizeNumber(record.weight)
+  const tags = normalizeStringArray(record.tags)
+  const categories = normalizeStringArray(record.categories)
+  const attachmentType = normalizeString(record.attachment_type) ?? normalizeString(record.attachmentType)
+  const attachmentSlots = normalizeStringArray(record.attachment_slots ?? record.attachmentSlots)
+  const isTwoHandWeapon = normalizeBoolean(record.is_two_handed ?? record.isTwoHandWeapon)
+  const maxCondition = normalizeNumber(record.max_condition ?? record.maxCondition)
+  const conditionLowerChance = normalizeNumber(record.condition_lower_chance ?? record.conditionLowerChance)
+  const minDamage = normalizeNumber(record.min_damage ?? record.minDamage)
+  const maxDamage = normalizeNumber(record.max_damage ?? record.maxDamage)
+  const minRange = normalizeNumber(record.min_range ?? record.minRange)
+  const maxRange = normalizeNumber(record.max_range ?? record.maxRange)
+  const attackSpeed = normalizeNumber(record.attack_speed ?? record.attackSpeed)
+  const critChance = normalizeNumber(record.crit_chance ?? record.critChance)
+  const maxHitCount = normalizeNumber(record.max_hit_count ?? record.maxHitCount)
+  const treeDamage = normalizeNumber(record.tree_damage ?? record.treeDamage)
+  const doorDamage = normalizeNumber(record.door_damage ?? record.doorDamage)
+  const knockback = normalizeNumber(record.knockback)
+  const sharpness = normalizeNumber(record.sharpness)
+  const scriptSource = normalizeString(record.script_source ?? record.scriptSource)
 
   return {
     fullType,
     name,
     category,
+    displayCategory,
     iconName,
+    textureIcon,
+    iconUrl: buildPzWikiFileUrl(textureIcon ?? iconName),
     source,
+    itemType,
+    weight,
+    tags,
+    categories,
+    attachmentType,
+    attachmentSlots,
+    isTwoHandWeapon,
+    maxCondition,
+    conditionLowerChance,
+    minDamage,
+    maxDamage,
+    minRange,
+    maxRange,
+    attackSpeed,
+    critChance,
+    maxHitCount,
+    treeDamage,
+    doorDamage,
+    knockback,
+    sharpness,
+    scriptSource,
   }
 }
 
@@ -89,6 +199,36 @@ async function readLuaBridgeCatalog(): Promise<GameCatalogEntry[]> {
     logger.warn({ error }, 'Failed to read lua-bridge item catalog')
     return []
   }
+}
+
+function mergeScriptCatalogEntry(entry: GameCatalogEntry, scriptEntry: ParsedItemScriptRecord) {
+  return {
+    ...entry,
+    displayCategory: scriptEntry.displayCategory ?? entry.displayCategory ?? entry.category,
+    textureIcon: scriptEntry.icon ?? entry.textureIcon,
+    iconUrl: buildPzWikiFileUrl(scriptEntry.icon ?? entry.textureIcon ?? entry.iconName),
+    itemType: scriptEntry.itemType ?? entry.itemType,
+    weight: scriptEntry.weight ?? entry.weight,
+    tags: scriptEntry.tags.length ? scriptEntry.tags : entry.tags,
+    categories: scriptEntry.categories.length ? scriptEntry.categories : entry.categories,
+    attachmentType: scriptEntry.attachmentType ?? entry.attachmentType,
+    attachmentSlots: scriptEntry.attachmentSlots.length ? scriptEntry.attachmentSlots : entry.attachmentSlots,
+    isTwoHandWeapon: scriptEntry.isTwoHandWeapon ?? entry.isTwoHandWeapon,
+    maxCondition: scriptEntry.conditionMax ?? entry.maxCondition,
+    conditionLowerChance: scriptEntry.conditionLowerChanceOneIn ?? entry.conditionLowerChance,
+    minDamage: scriptEntry.minDamage ?? entry.minDamage,
+    maxDamage: scriptEntry.maxDamage ?? entry.maxDamage,
+    minRange: scriptEntry.minRange ?? entry.minRange,
+    maxRange: scriptEntry.maxRange ?? entry.maxRange,
+    attackSpeed: scriptEntry.baseSpeed ?? entry.attackSpeed,
+    critChance: scriptEntry.criticalChance ?? entry.critChance,
+    maxHitCount: scriptEntry.maxHitCount ?? entry.maxHitCount,
+    treeDamage: scriptEntry.treeDamage ?? entry.treeDamage,
+    doorDamage: scriptEntry.doorDamage ?? entry.doorDamage,
+    knockback: scriptEntry.knockback ?? entry.knockback,
+    sharpness: scriptEntry.sharpness ?? entry.sharpness,
+    scriptSource: scriptEntry.sourceFile,
+  } satisfies GameCatalogEntry
 }
 
 async function readTelemetryCatalog(profileId: string): Promise<GameCatalogEntry[]> {
@@ -124,8 +264,32 @@ async function readTelemetryCatalog(profileId: string): Promise<GameCatalogEntry
         fullType,
         name: humanizeItemCode(fullType),
         category: typeof record.container === 'string' ? record.container : null,
+        displayCategory: typeof record.container === 'string' ? record.container : null,
         iconName: null,
+        textureIcon: null,
+        iconUrl: null,
         source: 'telemetry',
+        itemType: null,
+        weight: null,
+        tags: [],
+        categories: [],
+        attachmentType: null,
+        attachmentSlots: [],
+        isTwoHandWeapon: null,
+        maxCondition: null,
+        conditionLowerChance: null,
+        minDamage: null,
+        maxDamage: null,
+        minRange: null,
+        maxRange: null,
+        attackSpeed: null,
+        critChance: null,
+        maxHitCount: null,
+        treeDamage: null,
+        doorDamage: null,
+        knockback: null,
+        sharpness: null,
+        scriptSource: null,
       })
     }
   }
@@ -134,18 +298,26 @@ async function readTelemetryCatalog(profileId: string): Promise<GameCatalogEntry
 }
 
 export async function getGameItemCatalog(profileId: string) {
+  const config = useRuntimeConfig()
+  const scriptCatalog = await loadItemScriptCatalog(String(config.pzServerPath || '/pz-server'))
   const luaBridgeItems = await readLuaBridgeCatalog()
   if (luaBridgeItems.length > 0) {
     return {
       source: 'lua_bridge' as const,
-      items: luaBridgeItems,
+      items: luaBridgeItems.map(item => {
+        const scriptEntry = scriptCatalog.get(item.fullType)
+        return scriptEntry ? mergeScriptCatalogEntry(item, scriptEntry) : item
+      }),
     }
   }
 
   const telemetryItems = await readTelemetryCatalog(profileId)
   return {
     source: 'telemetry' as const,
-    items: telemetryItems,
+    items: telemetryItems.map(item => {
+      const scriptEntry = scriptCatalog.get(item.fullType)
+      return scriptEntry ? mergeScriptCatalogEntry(item, scriptEntry) : item
+    }),
   }
 }
 
@@ -208,4 +380,9 @@ export async function searchGameItemCatalog(
     items: scoredItems.slice(0, limit).map(({ score: _score, ...item }) => item),
     total: scoredItems.length,
   }
+}
+
+export async function getGameCatalogItem(profileId: string, fullType: string) {
+  const { items } = await getGameItemCatalog(profileId)
+  return items.find(item => item.fullType === fullType) ?? null
 }
