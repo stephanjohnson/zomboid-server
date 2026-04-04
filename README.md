@@ -5,7 +5,7 @@ A web-based management dashboard for Project Zomboid dedicated servers, built wi
 ## Architecture
 
 | Service | Technology | Purpose |
-|---------|-----------|---------|
+| ------- | ---------- | ------- |
 | **Web App** | Nuxt 4 (Nitro) | Dashboard UI + REST API |
 | **Worker** | Node.js + amqplib | Background jobs (backups, updates, restarts) |
 | **Database** | PostgreSQL 16 | Persistent application data |
@@ -31,7 +31,7 @@ make up
 
 If `.env` does not exist yet, `make up` will create it from `.env.example` automatically.
 
-Then open `http://localhost:3000` and complete the first-run onboarding flow. The app will initialize the database schema, create the first admin account, and seed the default active server profile.
+Then open `http://localhost:3000` and complete the first-run onboarding flow. The app applies database migrations during startup, and onboarding creates the first admin account plus the default active server profile.
 
 ### Local Development
 
@@ -39,7 +39,7 @@ Then open `http://localhost:3000` and complete the first-run onboarding flow. Th
 make dev
 ```
 
-On a fresh install, `make dev` will also create `.env` from `.env.example` if needed. The first browser visit will redirect into onboarding and handle the one-time database setup there.
+On a fresh install, `make dev` will also create `.env` from `.env.example` if needed. It applies Prisma migrations before starting the Nuxt dev server, and the first browser visit will redirect into onboarding for application bootstrap.
 
 Local host-based development uses [src/.env.development](src/.env.development) for localhost service overrides. Prisma CLI now reads its configuration from [src/prisma.config.ts](src/prisma.config.ts), so production-style startup no longer picks up development-only database settings.
 
@@ -65,7 +65,7 @@ make test-e2e        # Run E2E tests
 
 ## Project Structure
 
-```
+```text
 ├── docker-compose.yml      # Service orchestration
 ├── Makefile                 # Developer commands
 ├── .env.example             # Environment template

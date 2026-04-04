@@ -1,0 +1,4 @@
+name=ZomboidManager
+id=ZomboidManager
+modversion=2.0
+description=Server-side telemetry and reward bridge for Zomboid Server Manager. Posts player snapshots and PvP kill events to the Nitro API.

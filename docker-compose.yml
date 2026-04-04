@@ -14,10 +14,14 @@ services:
     volumes:
       - zomboid-data:/home/steam/Zomboid
       - lua-bridge:/home/steam/Zomboid/Lua
+      - ./lua-bridge/ZomboidManager:/home/steam/Zomboid/mods/ZomboidManager:ro
     environment:
       SERVERNAME: ${SERVERNAME:-servertest}
       PZ_ADMIN_PASSWORD: ${PZ_RCON_PASSWORD:-}
       PZ_STEAM_BRANCH: ${PZ_STEAM_BRANCH:-public}
+    depends_on:
+      nitro-app:
+        condition: service_started
     networks:
       - zomboid-net
 

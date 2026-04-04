@@ -50,13 +50,13 @@ db-push:
 # Development
 # ---------------------------------------------------------------------------
 dev-infra: ensure-env
-	$(DEV_COMPOSE) up -d db rabbitmq docker-socket-proxy
+	$(DEV_COMPOSE) up -d --wait db rabbitmq docker-socket-proxy
 
 dev-infra-down:
 	$(DEV_COMPOSE) down
 
 dev: dev-infra
-	cd src && npm run dev
+	cd src && npm run db:migrate && npm run dev
 
 install:
 	cd src && npm install

@@ -1,6 +1,7 @@
 FROM steamcmd/steamcmd:ubuntu-24
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
     screen \
     && rm -rf /var/lib/apt/lists/*
 

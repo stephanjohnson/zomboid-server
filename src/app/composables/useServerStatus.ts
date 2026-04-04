@@ -1,3 +1,5 @@
+import { useIntervalFn } from '@vueuse/core'
+
 interface ServerStatus {
   container: {
     running: boolean
@@ -30,7 +32,17 @@ export function useServerStatus() {
   }
 
   // Poll every 10 seconds
-  const { pause, resume } = useIntervalFn(refresh, 10000)
+  const { pause, resume } = useIntervalFn(refresh, 10000, { immediate: false })
+
+  if (import.meta.client) {
+    onMounted(() => {
+      resume()
+    })
+
+    onScopeDispose(() => {
+      pause()
+    })
+  }
 
   return {
     status,

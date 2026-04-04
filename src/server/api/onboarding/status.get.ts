@@ -1,5 +1,5 @@
 /**
- * Check if the app has been set up (has at least one admin user and profile).
+ * Check if the application bootstrap data exists.
  * Public endpoint — no auth required.
  */
 export default defineEventHandler(async () => {

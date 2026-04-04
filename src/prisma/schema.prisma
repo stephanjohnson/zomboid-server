@@ -71,13 +71,25 @@ model ServerProfile {
   // Additional settings stored as JSON
   serverIniOverrides  Json? @map("server_ini_overrides")
   sandboxVarsOverrides Json? @map("sandbox_vars_overrides")
+  lastGameState        Json? @map("last_game_state")
+  lastTelemetryAt      DateTime? @map("last_telemetry_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  mods    Mod[]
-  backups Backup[]
-  jobs    Job[]
+  mods            Mod[]
+  backups         Backup[]
+  jobs            Job[]
+  players         ServerPlayer[]
+  snapshots       PlayerSnapshot[]
+  telemetryEvents PlayerTelemetryEvent[]
+  telemetryListeners TelemetryListener[]
+  workflows       WorkflowDefinition[]
+  workflowRuns    WorkflowRun[]
+  actionRules     ActionRule[]
+  rewardRules     RewardRule[]
+  rewardGrants    RewardGrant[]
+  xpGrants        XpGrant[]
 
   @@map("server_profiles")
 }
@@ -226,4 +238,338 @@ model ScheduledTask {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("scheduled_tasks")
+}
+
+// =============================================================================
+// Telemetry & Rewards
+// =============================================================================
+
+enum TelemetryEventType {
+  SESSION_STARTED
+  SESSION_ENDED
+  PLAYER_DIED
+  ZOMBIE_KILL
+  PVP_KILL
+  SKILL_LEVEL_UP
+  ITEM_FOUND
+  BUILD_ACTION
+}
+
+enum RewardTriggerType {
+  ZOMBIE_KILL
+  PVP_KILL
+  SKILL_LEVEL_UP
+  ITEM_FOUND
+  BUILD_ACTION
+}
+
+enum TriggerSourceKind {
+  EVENT
+  WORKFLOW
+}
+
+enum WorkflowRunStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+model ServerPlayer {
+  id              String   @id @default(cuid())
+  profileId       String   @map("profile_id")
+  username        String
+  steamId         String?  @map("steam_id")
+  displayName     String?  @map("display_name")
+  isOnline        Boolean  @default(false) @map("is_online")
+  isDead          Boolean  @default(false) @map("is_dead")
+  isGhost         Boolean  @default(false) @map("is_ghost")
+  x               Float?
+  y               Float?
+  z               Int?
+  zombieKills     Int      @default(0) @map("zombie_kills")
+  playerKills     Int      @default(0) @map("player_kills")
+  hoursSurvived   Float    @default(0) @map("hours_survived")
+  profession      String?
+  skills          Json?
+  inventory       Json?
+  firstSeenAt     DateTime @default(now()) @map("first_seen_at")
+  lastSeenAt      DateTime @default(now()) @map("last_seen_at")
+  lastTelemetryAt DateTime? @map("last_telemetry_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  profile         ServerProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  snapshots       PlayerSnapshot[]
+  telemetryEvents PlayerTelemetryEvent[]
+  workflowRuns    WorkflowRun[]
+  xpBalance       PlayerXpBalance?
+  xpCategories    PlayerXpCategoryBalance[]
+  xpGrants        XpGrant[]
+  wallet          PlayerWallet?
+  rewardGrants    RewardGrant[]
+
+  @@unique([profileId, username])
+  @@index([profileId, isOnline])
+  @@map("server_players")
+}
+
+model PlayerSnapshot {
+  id            String   @id @default(cuid())
+  profileId     String   @map("profile_id")
+  playerId      String   @map("player_id")
+  capturedAt    DateTime @default(now()) @map("captured_at")
+  isOnline      Boolean  @default(true) @map("is_online")
+  isDead        Boolean  @default(false) @map("is_dead")
+  isGhost       Boolean  @default(false) @map("is_ghost")
+  x             Float?
+  y             Float?
+  z             Int?
+  zombieKills   Int      @default(0) @map("zombie_kills")
+  playerKills   Int      @default(0) @map("player_kills")
+  hoursSurvived Float    @default(0) @map("hours_survived")
+  profession    String?
+  skills        Json?
+  inventory     Json?
+  raw           Json?
+
+  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  player  ServerPlayer  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, capturedAt])
+  @@index([playerId, capturedAt])
+  @@map("player_snapshots")
+}
+
+model PlayerTelemetryEvent {
+  id         String             @id @default(cuid())
+  profileId  String             @map("profile_id")
+  playerId   String?            @map("player_id")
+  type       TelemetryEventType?
+  eventKey   String             @map("event_key")
+  quantity   Int                @default(1)
+  occurredAt DateTime           @map("occurred_at")
+  source     String             @default("lua_mod")
+  metadata   Json?
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  player  ServerPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  grants  RewardGrant[]
+  xpGrants XpGrant[]
+
+  @@index([profileId, eventKey, occurredAt])
+  @@index([profileId, type, occurredAt])
+  @@index([playerId, occurredAt])
+  @@map("player_telemetry_events")
+}
+
+model TelemetryListener {
+  id         String   @id @default(cuid())
+  profileId  String   @map("profile_id")
+  adapterKey String   @map("adapter_key")
+  name       String
+  eventKey   String?  @map("event_key")
+  isEnabled  Boolean  @default(true) @map("is_enabled")
+  config     Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, adapterKey])
+  @@index([profileId, isEnabled])
+  @@map("telemetry_listeners")
+}
+
+model WorkflowDefinition {
+  id         String   @id @default(cuid())
+  profileId  String   @map("profile_id")
+  key        String
+  name       String
+  isEnabled  Boolean  @default(true) @map("is_enabled")
+  config     Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  profile ServerProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  steps   WorkflowStep[]
+  runs    WorkflowRun[]
+
+  @@unique([profileId, key])
+  @@index([profileId, isEnabled])
+  @@map("workflow_definitions")
+}
+
+model WorkflowStep {
+  id            String   @id @default(cuid())
+  workflowId    String   @map("workflow_id")
+  stepOrder     Int      @map("step_order")
+  eventKey      String   @map("event_key")
+  withinSeconds Int?     @map("within_seconds")
+  matchConfig   Json?    @map("match_config")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  workflow WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, stepOrder])
+  @@index([workflowId, eventKey])
+  @@map("workflow_steps")
+}
+
+model WorkflowRun {
+  id            String            @id @default(cuid())
+  workflowId    String            @map("workflow_id")
+  profileId     String            @map("profile_id")
+  playerId      String?           @map("player_id")
+  status        WorkflowRunStatus @default(ACTIVE)
+  currentStep   Int               @default(0) @map("current_step")
+  context       Json?
+  startedAt     DateTime          @default(now()) @map("started_at")
+  lastMatchedAt DateTime?         @map("last_matched_at")
+  expiresAt     DateTime?         @map("expires_at")
+  completedAt   DateTime?         @map("completed_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  workflow WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  profile  ServerProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  player   ServerPlayer?      @relation(fields: [playerId], references: [id], onDelete: SetNull)
+  xpGrants XpGrant[]
+
+  @@index([workflowId, status])
+  @@index([profileId, playerId, status])
+  @@map("workflow_runs")
+}
+
+model ActionRule {
+  id               String            @id @default(cuid())
+  profileId        String            @map("profile_id")
+  name             String
+  triggerKind      TriggerSourceKind @map("trigger_kind")
+  triggerKey       String            @map("trigger_key")
+  isEnabled        Boolean           @default(true) @map("is_enabled")
+  moneyAmount      Int               @default(0) @map("money_amount")
+  xpAmount         Int               @default(0) @map("xp_amount")
+  xpCategory       String?           @map("xp_category")
+  xpCategoryAmount Int               @default(0) @map("xp_category_amount")
+  config           Json?
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  profile      ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  rewardGrants RewardGrant[]
+  xpGrants     XpGrant[]
+
+  @@index([profileId, triggerKind, triggerKey, isEnabled])
+  @@map("action_rules")
+}
+
+model RewardRule {
+  id           String            @id @default(cuid())
+  profileId    String            @map("profile_id")
+  name         String
+  triggerType  RewardTriggerType @map("trigger_type")
+  rewardAmount Int               @default(0) @map("reward_amount")
+  isEnabled    Boolean           @default(true) @map("is_enabled")
+  triggerConfig Json?            @map("trigger_config")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  grants  RewardGrant[]
+
+  @@index([profileId, triggerType, isEnabled])
+  @@map("reward_rules")
+}
+
+model PlayerWallet {
+  id          String   @id @default(cuid())
+  playerId     String   @unique @map("player_id")
+  balance      Int      @default(0)
+  totalEarned  Int      @default(0) @map("total_earned")
+  totalSpent   Int      @default(0) @map("total_spent")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  player ServerPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("player_wallets")
+}
+
+model PlayerXpBalance {
+  id        String   @id @default(cuid())
+  playerId   String   @unique @map("player_id")
+  totalXp    Int      @default(0) @map("total_xp")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  player ServerPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@map("player_xp_balances")
+}
+
+model PlayerXpCategoryBalance {
+  id        String   @id @default(cuid())
+  playerId   String   @map("player_id")
+  category   String
+  totalXp    Int      @default(0) @map("total_xp")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  player ServerPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, category])
+  @@index([category])
+  @@map("player_xp_category_balances")
+}
+
+model RewardGrant {
+  id            String   @id @default(cuid())
+  profileId      String   @map("profile_id")
+  playerId       String   @map("player_id")
+  ruleId         String?  @map("rule_id")
+  actionRuleId   String?  @map("action_rule_id")
+  sourceEventId  String?  @map("source_event_id")
+  uniqueKey      String?  @unique @map("unique_key")
+  amount         Int
+  reason         String
+  metadata       Json?
+  grantedAt      DateTime @default(now()) @map("granted_at")
+
+  profile     ServerProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  player      ServerPlayer          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  rule        RewardRule?           @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  actionRule  ActionRule?           @relation(fields: [actionRuleId], references: [id], onDelete: SetNull)
+  sourceEvent PlayerTelemetryEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, grantedAt])
+  @@index([playerId, grantedAt])
+  @@map("reward_grants")
+}
+
+model XpGrant {
+  id            String   @id @default(cuid())
+  profileId     String   @map("profile_id")
+  playerId      String   @map("player_id")
+  actionRuleId  String?  @map("action_rule_id")
+  sourceEventId String?  @map("source_event_id")
+  workflowRunId String?  @map("workflow_run_id")
+  uniqueKey     String?  @unique @map("unique_key")
+  category      String?
+  amount        Int
+  reason        String
+  metadata      Json?
+  grantedAt     DateTime @default(now()) @map("granted_at")
+
+  profile     ServerProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  player      ServerPlayer          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  actionRule  ActionRule?           @relation(fields: [actionRuleId], references: [id], onDelete: SetNull)
+  sourceEvent PlayerTelemetryEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+  workflowRun WorkflowRun?          @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, grantedAt])
+  @@index([playerId, grantedAt])
+  @@index([playerId, category, grantedAt])
+  @@map("xp_grants")
 }

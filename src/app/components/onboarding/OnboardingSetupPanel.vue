@@ -80,7 +80,7 @@ async function handleSubmit() {
           Initialize your Zomboid server manager
         </CardTitle>
         <CardDescription class="max-w-xl text-sm leading-6">
-          This creates the database schema, seeds the first admin account, and provisions the default active server profile.
+          This creates the first admin account and provisions the default active server profile.
         </CardDescription>
       </div>
 
@@ -176,7 +176,7 @@ async function handleSubmit() {
           <Alert>
             <AlertTitle>What happens next</AlertTitle>
             <AlertDescription>
-              The app will initialize the database, create your first administrator, and sign you into the dashboard automatically.
+              The app will create your first administrator, seed the initial profile data, and sign you into the dashboard automatically.
             </AlertDescription>
           </Alert>
         </div>

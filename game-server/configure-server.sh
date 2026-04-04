@@ -7,30 +7,63 @@ set -e
 SERVER_DIR="/home/steam/Zomboid/Server"
 INI_FILE="${SERVER_DIR}/${SERVERNAME}.ini"
 
+ensure_ini_value() {
+    local key="$1"
+    local value="$2"
+
+    if grep -q "^${key}=" "$INI_FILE" 2>/dev/null; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$INI_FILE"
+    else
+        echo "${key}=${value}" >> "$INI_FILE"
+    fi
+}
+
+ensure_ini_list_value() {
+    local key="$1"
+    local value="$2"
+
+    if grep -q "^${key}=" "$INI_FILE" 2>/dev/null; then
+        local current
+        current=$(sed -n "s/^${key}=//p" "$INI_FILE" | head -n 1)
+        case ";${current};" in
+            *";${value};"*)
+                ;;
+            *)
+                if [ -n "$current" ]; then
+                    sed -i "s|^${key}=.*|${key}=${current};${value}|" "$INI_FILE"
+                else
+                    sed -i "s|^${key}=.*|${key}=${value}|" "$INI_FILE"
+                fi
+                ;;
+        esac
+    else
+        echo "${key}=${value}" >> "$INI_FILE"
+    fi
+}
+
 # Ensure directories exist
 mkdir -p "$SERVER_DIR"
 
-# Only configure if ini exists (first run creates it on server start)
-if [ -f "$INI_FILE" ]; then
-    echo "[configure] Applying settings to ${SERVERNAME}.ini..."
-
-    # RCON settings
-    if [ -n "${PZ_RCON_PORT:-}" ]; then
-        sed -i "s/^RCONPort=.*/RCONPort=${PZ_RCON_PORT}/" "$INI_FILE"
-    fi
-    if [ -n "${PZ_RCON_PASSWORD:-}" ]; then
-        sed -i "s/^RCONPassword=.*/RCONPassword=${PZ_RCON_PASSWORD}/" "$INI_FILE"
-    fi
-
-    # Game ports
-    if [ -n "${PZ_GAME_PORT:-}" ]; then
-        sed -i "s/^DefaultPort=.*/DefaultPort=${PZ_GAME_PORT}/" "$INI_FILE"
-    fi
-
-    # Disable Lua checksum for custom mods
-    sed -i "s/^DoLuaChecksum=.*/DoLuaChecksum=false/" "$INI_FILE"
-
-    echo "[configure] Configuration applied."
-else
-    echo "[configure] No ini file found — will be created on first server start."
+# Create a minimal ini so the local bridge mod can be enabled on first boot
+if [ ! -f "$INI_FILE" ]; then
+    echo "[configure] Creating initial ${SERVERNAME}.ini..."
+    touch "$INI_FILE"
 fi
+
+echo "[configure] Applying settings to ${SERVERNAME}.ini..."
+
+if [ -n "${PZ_RCON_PORT:-}" ]; then
+    ensure_ini_value "RCONPort" "${PZ_RCON_PORT}"
+fi
+if [ -n "${PZ_RCON_PASSWORD:-}" ]; then
+    ensure_ini_value "RCONPassword" "${PZ_RCON_PASSWORD}"
+fi
+
+if [ -n "${PZ_GAME_PORT:-}" ]; then
+    ensure_ini_value "DefaultPort" "${PZ_GAME_PORT}"
+fi
+
+ensure_ini_value "DoLuaChecksum" "false"
+ensure_ini_list_value "Mods" "ZomboidManager"
+
+echo "[configure] Configuration applied."

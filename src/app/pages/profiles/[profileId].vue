@@ -48,10 +48,23 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="max-w-2xl space-y-6">
-    <h1 class="text-2xl font-bold">
-      {{ isNew ? 'New Profile' : 'Edit Profile' }}
-    </h1>
+  <div class="max-w-3xl space-y-6">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">
+          {{ isNew ? 'New Profile' : 'Edit Profile' }}
+        </h1>
+        <p v-if="!isNew" class="mt-1 text-sm text-muted-foreground">
+          Profile-scoped telemetry, objectives, and achievement flows live in the automation studio.
+        </p>
+      </div>
+
+      <Button v-if="!isNew" variant="outline" as-child>
+        <NuxtLink :to="`/profiles/${profileId}/telemetry`">
+          Open Studio
+        </NuxtLink>
+      </Button>
+    </div>
 
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div class="grid grid-cols-2 gap-4">

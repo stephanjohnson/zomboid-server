@@ -1,6 +1,4 @@
 interface OnboardingStatus {
-  databaseReachable: boolean
-  schemaReady: boolean
   hasAdmin: boolean
   hasProfile: boolean
   isComplete: boolean
