@@ -61,41 +61,38 @@ if (status.value?.isComplete) {
         <h2 class="text-lg font-semibold">
           Step 1: Create Admin Account
         </h2>
-        <div>
-          <label class="block text-sm font-medium mb-1">Username</label>
-          <input
+        <div class="space-y-2">
+          <Label>Username</Label>
+          <Input
             v-model="admin.username"
             type="text"
             required
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Email</label>
-          <input
+        <div class="space-y-2">
+          <Label>Email</Label>
+          <Input
             v-model="admin.email"
             type="email"
             required
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Password</label>
-          <input
+        <div class="space-y-2">
+          <Label>Password</Label>
+          <Input
             v-model="admin.password"
             type="password"
             required
             minlength="8"
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
-        <button
+        <Button
           type="button"
-          class="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          class="w-full"
           @click="step = 2"
         >
           Next
-        </button>
+        </Button>
       </div>
 
       <!-- Step 2: Server Profile -->
@@ -103,66 +100,66 @@ if (status.value?.isComplete) {
         <h2 class="text-lg font-semibold">
           Step 2: Server Profile
         </h2>
-        <div>
-          <label class="block text-sm font-medium mb-1">Profile Name</label>
-          <input
+        <div class="space-y-2">
+          <Label>Profile Name</Label>
+          <Input
             v-model="profile.name"
             type="text"
             required
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Map</label>
-          <select
-            v-model="profile.mapName"
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="Muldraugh, KY">Muldraugh, KY</option>
-            <option value="Riverside, KY">Riverside, KY</option>
-            <option value="Rosewood, KY">Rosewood, KY</option>
-            <option value="West Point, KY">West Point, KY</option>
-          </select>
+        <div class="space-y-2">
+          <Label>Map</Label>
+          <Select v-model="profile.mapName">
+            <SelectTrigger>
+              <SelectValue placeholder="Select a map" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Muldraugh, KY">Muldraugh, KY</SelectItem>
+              <SelectItem value="Riverside, KY">Riverside, KY</SelectItem>
+              <SelectItem value="Rosewood, KY">Rosewood, KY</SelectItem>
+              <SelectItem value="West Point, KY">West Point, KY</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Max Players</label>
-          <input
+        <div class="space-y-2">
+          <Label>Max Players</Label>
+          <Input
             v-model.number="profile.maxPlayers"
             type="number"
             min="1"
             max="128"
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
         <div class="flex items-center gap-2">
-          <input
+          <Switch
             id="pvp"
-            v-model="profile.pvp"
-            type="checkbox"
-            class="rounded border-input"
+            :checked="profile.pvp"
+            @update:checked="profile.pvp = $event"
           />
-          <label for="pvp" class="text-sm">Enable PvP</label>
+          <Label for="pvp">Enable PvP</Label>
         </div>
 
-        <p v-if="error" class="text-sm text-destructive">
-          {{ error }}
-        </p>
+        <Alert v-if="error" variant="destructive">
+          <AlertDescription>{{ error }}</AlertDescription>
+        </Alert>
 
         <div class="flex gap-2">
-          <button
+          <Button
             type="button"
-            class="flex-1 rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
+            variant="outline"
+            class="flex-1"
             @click="step = 1"
           >
             Back
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             :disabled="loading"
-            class="flex-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            class="flex-1"
           >
             {{ loading ? 'Setting up...' : 'Complete Setup' }}
-          </button>
+          </Button>
         </div>
       </div>
     </form>

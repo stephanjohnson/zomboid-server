@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const auth = useAuth()
+const { isAdmin } = useAuth()
 const { data: profiles, refresh } = useFetch('/api/profiles')
 const loading = ref<string | null>(null)
 
@@ -30,13 +30,14 @@ async function deleteProfile(profileId: string) {
       <h1 class="text-2xl font-bold">
         Server Profiles
       </h1>
-      <NuxtLink
-        v-if="auth.isAdmin.value"
-        to="/profiles/new"
-        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      <Button
+        v-if="isAdmin"
+        as-child
       >
-        New Profile
-      </NuxtLink>
+        <NuxtLink to="/profiles/new">
+          New Profile
+        </NuxtLink>
+      </Button>
     </div>
 
     <div class="grid gap-4">
@@ -51,40 +52,45 @@ async function deleteProfile(profileId: string) {
             <h3 class="font-semibold">
               {{ profile.name }}
             </h3>
-            <span
+            <Badge
               v-if="profile.isActive"
-              class="rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-medium"
+              variant="secondary"
             >
               Active
-            </span>
+            </Badge>
           </div>
           <p class="text-sm text-muted-foreground mt-1">
             {{ profile.mapName }} &bull; {{ profile.maxPlayers }} players &bull;
             {{ profile._count?.mods ?? 0 }} mods &bull; {{ profile._count?.backups ?? 0 }} backups
           </p>
         </div>
-        <div v-if="auth.isAdmin.value" class="flex gap-2">
-          <button
+        <div v-if="isAdmin" class="flex gap-2">
+          <Button
             v-if="!profile.isActive"
+            variant="outline"
+            size="sm"
             :disabled="loading === profile.id"
-            class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
             @click="activateProfile(profile.id)"
           >
             Activate
-          </button>
-          <NuxtLink
-            :to="`/profiles/${profile.id}`"
-            class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            as-child
           >
-            Edit
-          </NuxtLink>
-          <button
+            <NuxtLink :to="`/profiles/${profile.id}`">
+              Edit
+            </NuxtLink>
+          </Button>
+          <Button
             v-if="!profile.isActive"
-            class="rounded-md border border-destructive text-destructive px-3 py-1.5 text-sm hover:bg-destructive/10"
+            variant="destructive"
+            size="sm"
             @click="deleteProfile(profile.id)"
           >
             Delete
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -1,0 +1,16 @@
+# docker-compose.dev.yml — Infrastructure only, for local Nuxt dev
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db rabbitmq docker-socket-proxy
+#   cd src && npm run dev
+#
+# This override exposes docker-socket-proxy to localhost so the Nuxt
+# dev server running on the host can reach it.
+
+services:
+  docker-socket-proxy:
+    ports:
+      - "127.0.0.1:2375:2375"
+    networks:
+      - backend-net
+      - zomboid-net  # allow host access via published port

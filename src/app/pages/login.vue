@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const auth = useAuth()
+const { login } = useAuth()
 const router = useRouter()
 
 const username = ref('')
@@ -13,7 +13,7 @@ async function handleLogin() {
   error.value = ''
   loading.value = true
   try {
-    await auth.login(username.value, password.value)
+    await login(username.value, password.value)
     await router.push('/')
   }
   catch (e: unknown) {
@@ -31,40 +31,38 @@ async function handleLogin() {
       Zomboid Server Manager
     </h1>
     <form class="space-y-4" @submit.prevent="handleLogin">
-      <div>
-        <label for="username" class="block text-sm font-medium mb-1">Username</label>
-        <input
+      <div class="space-y-2">
+        <Label for="username">Username</Label>
+        <Input
           id="username"
           v-model="username"
           type="text"
           required
           autocomplete="username"
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           placeholder="admin"
         />
       </div>
-      <div>
-        <label for="password" class="block text-sm font-medium mb-1">Password</label>
-        <input
+      <div class="space-y-2">
+        <Label for="password">Password</Label>
+        <Input
           id="password"
           v-model="password"
           type="password"
           required
           autocomplete="current-password"
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           placeholder="••••••••"
         />
       </div>
-      <p v-if="error" class="text-sm text-destructive">
-        {{ error }}
-      </p>
-      <button
+      <Alert v-if="error" variant="destructive">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
+      <Button
         type="submit"
         :disabled="loading"
-        class="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        class="w-full"
       >
         {{ loading ? 'Signing in...' : 'Sign in' }}
-      </button>
+      </Button>
     </form>
   </div>
 </template>

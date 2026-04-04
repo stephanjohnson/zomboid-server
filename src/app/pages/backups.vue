@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { data: backups, refresh } = useFetch('/api/backups')
-const auth = useAuth()
+const { isAdmin } = useAuth()
 const creating = ref(false)
 const restoring = ref<string | null>(null)
 
@@ -41,14 +41,13 @@ function formatSize(bytes: number | bigint): string {
       <h1 class="text-2xl font-bold">
         Backups
       </h1>
-      <button
-        v-if="auth.isAdmin.value"
+      <Button
+        v-if="isAdmin"
         :disabled="creating"
-        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         @click="createBackup"
       >
         {{ creating ? 'Creating...' : 'Create Backup' }}
-      </button>
+      </Button>
     </div>
 
     <div class="space-y-2">
@@ -67,14 +66,15 @@ function formatSize(bytes: number | bigint): string {
             <span v-if="backup.gameVersion">&bull; v{{ backup.gameVersion }}</span>
           </p>
         </div>
-        <button
-          v-if="auth.isAdmin.value"
+        <Button
+          v-if="isAdmin"
+          variant="outline"
+          size="sm"
           :disabled="restoring === backup.id"
-          class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
           @click="restoreBackup(backup.id)"
         >
           {{ restoring === backup.id ? 'Restoring...' : 'Restore' }}
-        </button>
+        </Button>
       </div>
     </div>
 

@@ -11,6 +11,7 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     'shadcn-nuxt',
     '@nuxt/eslint',
+    'nuxt-auth-utils',
   ],
 
   shadcn: {
@@ -21,7 +22,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Private (server-only) — set via NUXT_ env vars
     appSecret: process.env.APP_SECRET || 'dev-secret',
-    jwtSecret: process.env.JWT_SECRET || 'dev-jwt-secret',
 
     databaseUrl: process.env.DATABASE_URL || 'postgresql://zomboid:zomboid@localhost:5432/zomboid',
 

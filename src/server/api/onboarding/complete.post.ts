@@ -45,20 +45,16 @@ export default defineEventHandler(async (event) => {
     },
   })
 
-  const token = await signJwt({
-    sub: user.id,
-    username: user.username,
-    role: user.role,
-  })
-
-  setCookie(event, 'auth_token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
+  await setUserSession(event, {
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    },
+    loggedInAt: Date.now(),
   })
 
   setResponseStatus(event, 201)
-  return { message: 'Onboarding complete', token }
+  return { message: 'Onboarding complete' }
 })

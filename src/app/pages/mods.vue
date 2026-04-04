@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { data: mods, refresh } = useFetch('/api/mods')
-const auth = useAuth()
+const { isAdmin } = useAuth()
 
 const newMod = reactive({
   workshopId: '',
@@ -52,38 +52,36 @@ async function removeMod(modId: string) {
     </h1>
 
     <!-- Add Mod Form -->
-    <div v-if="auth.isAdmin.value" class="rounded-lg border p-4 space-y-3">
-      <h2 class="font-semibold">
-        Add Mod
-      </h2>
-      <div class="grid grid-cols-3 gap-3">
-        <input
-          v-model="newMod.workshopId"
-          placeholder="Workshop ID"
-          class="rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-        <input
-          v-model="newMod.modName"
-          placeholder="Mod Name (internal)"
-          class="rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-        <input
-          v-model="newMod.displayName"
-          placeholder="Display Name (optional)"
-          class="rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-      </div>
-      <p v-if="error" class="text-sm text-destructive">
-        {{ error }}
-      </p>
-      <button
-        :disabled="adding || !newMod.workshopId || !newMod.modName"
-        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        @click="addMod"
-      >
-        {{ adding ? 'Adding...' : 'Add Mod' }}
-      </button>
-    </div>
+    <Card v-if="isAdmin">
+      <CardHeader>
+        <CardTitle>Add Mod</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <div class="grid grid-cols-3 gap-3">
+          <Input
+            v-model="newMod.workshopId"
+            placeholder="Workshop ID"
+          />
+          <Input
+            v-model="newMod.modName"
+            placeholder="Mod Name (internal)"
+          />
+          <Input
+            v-model="newMod.displayName"
+            placeholder="Display Name (optional)"
+          />
+        </div>
+        <Alert v-if="error" variant="destructive">
+          <AlertDescription>{{ error }}</AlertDescription>
+        </Alert>
+        <Button
+          :disabled="adding || !newMod.workshopId || !newMod.modName"
+          @click="addMod"
+        >
+          {{ adding ? 'Adding...' : 'Add Mod' }}
+        </Button>
+      </CardContent>
+    </Card>
 
     <!-- Mod List -->
     <div class="space-y-2">
@@ -100,13 +98,15 @@ async function removeMod(modId: string) {
             Workshop: {{ mod.workshopId }} &bull; {{ mod.modName }}
           </p>
         </div>
-        <button
-          v-if="auth.isAdmin.value"
-          class="text-sm text-destructive hover:underline"
+        <Button
+          v-if="isAdmin"
+          variant="ghost"
+          size="sm"
+          class="text-destructive hover:text-destructive"
           @click="removeMod(mod.id)"
         >
           Remove
-        </button>
+        </Button>
       </div>
     </div>
 

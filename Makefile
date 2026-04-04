@@ -39,7 +39,13 @@ db-push:
 # ---------------------------------------------------------------------------
 # Development
 # ---------------------------------------------------------------------------
-dev:
+dev-infra:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db rabbitmq docker-socket-proxy
+
+dev-infra-down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+dev: dev-infra
 	cd src && npm run dev
 
 install:

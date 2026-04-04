@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const auth = useAuth()
+const { isModerator, isAdmin } = useAuth()
 const { data: playerData, refresh } = useFetch('/api/players', {
   default: () => ({ players: [], count: 0 }),
 })
@@ -43,12 +43,13 @@ async function banPlayer(player: string) {
       <h1 class="text-2xl font-bold">
         Players ({{ playerData?.count ?? 0 }})
       </h1>
-      <button
-        class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
+      <Button
+        variant="outline"
+        size="sm"
         @click="refresh"
       >
         Refresh
-      </button>
+      </Button>
     </div>
 
     <div v-if="playerData?.players?.length" class="space-y-2">
@@ -61,29 +62,31 @@ async function banPlayer(player: string) {
           <span class="h-2.5 w-2.5 rounded-full bg-green-500" />
           <span class="font-medium">{{ player }}</span>
         </div>
-        <div v-if="auth.isModerator.value" class="flex gap-2">
-          <button
+        <div v-if="isModerator" class="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
             :disabled="actionLoading === `kick-${player}`"
-            class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
             @click="kickPlayer(player)"
           >
             Kick
-          </button>
-          <button
-            v-if="auth.isAdmin.value"
+          </Button>
+          <Button
+            v-if="isAdmin"
+            variant="destructive"
+            size="sm"
             :disabled="actionLoading === `ban-${player}`"
-            class="rounded-md border border-destructive text-destructive px-3 py-1.5 text-sm hover:bg-destructive/10 disabled:opacity-50"
             @click="banPlayer(player)"
           >
             Ban
-          </button>
+          </Button>
         </div>
       </div>
     </div>
 
-    <p v-if="playerData?.offline" class="text-sm text-muted-foreground bg-muted rounded-md p-3">
-      Server is offline — player list unavailable.
-    </p>
+    <Alert v-if="playerData?.offline">
+      <AlertDescription>Server is offline — player list unavailable.</AlertDescription>
+    </Alert>
     <p v-else-if="!playerData?.players?.length" class="text-muted-foreground text-center py-8">
       No players online.
     </p>

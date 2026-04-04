@@ -65,77 +65,66 @@ async function saveSandbox() {
       Configuration
     </h1>
 
-    <!-- Tab bar -->
-    <div class="flex gap-1 border-b">
-      <button
-        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="tab === 'server-ini' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="tab = 'server-ini'"
-      >
-        server.ini
-      </button>
-      <button
-        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-        :class="tab === 'sandbox' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="tab = 'sandbox'"
-      >
-        SandboxVars.lua
-      </button>
-    </div>
-
     <!-- Alerts -->
-    <p v-if="error" class="text-sm text-destructive bg-destructive/10 rounded-md p-3">
-      {{ error }}
-    </p>
-    <p v-if="success" class="text-sm text-green-600 bg-green-50 rounded-md p-3">
-      {{ success }}
-    </p>
+    <Alert v-if="error" variant="destructive">
+      <AlertDescription>{{ error }}</AlertDescription>
+    </Alert>
+    <Alert v-if="success">
+      <AlertDescription>{{ success }}</AlertDescription>
+    </Alert>
 
-    <!-- server.ini editor -->
-    <div v-if="tab === 'server-ini'" class="space-y-3">
-      <div v-for="(value, key) in iniSettings" :key="key" class="grid grid-cols-3 gap-2 items-center">
-        <label class="text-sm font-medium text-right pr-2">{{ key }}</label>
-        <input
-          v-model="iniSettings[key]"
-          type="text"
-          class="col-span-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-        />
-      </div>
-      <button
-        :disabled="saving"
-        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        @click="saveIni"
-      >
-        {{ saving ? 'Saving...' : 'Save server.ini' }}
-      </button>
-    </div>
+    <Tabs v-model="tab" default-value="server-ini">
+      <TabsList>
+        <TabsTrigger value="server-ini">
+          server.ini
+        </TabsTrigger>
+        <TabsTrigger value="sandbox">
+          SandboxVars.lua
+        </TabsTrigger>
+      </TabsList>
 
-    <!-- SandboxVars editor -->
-    <div v-if="tab === 'sandbox'" class="space-y-3">
-      <div v-for="(value, key) in sandboxVars" :key="key" class="grid grid-cols-3 gap-2 items-center">
-        <label class="text-sm font-medium text-right pr-2">{{ key }}</label>
-        <input
-          v-if="typeof value === 'boolean'"
-          :checked="value"
-          type="checkbox"
-          class="rounded border-input"
-          @change="sandboxVars[key] = ($event.target as HTMLInputElement).checked"
-        />
-        <input
-          v-else
-          :value="value"
-          type="text"
-          class="col-span-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-          @input="sandboxVars[key] = ($event.target as HTMLInputElement).value"
-        />
-      </div>
-      <button
-        :disabled="saving"
-        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        @click="saveSandbox"
-      >
-        {{ saving ? 'Saving...' : 'Save SandboxVars.lua' }}
-      </button>
-    </div>
+      <!-- server.ini editor -->
+      <TabsContent value="server-ini" class="space-y-3">
+        <div v-for="(value, key) in iniSettings" :key="key" class="grid grid-cols-3 gap-2 items-center">
+          <Label class="text-right pr-2">{{ key }}</Label>
+          <Input
+            v-model="iniSettings[key]"
+            type="text"
+            class="col-span-2"
+          />
+        </div>
+        <Button
+          :disabled="saving"
+          @click="saveIni"
+        >
+          {{ saving ? 'Saving...' : 'Save server.ini' }}
+        </Button>
+      </TabsContent>
+
+      <!-- SandboxVars editor -->
+      <TabsContent value="sandbox" class="space-y-3">
+        <div v-for="(value, key) in sandboxVars" :key="key" class="grid grid-cols-3 gap-2 items-center">
+          <Label class="text-right pr-2">{{ key }}</Label>
+          <Switch
+            v-if="typeof value === 'boolean'"
+            :checked="value"
+            @update:checked="sandboxVars[key] = $event"
+          />
+          <Input
+            v-else
+            :model-value="String(value)"
+            type="text"
+            class="col-span-2"
+            @update:model-value="sandboxVars[key] = $event"
+          />
+        </div>
+        <Button
+          :disabled="saving"
+          @click="saveSandbox"
+        >
+          {{ saving ? 'Saving...' : 'Save SandboxVars.lua' }}
+        </Button>
+      </TabsContent>
+    </Tabs>
   </div>
 </template>

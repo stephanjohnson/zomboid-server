@@ -16,32 +16,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'Invalid credentials' })
   }
 
-  const valid = await verifyPassword(body.password, user.passwordHash)
+  const valid = await verifyPassword(user.passwordHash, body.password)
   if (!valid) {
     throw createError({ statusCode: 401, message: 'Invalid credentials' })
   }
 
-  const token = await signJwt({
-    sub: user.id,
-    username: user.username,
-    role: user.role,
-  })
-
-  setCookie(event, 'auth_token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-    path: '/',
-  })
-
-  return {
-    token,
+  await setUserSession(event, {
     user: {
       id: user.id,
       username: user.username,
       email: user.email,
       role: user.role,
     },
-  }
+    loggedInAt: Date.now(),
+  })
+
+  return setResponseStatus(event, 201)
 })

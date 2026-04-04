@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const { status, refresh, loading } = useServerStatus()
-const auth = useAuth()
 
 onMounted(() => {
   refresh()
@@ -15,13 +14,14 @@ const { data: players } = useFetch('/api/players', { default: () => ({ players: 
       <h1 class="text-2xl font-bold">
         Dashboard
       </h1>
-      <button
-        class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
+      <Button
+        variant="outline"
+        size="sm"
         :disabled="loading"
         @click="refresh"
       >
         {{ loading ? 'Refreshing...' : 'Refresh' }}
-      </button>
+      </Button>
     </div>
 
     <!-- Server Status -->
@@ -31,33 +31,37 @@ const { data: players } = useFetch('/api/players', { default: () => ({ players: 
     <QuickActions :status="status" />
 
     <!-- Active Profile -->
-    <div v-if="status?.activeProfile" class="rounded-lg border p-4">
-      <h2 class="text-lg font-semibold mb-2">
-        Active Profile
-      </h2>
-      <p class="text-muted-foreground">
-        {{ status.activeProfile.name }} ({{ status.activeProfile.servername }})
-      </p>
-    </div>
+    <Card v-if="status?.activeProfile">
+      <CardHeader>
+        <CardTitle>Active Profile</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p class="text-muted-foreground">
+          {{ status.activeProfile.name }} ({{ status.activeProfile.servername }})
+        </p>
+      </CardContent>
+    </Card>
 
     <!-- Online Players -->
-    <div class="rounded-lg border p-4">
-      <h2 class="text-lg font-semibold mb-2">
-        Online Players ({{ players?.count ?? 0 }})
-      </h2>
-      <div v-if="players?.players?.length" class="space-y-1">
-        <div
-          v-for="player in players.players"
-          :key="player"
-          class="flex items-center gap-2 text-sm"
-        >
-          <span class="h-2 w-2 rounded-full bg-green-500" />
-          {{ player }}
+    <Card>
+      <CardHeader>
+        <CardTitle>Online Players ({{ players?.count ?? 0 }})</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div v-if="players?.players?.length" class="space-y-1">
+          <div
+            v-for="player in players.players"
+            :key="player"
+            class="flex items-center gap-2 text-sm"
+          >
+            <span class="h-2 w-2 rounded-full bg-green-500" />
+            {{ player }}
+          </div>
         </div>
-      </div>
-      <p v-else class="text-sm text-muted-foreground">
-        No players online
-      </p>
-    </div>
+        <p v-else class="text-sm text-muted-foreground">
+          No players online
+        </p>
+      </CardContent>
+    </Card>
   </div>
 </template>

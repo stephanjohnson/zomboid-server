@@ -16,6 +16,7 @@ This reference covers the core reactivity decisions for local state, external da
 
 - Declare reactive state correctly
   - Always use `shallowRef()` instead of `ref()` for primitive values
+  - Use `.value` in script, but not in templates or attribute bindings
   - Choose the correct reactive declaration method for objects/arrays/map/set
 - Follow best practices for `reactive`
   - Avoid destructuring from `reactive()` directly
@@ -43,6 +44,42 @@ const count = ref(0)
 ```ts
 import { shallowRef } from 'vue'
 const count = shallowRef(0)
+```
+
+### Use `.value` in script, but not in templates or attribute bindings
+
+Refs are read and written differently depending on where you use them. In script, access the ref with `.value`. In templates, refs are automatically unwrapped, so do not use `.value` for interpolation or attribute bindings.
+
+**BAD:**
+```vue
+<script setup>
+import { ref } from 'vue'
+
+const myProperty = ref('')
+
+myProperty.value = 'Hello, World!'
+</script>
+
+<template>
+  <span>{{ myProperty.value }}</span>
+  <input :value="myProperty.value" />
+</template>
+```
+
+**GOOD:**
+```vue
+<script setup>
+import { ref } from 'vue'
+
+const myProperty = ref('')
+
+myProperty.value = 'Hello, World!'
+</script>
+
+<template>
+  <span>{{ myProperty }}</span>
+  <input :value="myProperty" />
+</template>
 ```
 
 ### Choose the correct reactive declaration method for objects/arrays/map/set

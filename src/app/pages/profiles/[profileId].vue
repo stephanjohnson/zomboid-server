@@ -55,81 +55,93 @@ async function handleSubmit() {
 
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Profile Name</label>
-          <input v-model="form.name" type="text" required class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <div class="space-y-2">
+          <Label>Profile Name</Label>
+          <Input v-model="form.name" type="text" required />
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Server Name</label>
-          <input v-model="form.servername" type="text" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <div class="space-y-2">
+          <Label>Server Name</Label>
+          <Input v-model="form.servername" type="text" />
         </div>
       </div>
 
       <div class="grid grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Game Port</label>
-          <input v-model.number="form.gamePort" type="number" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <div class="space-y-2">
+          <Label>Game Port</Label>
+          <Input v-model.number="form.gamePort" type="number" />
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Direct Port</label>
-          <input v-model.number="form.directPort" type="number" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <div class="space-y-2">
+          <Label>Direct Port</Label>
+          <Input v-model.number="form.directPort" type="number" />
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">RCON Port</label>
-          <input v-model.number="form.rconPort" type="number" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Map</label>
-          <select v-model="form.mapName" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-            <option value="Muldraugh, KY">Muldraugh, KY</option>
-            <option value="Riverside, KY">Riverside, KY</option>
-            <option value="Rosewood, KY">Rosewood, KY</option>
-            <option value="West Point, KY">West Point, KY</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Max Players</label>
-          <input v-model.number="form.maxPlayers" type="number" min="1" max="128" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <div class="space-y-2">
+          <Label>RCON Port</Label>
+          <Input v-model.number="form.rconPort" type="number" />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Difficulty</label>
-          <select v-model="form.difficulty" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-            <option>Easy</option>
-            <option>Normal</option>
-            <option>Hard</option>
-            <option>Hardcore</option>
-          </select>
+        <div class="space-y-2">
+          <Label>Map</Label>
+          <Select v-model="form.mapName">
+            <SelectTrigger>
+              <SelectValue placeholder="Select a map" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Muldraugh, KY">Muldraugh, KY</SelectItem>
+              <SelectItem value="Riverside, KY">Riverside, KY</SelectItem>
+              <SelectItem value="Rosewood, KY">Rosewood, KY</SelectItem>
+              <SelectItem value="West Point, KY">West Point, KY</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div class="space-y-2">
+          <Label>Max Players</Label>
+          <Input v-model.number="form.maxPlayers" type="number" min="1" max="128" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <Label>Difficulty</Label>
+          <Select v-model="form.difficulty">
+            <SelectTrigger>
+              <SelectValue placeholder="Select difficulty" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Easy">Easy</SelectItem>
+              <SelectItem value="Normal">Normal</SelectItem>
+              <SelectItem value="Hard">Hard</SelectItem>
+              <SelectItem value="Hardcore">Hardcore</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div class="flex items-end gap-2 pb-1">
-          <input id="pvp" v-model="form.pvp" type="checkbox" class="rounded border-input" />
-          <label for="pvp" class="text-sm">Enable PvP</label>
+          <Switch
+            id="pvp"
+            :checked="form.pvp"
+            @update:checked="form.pvp = $event"
+          />
+          <Label for="pvp">Enable PvP</Label>
         </div>
       </div>
 
-      <p v-if="error" class="text-sm text-destructive">
-        {{ error }}
-      </p>
+      <Alert v-if="error" variant="destructive">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
 
       <div class="flex gap-2">
-        <button
+        <Button
           type="submit"
           :disabled="loading"
-          class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {{ loading ? 'Saving...' : 'Save Profile' }}
-        </button>
-        <NuxtLink
-          to="/profiles"
-          class="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
-        >
-          Cancel
-        </NuxtLink>
+        </Button>
+        <Button variant="outline" as-child>
+          <NuxtLink to="/profiles">
+            Cancel
+          </NuxtLink>
+        </Button>
       </div>
     </form>
   </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const auth = useAuth()
+const { user, logout } = useAuth()
 const { status } = useServerStatus()
 
 const navigation = [
@@ -44,18 +44,20 @@ const navigation = [
     <div class="border-t pt-4">
       <div class="text-sm">
         <p class="font-medium">
-          {{ auth.user.value?.username }}
+          {{ user?.username }}
         </p>
         <p class="text-xs text-muted-foreground">
-          {{ auth.user.value?.role }}
+          {{ user?.role }}
         </p>
       </div>
-      <button
-        class="mt-2 text-xs text-muted-foreground hover:text-foreground"
-        @click="auth.logout"
+      <Button
+        variant="ghost"
+        size="sm"
+        class="mt-2 text-xs text-muted-foreground"
+        @click="logout"
       >
         Sign out
-      </button>
+      </Button>
     </div>
   </aside>
 </template>

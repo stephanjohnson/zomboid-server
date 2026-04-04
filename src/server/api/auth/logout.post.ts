@@ -1,4 +1,4 @@
 export default defineEventHandler(async (event) => {
-  deleteCookie(event, 'auth_token', { path: '/' })
+  await clearUserSession(event)
   return { message: 'Logged out' }
 })
