@@ -6,12 +6,14 @@ import { getGameServerModSourcePath, getLuaBridgePath, getPzDataPath } from './r
 
 let docker: Dockerode | null = null
 
-interface GameServerProfileRuntime {
+export interface GameServerProfileRuntime {
   servername: string
   gamePort: number
   directPort: number
   rconPort: number
   steamBuild: string
+  serverIniOverrides?: Record<string, string>
+  forceUpdate?: boolean
 }
 
 interface GameContainerStatus {
@@ -52,7 +54,7 @@ function createPortBindings(profile: GameServerProfileRuntime): NonNullable<Dock
 function createEnv(profile: GameServerProfileRuntime): string[] {
   const config = useRuntimeConfig()
 
-  return [
+  const env = [
     `SERVERNAME=${profile.servername}`,
     `PZ_GAME_PORT=${profile.gamePort}`,
     `PZ_DIRECT_PORT=${profile.directPort}`,
@@ -62,6 +64,20 @@ function createEnv(profile: GameServerProfileRuntime): string[] {
     `PZ_STEAM_BRANCH=${profile.steamBuild || 'public'}`,
     `ZM_API_BASE_URL=${config.modApiBaseUrl}`,
   ]
+
+  // Serialize INI overrides as newline-separated key=value pairs
+  if (profile.serverIniOverrides && Object.keys(profile.serverIniOverrides).length > 0) {
+    const overrides = Object.entries(profile.serverIniOverrides)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('\n')
+    env.push(`PZ_INI_OVERRIDES=${overrides}`)
+  }
+
+  if (profile.forceUpdate) {
+    env.push('PZ_FORCE_UPDATE=true')
+  }
+
+  return env
 }
 
 async function createGameContainer(profile: GameServerProfileRuntime): Promise<Dockerode.Container> {
@@ -152,6 +168,38 @@ export async function startGameContainer(profile?: GameServerProfileRuntime): Pr
   }
 
   const container = getGameContainer()
+  await container.start()
+}
+
+export async function removeGameContainer(): Promise<void> {
+  try {
+    const container = getGameContainer()
+    const info = await container.inspect()
+
+    if (info.State.Running) {
+      await container.stop({ t: 30 })
+    }
+
+    await container.remove()
+  }
+  catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('No such container')) {
+      return // Already gone
+    }
+    throw error
+  }
+}
+
+/**
+ * Reconcile the running container with the DB profile.
+ * Removes the existing container and recreates it with the latest env vars.
+ * This is the only way to change env vars on a Docker container.
+ */
+export async function reconcileGameContainer(profile: GameServerProfileRuntime): Promise<void> {
+  await removeGameContainer()
+
+  const container = await createGameContainer(profile)
   await container.start()
 }
 

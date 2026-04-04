@@ -1,6 +1,7 @@
 #!/bin/bash
 # Apply environment variables to server config files.
 # Called by entrypoint.sh before server launch.
+# All config comes from container env vars (derived from DB profile).
 
 set -e
 
@@ -85,6 +86,18 @@ if [ -f "${ZM_SOURCE_DIR}/42/mod.info" ]; then
     echo "[configure] Installed ZomboidManager workshop cache (${ZM_WORKSHOP_ID})."
 else
     echo "[configure] WARNING: ZomboidManager source mod.info not found at ${ZM_SOURCE_DIR}/42/mod.info"
+fi
+
+# Apply arbitrary INI overrides from PZ_INI_OVERRIDES env var.
+# Format: "Key1=Value1\nKey2=Value2" (newline-separated key=value pairs)
+if [ -n "${PZ_INI_OVERRIDES:-}" ]; then
+    echo "[configure] Applying INI overrides from environment..."
+    echo "$PZ_INI_OVERRIDES" | while IFS='=' read -r key value; do
+        if [ -n "$key" ] && [ -n "$value" ]; then
+            ensure_ini_value "$key" "$value"
+            echo "[configure]   $key=$value"
+        fi
+    done
 fi
 
 echo "[configure] Configuration applied."

@@ -1,15 +1,14 @@
 #!/bin/bash
 # Custom entrypoint for the PZ game server.
-# Fixes volume permissions, applies config, optionally updates via SteamCMD,
-# then launches the server in a screen session with auto-restart.
+# All configuration comes from environment variables set at container creation.
+# The web app creates containers with env vars derived from the DB profile.
+# No disk-based control files are used.
 
 set -e
 
 # --- Root-only init: fix volume permissions, then re-exec as steam ---
 if [ "$(id -u)" = "0" ]; then
     echo "[entrypoint] Running as root — fixing volume ownership..."
-    touch /home/steam/Zomboid/.servername 2>/dev/null || true
-    chmod 666 /home/steam/Zomboid/.servername 2>/dev/null || true
     chown steam:steam /home/steam/Zomboid 2>/dev/null || true
     chown -R steam:steam /home/steam/Zomboid/Lua 2>/dev/null || true
     chown -R steam:steam /home/steam/Zomboid/mods 2>/dev/null || true
@@ -22,17 +21,7 @@ if [ "$(id -u)" = "0" ]; then
 fi
 
 # --- Everything below runs as steam user ---
-
-# Servername override from shared volume (written by the web UI/profile flows)
-SERVERNAME_FILE="/home/steam/Zomboid/.servername"
-if [ -f "$SERVERNAME_FILE" ]; then
-    OVERRIDE_SERVERNAME=$(tr -d '\r\n' < "$SERVERNAME_FILE")
-    if [ -n "$OVERRIDE_SERVERNAME" ]; then
-        SERVERNAME="$OVERRIDE_SERVERNAME"
-        export SERVERNAME
-        echo "[entrypoint] Servername override: $SERVERNAME"
-    fi
-fi
+# All config comes from env vars (SERVERNAME, PZ_STEAM_BRANCH, PZ_FORCE_UPDATE, etc.)
 
 STEAMCMD_BIN="${STEAMCMD_BIN:-$(command -v steamcmd || command -v steamcmd.sh || true)}"
 if [ -z "$STEAMCMD_BIN" ]; then
@@ -44,30 +33,15 @@ fi
 # Apply server configuration from environment variables
 bash /home/steam/configure-server.sh
 
-# Branch override from shared volume (written by web UI)
-OVERRIDE_FILE="/home/steam/Zomboid/.steam_branch"
-if [ -f "$OVERRIDE_FILE" ]; then
-    BRANCH=$(cat "$OVERRIDE_FILE")
-    echo "[entrypoint] Branch override: $BRANCH"
-else
-    BRANCH="${PZ_STEAM_BRANCH:-public}"
-fi
-
+# Determine steam branch from env
+BRANCH="${PZ_STEAM_BRANCH:-public}"
 if [ "$BRANCH" = "public" ]; then
     BETA_FLAG=""
 else
     BETA_FLAG="-beta $BRANCH"
 fi
 
-# Force update flag from shared volume (written by web UI)
-FORCE_FILE="/home/steam/Zomboid/.force_update"
-if [ -f "$FORCE_FILE" ]; then
-    echo "[entrypoint] Force update flag detected"
-    rm -f "$FORCE_FILE"
-    PZ_FORCE_UPDATE=true
-fi
-
-# Only run SteamCMD if server files are missing or update forced
+# Only run SteamCMD if server files are missing or update forced via env
 if [ ! -f /home/steam/pzserver/start-server.sh ] || [ "${PZ_FORCE_UPDATE:-false}" = "true" ]; then
     echo "[entrypoint] Installing/updating PZ server (branch: $BRANCH)..."
     for attempt in 1 2 3; do
