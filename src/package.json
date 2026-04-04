@@ -1,0 +1,54 @@
+{
+  "name": "zomboid-server-manager",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare && prisma generate",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "amqplib": "^0.10.0",
+    "bcryptjs": "^2.4.3",
+    "dockerode": "^4.0.0",
+    "jose": "^5.0.0",
+    "nuxt": "^3.16.0",
+    "pino": "^9.0.0",
+    "rcon-client": "^4.2.0",
+    "valibot": "^1.0.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.0.0",
+    "@nuxt/test-utils": "^3.0.0",
+    "@playwright/test": "^1.45.0",
+    "@types/amqplib": "^0.10.0",
+    "@types/bcryptjs": "^2.4.0",
+    "@types/dockerode": "^3.3.0",
+    "eslint": "^9.0.0",
+    "prisma": "^6.0.0",
+    "shadcn-nuxt": "^1.0.0",
+    "@nuxtjs/tailwindcss": "^6.0.0",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "vue-tsc": "^2.0.0"
+  }
+}

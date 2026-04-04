@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Nuxt build
+.nuxt/
+.output/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+src/prisma/migrations/
+
+# Docker volumes
+backups/
+lua-bridge/default/
+
+# Test
+coverage/
+playwright-report/
+test-results/
+
+# Worker build
+worker/dist/

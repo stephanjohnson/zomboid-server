@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Users & Authentication
+// =============================================================================
+
+enum UserRole {
+  ADMIN
+  MODERATOR
+  PLAYER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(PLAYER)
+  steamId      String?  @unique @map("steam_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  sessions  Session[]
+  auditLogs AuditLog[] @relation("AuditActor")
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("sessions")
+}
+
+// =============================================================================
+// Server Profiles
+// =============================================================================
+
+model ServerProfile {
+  id         String  @id @default(cuid())
+  name       String  @unique
+  isActive   Boolean @default(false) @map("is_active")
+  servername String  @default("servertest")
+
+  // Network
+  gamePort   Int @default(16261) @map("game_port")
+  directPort Int @default(16262) @map("direct_port")
+  rconPort   Int @default(27015) @map("rcon_port")
+
+  // Game settings
+  mapName    String @default("Muldraugh, KY") @map("map_name")
+  maxPlayers Int    @default(16) @map("max_players")
+  pvp        Boolean @default(true)
+  difficulty String  @default("Normal")
+
+  // Additional settings stored as JSON
+  serverIniOverrides  Json? @map("server_ini_overrides")
+  sandboxVarsOverrides Json? @map("sandbox_vars_overrides")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mods    Mod[]
+  backups Backup[]
+  jobs    Job[]
+
+  @@map("server_profiles")
+}
+
+// =============================================================================
+// Game Settings
+// =============================================================================
+
+model GameSetting {
+  id       String @id @default(cuid())
+  category String // "server_ini" or "sandbox_vars"
+  key      String
+  value    String
+  type     String @default("string") // string, number, boolean
+
+  @@unique([category, key])
+  @@map("game_settings")
+}
+
+// =============================================================================
+// Mods
+// =============================================================================
+
+model Mod {
+  id          String @id @default(cuid())
+  profileId   String @map("profile_id")
+  workshopId  String @map("workshop_id")
+  modName     String @map("mod_name")
+  displayName String? @map("display_name")
+  order       Int    @default(0)
+  isEnabled   Boolean @default(true) @map("is_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, workshopId])
+  @@map("mods")
+}
+
+// =============================================================================
+// Backups
+// =============================================================================
+
+model Backup {
+  id          String   @id @default(cuid())
+  profileId   String   @map("profile_id")
+  fileName    String   @map("file_name")
+  filePath    String   @map("file_path")
+  sizeBytes   BigInt   @map("size_bytes")
+  gameVersion String?  @map("game_version")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("backups")
+}
+
+// =============================================================================
+// Jobs (Background Tasks)
+// =============================================================================
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum JobType {
+  BACKUP
+  RESTORE
+  RESTART
+  UPDATE
+  WIPE
+  STOP
+}
+
+model Job {
+  id         String    @id @default(cuid())
+  type       JobType
+  status     JobStatus @default(PENDING)
+  profileId  String?   @map("profile_id")
+  payload    Json?
+  result     Json?
+  error      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  profile ServerProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([type])
+  @@map("jobs")
+}
+
+// =============================================================================
+// Audit Logging
+// =============================================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?  @map("actor_id")
+  action    String
+  target    String?
+  details   Json?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// Whitelist
+// =============================================================================
+
+model WhitelistEntry {
+  id        String   @id @default(cuid())
+  steamId   String   @unique @map("steam_id")
+  username  String?
+  addedBy   String?  @map("added_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("whitelist")
+}
+
+// =============================================================================
+// Scheduled Tasks
+// =============================================================================
+
+model ScheduledTask {
+  id        String  @id @default(cuid())
+  name      String
+  type      String  // "backup", "restart", "message"
+  cron      String  // Cron expression
+  payload   Json?
+  isEnabled Boolean @default(true) @map("is_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("scheduled_tasks")
+}
