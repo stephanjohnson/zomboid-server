@@ -25,12 +25,11 @@ A web-based management dashboard for Project Zomboid dedicated servers, built wi
 ### Start the Stack
 
 ```bash
-# Copy environment file and configure
-cp .env.example .env
-
 # Start all services and infrastructure
 make up
 ```
+
+If `.env` does not exist yet, `make up` will create it from `.env.example` automatically.
 
 Then open `http://localhost:3000` and complete the first-run onboarding flow. The app will initialize the database schema, create the first admin account, and seed the default active server profile.
 
@@ -40,7 +39,9 @@ Then open `http://localhost:3000` and complete the first-run onboarding flow. Th
 make dev
 ```
 
-On a fresh install, the first browser visit will redirect into onboarding and handle the one-time database setup there.
+On a fresh install, `make dev` will also create `.env` from `.env.example` if needed. The first browser visit will redirect into onboarding and handle the one-time database setup there.
+
+Local host-based development uses [src/.env.development](src/.env.development) for localhost service overrides. Prisma CLI now reads its configuration from [src/prisma.config.ts](src/prisma.config.ts), so production-style startup no longer picks up development-only database settings.
 
 The app will be available at `http://localhost:3000`.
 
@@ -51,6 +52,8 @@ make up              # Start all services only
 make down            # Stop all services
 make restart         # Restart all services
 make logs            # View logs
+make clean           # Stop services and remove compose-managed volumes
+make nuke            # Destroy all Docker project data and remove .env
 make db-migrate      # Run Prisma migrations manually
 make db-seed         # Seed database manually
 make db-studio       # Open Prisma Studio

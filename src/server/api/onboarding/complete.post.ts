@@ -12,9 +12,18 @@ const OnboardingSchema = v.object({
 
 export default defineEventHandler(async (event) => {
   const existingStatus = await getSetupStatus()
+  const config = useRuntimeConfig(event)
+  const databaseUrl = typeof config.databaseUrl === 'string' ? config.databaseUrl : undefined
 
   if (existingStatus.isComplete) {
     throw createError({ statusCode: 400, message: 'Onboarding has already been completed' })
+  }
+
+  if (!existingStatus.databaseReachable) {
+    throw createError({
+      statusCode: 503,
+      message: 'Database is not reachable. Start the Docker infrastructure before initializing the application.',
+    })
   }
 
   if (existingStatus.hasAdmin || existingStatus.hasProfile) {
@@ -27,7 +36,7 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, v.parser(OnboardingSchema))
 
   try {
-    await applyDatabaseSchema()
+    await applyDatabaseSchema(databaseUrl)
   }
   catch (error) {
     throw createError({

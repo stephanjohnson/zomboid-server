@@ -76,16 +76,24 @@ export function toServerSlug(serverName: string): string {
   return slug || 'servertest'
 }
 
-export async function applyDatabaseSchema(): Promise<'migrate' | 'db-push'> {
+export async function applyDatabaseSchema(databaseUrl?: string): Promise<'migrate' | 'db-push'> {
   const mode = await hasMigrations() ? 'migrate' : 'db-push'
   const args = mode === 'migrate'
     ? ['migrate', 'deploy']
     : ['db', 'push', '--skip-generate']
+  const commandEnv = {
+    ...process.env,
+  }
+
+  if (databaseUrl) {
+    commandEnv.DATABASE_URL = databaseUrl
+    commandEnv.NUXT_DATABASE_URL = databaseUrl
+  }
 
   try {
     await execFileAsync(getPrismaBinaryPath(), args, {
       cwd: process.cwd(),
-      env: process.env,
+      env: commandEnv,
     })
   }
   catch (error) {

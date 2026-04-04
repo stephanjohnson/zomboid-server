@@ -1,31 +1,41 @@
-.PHONY: up down restart logs build test test-unit test-e2e db-migrate db-seed db-studio clean
+.PHONY: up down restart logs build test test-unit test-e2e db-migrate db-seed db-studio clean nuke
+
+COMPOSE := docker compose
+DEV_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.dev.yml
+VOLUMES := pzm-server-files pzm-data pzm-postgres pzm-rabbitmq pzm-backups pzm-lua-bridge pzm-caddy-data pzm-caddy-config
+
+ensure-env:
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "Created .env from .env.example"; \
+	fi
 
 # ---------------------------------------------------------------------------
 # Docker Compose
 # ---------------------------------------------------------------------------
-up:
-	docker compose up -d
+up: ensure-env
+	$(COMPOSE) up -d
 
 down:
-	docker compose down
+	$(COMPOSE) down
 
 restart:
-	docker compose restart
+	$(COMPOSE) restart
 
 logs:
-	docker compose logs -f
+	$(COMPOSE) logs -f
 
-build:
-	docker compose build
+build: ensure-env
+	$(COMPOSE) build
 
 # ---------------------------------------------------------------------------
 # Database (Prisma)
 # ---------------------------------------------------------------------------
 db-migrate:
-	docker compose exec nitro-app npx prisma migrate deploy
+	$(COMPOSE) exec nitro-app npx prisma migrate deploy
 
 db-seed:
-	docker compose exec nitro-app npx prisma db seed
+	$(COMPOSE) exec nitro-app npx prisma db seed
 
 db-studio:
 	cd src && npx prisma studio
@@ -39,11 +49,11 @@ db-push:
 # ---------------------------------------------------------------------------
 # Development
 # ---------------------------------------------------------------------------
-dev-infra:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db rabbitmq docker-socket-proxy
+dev-infra: ensure-env
+	$(DEV_COMPOSE) up -d db rabbitmq docker-socket-proxy
 
 dev-infra-down:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+	$(DEV_COMPOSE) down
 
 dev: dev-infra
 	cd src && npm run dev
@@ -76,4 +86,26 @@ worker-dev:
 # Cleanup
 # ---------------------------------------------------------------------------
 clean:
-	docker compose down -v --remove-orphans
+	$(COMPOSE) down -v --remove-orphans
+
+nuke:
+	@echo "WARNING: This will destroy all Docker-managed project data and remove the local .env file."
+	@echo "This includes the database, backups, RabbitMQ state, Caddy data, server data, and bridge data."
+	@echo "Type NUKE_ALL and press Enter to continue:"
+	@read confirm; \
+	if [ "$$confirm" != "NUKE_ALL" ]; then \
+		echo "Cancelled."; \
+		exit 1; \
+	fi
+	$(DEV_COMPOSE) down -v --remove-orphans 2>/dev/null || true
+	$(COMPOSE) down -v --remove-orphans
+	@for vol in $(VOLUMES); do \
+		docker volume rm $$vol 2>/dev/null || true; \
+	done
+	@REMAINING=$$(docker volume ls -q --filter name='^pzm-' 2>/dev/null); \
+	if [ -n "$$REMAINING" ]; then \
+		echo "Removing leftover volumes: $$REMAINING"; \
+		echo "$$REMAINING" | xargs docker volume rm 2>/dev/null || true; \
+	fi
+	@rm -f .env
+	@echo "Nuke complete. Run 'make up' or 'make dev' to start fresh."
