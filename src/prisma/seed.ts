@@ -1,5 +1,7 @@
 import { PrismaClient, UserRole } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+
+import { hashPassword } from '../server/utils/auth'
+import { toServerSlug } from '../server/utils/setup'
 
 const prisma = new PrismaClient()
 
@@ -7,8 +9,9 @@ async function main() {
   const adminUsername = process.env.ADMIN_USERNAME || 'admin'
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@localhost'
   const adminPassword = process.env.ADMIN_PASSWORD || 'changeme'
+  const serverName = process.env.SERVER_NAME || 'Default'
 
-  const passwordHash = await bcrypt.hash(adminPassword, 12)
+  const passwordHash = await hashPassword(adminPassword)
 
   await prisma.user.upsert({
     where: { username: adminUsername },
@@ -25,12 +28,12 @@ async function main() {
 
   // Create default server profile
   await prisma.serverProfile.upsert({
-    where: { name: 'Default' },
+    where: { name: serverName },
     update: {},
     create: {
-      name: 'Default',
+      name: serverName,
       isActive: true,
-      servername: 'servertest',
+      servername: toServerSlug(serverName),
       gamePort: 16261,
       directPort: 16262,
       rconPort: 27015,
@@ -41,7 +44,7 @@ async function main() {
     },
   })
 
-  console.log('Default server profile seeded.')
+  console.log(`Server profile "${serverName}" seeded.`)
 }
 
 main()

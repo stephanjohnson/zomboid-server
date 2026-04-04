@@ -28,35 +28,31 @@ A web-based management dashboard for Project Zomboid dedicated servers, built wi
 # Copy environment file and configure
 cp .env.example .env
 
-# Start all services
+# Start all services and infrastructure
 make up
-
-# Run database migrations
-make db-migrate
-
-# Seed initial admin user
-make db-seed
 ```
+
+Then open `http://localhost:3000` and complete the first-run onboarding flow. The app will initialize the database schema, create the first admin account, and seed the default active server profile.
 
 ### Local Development
 
 ```bash
-cd src
-npm install
-npm run dev
+make dev
 ```
+
+On a fresh install, the first browser visit will redirect into onboarding and handle the one-time database setup there.
 
 The app will be available at `http://localhost:3000`.
 
 ### Commands
 
 ```bash
-make up              # Start all services
+make up              # Start all services only
 make down            # Stop all services
 make restart         # Restart all services
 make logs            # View logs
-make db-migrate      # Run Prisma migrations
-make db-seed         # Seed database
+make db-migrate      # Run Prisma migrations manually
+make db-seed         # Seed database manually
 make db-studio       # Open Prisma Studio
 make build           # Build for production
 make test            # Run all tests

@@ -1,8 +1,23 @@
 export default defineNuxtRouteMiddleware(async (to) => {
+  const { status, fetchStatus } = useOnboardingStatus()
+  const setupStatus = status.value || await fetchStatus()
+
+  if (!setupStatus.isComplete) {
+    if (to.path !== '/onboarding') {
+      return navigateTo('/onboarding')
+    }
+
+    return
+  }
+
+  if (to.path === '/onboarding') {
+    return navigateTo('/login')
+  }
+
   const { loggedIn, fetch: fetchSession } = useUserSession()
 
   // Allow public pages
-  const publicPages = ['/login', '/onboarding']
+  const publicPages = ['/login']
   if (publicPages.includes(to.path)) return
 
   // Fetch session if not loaded yet

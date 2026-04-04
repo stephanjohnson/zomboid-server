@@ -131,7 +131,7 @@ The Zomboid Server Manager is a full-stack web application for managing Project 
 ### System
 - `GET /api/health` — Health check
 - `GET /api/onboarding/status` — Setup status
-- `POST /api/onboarding/complete` — First-run setup
+- `POST /api/onboarding/complete` — First-run setup and schema initialization
 
 ## Security
 
