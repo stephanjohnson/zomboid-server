@@ -1,9 +1,12 @@
 import { Rcon } from 'rcon-client'
+import { prisma } from './db'
 
 let rconClient: Rcon | null = null
 
 export async function getRconClient(): Promise<Rcon> {
   const config = useRuntimeConfig()
+  const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
+  const password = profile?.rconPassword || config.pzRconPassword
 
   if (rconClient?.authenticated) {
     return rconClient
@@ -12,7 +15,7 @@ export async function getRconClient(): Promise<Rcon> {
   rconClient = await Rcon.connect({
     host: config.pzRconHost,
     port: config.pzRconPort,
-    password: config.pzRconPassword,
+    password,
     timeout: 5000,
   })
 

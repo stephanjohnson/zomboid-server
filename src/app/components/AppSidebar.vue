@@ -66,6 +66,23 @@ const navSecondary = computed(() => {
   }
   return []
 })
+
+const phaseLabel = computed(() => {
+  if (status.value?.phase?.label) return status.value.phase.label
+  if (status.value?.container?.running) return 'Server Online'
+  if (status.value?.container?.exists) return 'Server Offline'
+  return 'Not Created'
+})
+
+const phaseDotClass = computed(() => {
+  const state = status.value?.phase?.state
+  if (state === 'ready') return 'bg-emerald-500'
+  if (state === 'error') return 'bg-red-500'
+  if (state === 'updating' || state === 'initializing' || state === 'starting') return 'bg-yellow-500'
+  if (status.value?.container?.running) return 'bg-emerald-500'
+  if (status.value?.container?.exists) return 'bg-yellow-500'
+  return 'bg-muted-foreground/50'
+})
 </script>
 
 <template>
@@ -84,9 +101,9 @@ const navSecondary = computed(() => {
                 <span class="truncate text-xs flex items-center gap-1.5">
                   <span
                     class="size-2 rounded-full"
-                    :class="status?.container?.running ? 'bg-emerald-500' : status?.container?.exists ? 'bg-yellow-500' : 'bg-muted-foreground/50'"
+                    :class="phaseDotClass"
                   />
-                  {{ status?.container?.running ? 'Server Online' : status?.container?.exists ? 'Server Offline' : 'Not Created' }}
+                  {{ phaseLabel }}
                 </span>
               </div>
             </NuxtLink>

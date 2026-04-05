@@ -7,8 +7,10 @@ import {
   getGameServerDataMountSource,
   getGameServerLuaBridgeMountSource,
   getGameServerModSourceMount,
+  getGameServerServerFilesMountSource,
   getLuaBridgePath,
   getPzDataPath,
+  getPzServerPath,
 } from './runtime-paths'
 
 let docker: Dockerode | null = null
@@ -18,6 +20,7 @@ export interface GameServerProfileRuntime {
   gamePort: number
   directPort: number
   rconPort: number
+  rconPassword?: string
   steamBuild: string
   mapName: string
   maxPlayers: number
@@ -74,14 +77,15 @@ function createPortBindings(profile: GameServerProfileRuntime): NonNullable<Dock
 
 function createEnv(profile: GameServerProfileRuntime): string[] {
   const config = useRuntimeConfig()
+  const rconPassword = profile.rconPassword || config.pzRconPassword
 
   const env = [
     `SERVERNAME=${profile.servername}`,
     `PZ_GAME_PORT=${profile.gamePort}`,
     `PZ_DIRECT_PORT=${profile.directPort}`,
     `PZ_RCON_PORT=${profile.rconPort}`,
-    `PZ_RCON_PASSWORD=${config.pzRconPassword}`,
-    `PZ_ADMIN_PASSWORD=${config.pzRconPassword}`,
+    `PZ_RCON_PASSWORD=${rconPassword}`,
+    `PZ_ADMIN_PASSWORD=${rconPassword}`,
     `PZ_STEAM_BRANCH=${profile.steamBuild || 'public'}`,
     `PZ_MAP_NAMES=${profile.mapName}`,
     `PZ_MAX_PLAYERS=${profile.maxPlayers}`,
@@ -108,6 +112,7 @@ function createExpectedBinds(): string[] {
   const binds = [
     `${getGameServerDataMountSource()}:/home/steam/Zomboid`,
     `${getGameServerLuaBridgeMountSource()}:/home/steam/Zomboid/Lua`,
+    `${getGameServerServerFilesMountSource()}:/home/steam/pzserver`,
   ]
 
   const modSourceMount = getGameServerModSourceMount()
@@ -160,6 +165,7 @@ async function createGameContainer(profile: GameServerProfileRuntime): Promise<D
   const networkAlias = getGameServerNetworkAlias()
   const pzDataPath = getPzDataPath()
   const luaBridgePath = getLuaBridgePath()
+  const pzServerPath = getPzServerPath()
   const modSourceMount = getGameServerModSourceMount()
 
   if (modSourceMount && modSourceMount.includes('/') && !existsSync(modSourceMount)) {
@@ -168,7 +174,8 @@ async function createGameContainer(profile: GameServerProfileRuntime): Promise<D
 
   await mkdir(pzDataPath, { recursive: true })
   await mkdir(luaBridgePath, { recursive: true })
-  await prepareGameServerRuntimeFiles(profile, config.pzRconPassword)
+  await mkdir(pzServerPath, { recursive: true })
+  await prepareGameServerRuntimeFiles(profile, profile.rconPassword || config.pzRconPassword)
 
   try {
     return await client.createContainer({
@@ -245,7 +252,7 @@ export async function startGameContainer(profile?: GameServerProfileRuntime): Pr
   }
 
   if (profile) {
-    await prepareGameServerRuntimeFiles(profile, config.pzRconPassword)
+    await prepareGameServerRuntimeFiles(profile, profile.rconPassword || config.pzRconPassword)
 
     if (await containerNeedsReconciliation(profile)) {
       await reconcileGameContainer(profile)

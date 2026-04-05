@@ -33,6 +33,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const config = useRuntimeConfig()
     try {
       await sendRconCommand('servermsg "Server restarting..."')
       await sendRconCommand('save')
@@ -54,6 +55,7 @@ export default defineEventHandler(async (event) => {
       gamePort: profile.gamePort,
       directPort: profile.directPort,
       rconPort: profile.rconPort,
+      rconPassword: profile.rconPassword || config.pzRconPassword,
       steamBuild: profile.steamBuild,
       mapName: profile.mapName,
       maxPlayers: profile.maxPlayers,

@@ -9,6 +9,12 @@ interface ServerStatus {
     startedAt: string | null
   }
   rcon: boolean
+  phase: {
+    state: string
+    label: string
+    detail?: string
+    progress?: number
+  }
   activeProfile: {
     id: string
     name: string

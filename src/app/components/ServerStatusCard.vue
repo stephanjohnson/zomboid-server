@@ -3,6 +3,7 @@ defineProps<{
   status: {
     container: { exists: boolean, running: boolean, status: string, statusLabel: string, startedAt: string | null }
     rcon: boolean
+    phase?: { state: string, label: string, detail?: string, progress?: number }
     activeProfile: { id: string, name: string } | null
   } | null
 }>()
@@ -26,6 +27,17 @@ defineProps<{
             />
             <span class="font-medium">{{ status?.container?.statusLabel || 'Unknown' }}</span>
           </div>
+        </div>
+        <div>
+          <p class="text-sm text-muted-foreground">
+            Phase
+          </p>
+          <p class="font-medium text-sm">
+            {{ status?.phase?.label || 'Unknown' }}
+          </p>
+          <p v-if="status?.phase?.detail" class="text-xs text-muted-foreground">
+            {{ status.phase.detail }}<span v-if="typeof status.phase.progress === 'number'"> ({{ status.phase.progress.toFixed(2) }}%)</span>
+          </p>
         </div>
         <div>
           <p class="text-sm text-muted-foreground">

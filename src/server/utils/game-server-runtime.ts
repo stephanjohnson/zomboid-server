@@ -27,6 +27,7 @@ export interface GameServerRuntimeConfigSource {
   gamePort: number
   directPort: number
   rconPort: number
+  rconPassword?: string
   mapName: string
   maxPlayers: number
   pvp: boolean

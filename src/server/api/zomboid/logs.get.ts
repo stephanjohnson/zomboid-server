@@ -1,11 +1,15 @@
-import * as v from 'valibot'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
-const QuerySchema = v.object({
-  tail: v.optional(v.pipe(v.string(), v.transform(Number)), '100'),
-})
+export default defineEventHandler(async () => {
+  const containerLogs = await getContainerLogs(300)
 
-export default defineEventHandler(async (event) => {
-  const { tail } = await getValidatedQuery(event, v.parser(QuerySchema))
-  const logs = await getContainerLogs(tail)
-  return { logs }
+  const config = useRuntimeConfig()
+  const consolePath = join(String(config.pzDataPath || '/pzm-data'), 'server-console.txt')
+  const consoleLog = existsSync(consolePath) ? readFileSync(consolePath, 'utf-8') : ''
+
+  return {
+    containerLogs,
+    serverConsole: consoleLog,
+  }
 })

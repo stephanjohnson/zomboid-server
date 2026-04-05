@@ -56,7 +56,7 @@ dev-infra-down:
 	$(DEV_COMPOSE) down
 
 dev: dev-infra
-	cd src && npm run db:migrate && npm run dev
+	cd src && npm run db:migrate && npm run db:generate && npm run dev
 
 install:
 	cd src && npm install

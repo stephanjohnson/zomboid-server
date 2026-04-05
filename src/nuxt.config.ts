@@ -61,6 +61,7 @@ export default defineNuxtConfig({
     gameServerNetworkAlias: readRuntimeEnv('GAME_SERVER_NETWORK_ALIAS', 'game-server'),
     gameServerDataMountSource: readRuntimeEnv('GAME_SERVER_DATA_MOUNT_SOURCE', ''),
     gameServerLuaBridgeMountSource: readRuntimeEnv('GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE', ''),
+    gameServerServerFilesMountSource: readRuntimeEnv('GAME_SERVER_SERVER_FILES_MOUNT_SOURCE', ''),
     gameServerModSourceMount: readRuntimeEnv('GAME_SERVER_MOD_SOURCE_MOUNT', ''),
     gameServerModSourcePath: readRuntimeEnv('GAME_SERVER_MOD_SOURCE_PATH', '../lua-bridge/ZomboidManager'),
     modApiBaseUrl: readRuntimeEnv('MOD_API_BASE_URL', 'http://nitro-app:3000/api/mod'),

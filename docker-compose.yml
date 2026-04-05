@@ -15,6 +15,7 @@ services:
     volumes:
       - zomboid-data:/home/steam/Zomboid
       - lua-bridge:/home/steam/Zomboid/Lua
+      - zomboid-server:/home/steam/pzserver
     environment:
       SERVERNAME: ${SERVERNAME:-servertest}
       PZ_GAME_PORT: ${PZ_GAME_PORT:-16261}
@@ -68,6 +69,7 @@ services:
       NUXT_LUA_BRIDGE_PATH: /lua-bridge
       NUXT_GAME_SERVER_DATA_MOUNT_SOURCE: pzm-data
       NUXT_GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE: pzm-lua-bridge
+      NUXT_GAME_SERVER_SERVER_FILES_MOUNT_SOURCE: pzm-server-files
       NUXT_GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
     cap_drop:
       - ALL
@@ -112,6 +114,7 @@ services:
       LUA_BRIDGE_PATH: /lua-bridge
       GAME_SERVER_DATA_MOUNT_SOURCE: pzm-data
       GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE: pzm-lua-bridge
+      GAME_SERVER_SERVER_FILES_MOUNT_SOURCE: pzm-server-files
       GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
     cap_drop:
       - ALL

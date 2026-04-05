@@ -101,6 +101,10 @@ function getGameServerLuaBridgeMountSource(): string {
   return resolveMountSource(process.env.GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE, 'pzm-lua-bridge')
 }
 
+function getGameServerServerFilesMountSource(): string {
+  return resolveMountSource(process.env.GAME_SERVER_SERVER_FILES_MOUNT_SOURCE, 'pzm-server-files')
+}
+
 function getGameServerModSourceMount(): string | undefined {
   const mountSource = process.env.GAME_SERVER_MOD_SOURCE_MOUNT
   return mountSource ? resolveMountSource(mountSource, mountSource) : undefined
@@ -125,16 +129,17 @@ function createPortBindings(profile: ServerProfile): NonNullable<Dockerode.Conta
 export function buildContainerEnv(profile: ServerProfile, options: {
   branch?: string
   modApiBaseUrl: string
-  rconPassword: string
+  rconPassword?: string
   forceUpdate?: boolean
 }): string[] {
+  const rconPassword = profile.rconPassword || options.rconPassword || ''
   const env = [
     `SERVERNAME=${profile.servername}`,
     `PZ_GAME_PORT=${profile.gamePort}`,
     `PZ_DIRECT_PORT=${profile.directPort}`,
     `PZ_RCON_PORT=${profile.rconPort}`,
-    `PZ_RCON_PASSWORD=${options.rconPassword}`,
-    `PZ_ADMIN_PASSWORD=${options.rconPassword}`,
+    `PZ_RCON_PASSWORD=${rconPassword}`,
+    `PZ_ADMIN_PASSWORD=${rconPassword}`,
     `PZ_STEAM_BRANCH=${options.branch ?? profile.steamBuild || 'public'}`,
     `PZ_MAP_NAMES=${profile.mapName}`,
     `PZ_MAX_PLAYERS=${profile.maxPlayers}`,
@@ -206,6 +211,7 @@ export function createContainerOptions(profile: ServerProfile, options: {
   const binds = [
     `${getGameServerDataMountSource()}:/home/steam/Zomboid`,
     `${getGameServerLuaBridgeMountSource()}:/home/steam/Zomboid/Lua`,
+    `${getGameServerServerFilesMountSource()}:/home/steam/pzserver`,
   ]
 
   if (modSourceMount) {

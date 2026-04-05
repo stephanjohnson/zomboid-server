@@ -111,7 +111,7 @@ async function handleSubmit() {
         </div>
 
         <div class="grid gap-2 md:col-span-2">
-          <Label for="admin-username">Admin username</Label>
+          <Label for="admin-username">Dashboard admin username</Label>
           <Input
             id="admin-username"
             v-model="form.adminUsername"
@@ -122,7 +122,7 @@ async function handleSubmit() {
             placeholder="admin"
           />
           <p class="text-xs text-muted-foreground">
-            Use at least 3 characters. This is the username for future sign-ins.
+            Use at least 3 characters. This controls dashboard sign-ins. The game server admin user remains "admin".
           </p>
         </div>
 

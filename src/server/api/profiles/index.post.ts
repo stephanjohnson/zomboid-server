@@ -19,6 +19,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, v.parser(CreateProfileSchema))
+  const config = useRuntimeConfig()
+  const activeProfile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
 
   const profile = await prisma.serverProfile.create({
     data: {
@@ -27,6 +29,7 @@ export default defineEventHandler(async (event) => {
       gamePort: body.gamePort,
       directPort: body.directPort,
       rconPort: body.rconPort,
+      rconPassword: activeProfile?.rconPassword || config.pzRconPassword,
       mapName: body.mapName,
       maxPlayers: body.maxPlayers,
       pvp: body.pvp,

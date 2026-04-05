@@ -52,7 +52,7 @@ export async function handleUpdateJob(
   }
 
   const modApiBaseUrl = process.env.MOD_API_BASE_URL || 'http://nitro-app:3000/api/mod'
-  const rconPassword = process.env.PZ_RCON_PASSWORD || ''
+  const rconPassword = profile.rconPassword || process.env.PZ_RCON_PASSWORD || ''
   const gameServerImage = process.env.GAME_SERVER_IMAGE || 'pzm-game-server:local'
   await prepareGameServerRuntimeFiles(profile, rconPassword)
 

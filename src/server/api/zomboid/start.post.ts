@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const body = await readValidatedBody(event, v.parser(StartSchema))
+    const config = useRuntimeConfig()
 
     const profile = body.profileId
       ? await prisma.serverProfile.findUnique({ where: { id: body.profileId } })
@@ -28,6 +29,7 @@ export default defineEventHandler(async (event) => {
       gamePort: profile.gamePort,
       directPort: profile.directPort,
       rconPort: profile.rconPort,
+      rconPassword: profile.rconPassword || config.pzRconPassword,
       steamBuild: profile.steamBuild,
       mapName: profile.mapName,
       maxPlayers: profile.maxPlayers,

@@ -1,28 +1,26 @@
 <script setup lang="ts">
 import {
-  Activity,
   Clock,
+  LoaderCircle,
   Server,
-  TrendingDown,
-  TrendingUp,
   Users,
   Wifi,
   WifiOff,
 } from 'lucide-vue-next'
-import { Badge } from '@/components/ui/badge'
 import {
   Card,
-  CardAction,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
 
 const props = defineProps<{
   status: {
     container: { exists: boolean, running: boolean, status: string, statusLabel: string, startedAt: string | null }
     rcon: boolean
+    phase?: { state: string, label: string, detail?: string, progress?: number }
     activeProfile: { id: string, name: string, servername: string } | null
   } | null
   playerCount: number
@@ -40,124 +38,101 @@ const uptime = computed(() => {
 })
 
 const serverStateLabel = computed(() => {
+  if (props.status?.phase?.label) return props.status.phase.label
   if (props.status?.container?.running) return 'Online'
   if (props.status?.container?.exists) return 'Stopped'
   return 'Not Created'
 })
+
+const phaseDetail = computed(() => {
+  if (!props.status?.phase) return null
+  const { detail, progress } = props.status.phase
+  if (typeof progress === 'number' && detail) {
+    return `${detail} (${progress.toFixed(2)}%)`
+  }
+  return detail ?? null
+})
+
+const serverRunning = computed(() => props.status?.container?.running)
 </script>
 
 <template>
   <div class="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
     <Card class="@container/card">
       <CardHeader>
-        <CardDescription>Server Status</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {{ serverStateLabel }}
-        </CardTitle>
-        <CardAction>
-          <Badge variant="outline" :class="status?.container?.running ? 'text-emerald-600' : 'text-muted-foreground'">
-            <Server class="size-3" />
-            {{ status?.container?.statusLabel ?? 'Unknown' }}
-          </Badge>
-        </CardAction>
-      </CardHeader>
-      <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          <template v-if="status?.container?.running">
-            Server is running
-            <Activity class="size-4 text-emerald-500" />
+        <CardDescription class="flex items-center gap-2">
+          <Server class="size-3.5 text-muted-foreground" />
+          Server Status
+        </CardDescription>
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+          <template v-if="status?.phase">
+            <LoaderCircle class="size-4 animate-spin text-amber-500" />
+            {{ status.phase.detail ?? status.phase.label }}
           </template>
           <template v-else>
-            Server is offline
-            <TrendingDown class="size-4" />
+            <span class="size-2 rounded-full" :class="serverRunning ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+            {{ serverStateLabel }}
           </template>
-        </div>
+        </CardTitle>
+      </CardHeader>
+      <CardFooter class="flex-col items-start gap-1.5 text-sm">
         <div class="text-muted-foreground">
           {{ status?.activeProfile?.servername ?? 'No profile active' }}
         </div>
+        <Progress v-if="typeof status?.phase?.progress === 'number'" :model-value="status.phase.progress" class="h-1.5 w-full" />
       </CardFooter>
     </Card>
 
     <Card class="@container/card">
       <CardHeader>
-        <CardDescription>Players Online</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+        <CardDescription class="flex items-center gap-2">
+          <Users class="size-3.5 text-muted-foreground" />
+          Players Online
+        </CardDescription>
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+          <span class="size-2 rounded-full" :class="playerCount > 0 ? 'bg-emerald-500' : 'bg-muted-foreground'" />
           {{ playerCount }}
         </CardTitle>
-        <CardAction>
-          <Badge variant="outline">
-            <Users class="size-3" />
-            Active
-          </Badge>
-        </CardAction>
       </CardHeader>
-      <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          <template v-if="playerCount > 0">
-            Players connected <TrendingUp class="size-4" />
-          </template>
-          <template v-else>
-            No active players
-          </template>
-        </div>
+      <CardFooter class="text-sm">
         <div class="text-muted-foreground">
-          Currently in-game
+          {{ playerCount > 0 ? `${playerCount} active in-game` : 'No active players' }}
         </div>
       </CardFooter>
     </Card>
 
     <Card class="@container/card">
       <CardHeader>
-        <CardDescription>RCON Connection</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+        <CardDescription class="flex items-center gap-2">
+          <component :is="status?.rcon ? Wifi : WifiOff" class="size-3.5 text-muted-foreground" />
+          RCON
+        </CardDescription>
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+          <span class="size-2 rounded-full" :class="status?.rcon ? 'bg-emerald-500' : 'bg-muted-foreground'" />
           {{ status?.rcon ? 'Connected' : 'Disconnected' }}
         </CardTitle>
-        <CardAction>
-          <Badge variant="outline" :class="status?.rcon ? 'text-emerald-600' : 'text-muted-foreground'">
-            <component :is="status?.rcon ? Wifi : WifiOff" class="size-3" />
-            {{ status?.rcon ? 'Active' : 'Inactive' }}
-          </Badge>
-        </CardAction>
       </CardHeader>
-      <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          <template v-if="status?.rcon">
-            Remote console ready <TrendingUp class="size-4" />
-          </template>
-          <template v-else>
-            RCON unavailable <TrendingDown class="size-4" />
-          </template>
-        </div>
+      <CardFooter class="text-sm">
         <div class="text-muted-foreground">
-          Server command interface
+          {{ status?.rcon ? 'Remote console ready' : 'Console unavailable' }}
         </div>
       </CardFooter>
     </Card>
 
     <Card class="@container/card">
       <CardHeader>
-        <CardDescription>Uptime</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+        <CardDescription class="flex items-center gap-2">
+          <Clock class="size-3.5 text-muted-foreground" />
+          Uptime
+        </CardDescription>
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+          <span class="size-2 rounded-full" :class="uptime ? 'bg-emerald-500' : 'bg-muted-foreground'" />
           {{ uptime ?? '--' }}
         </CardTitle>
-        <CardAction>
-          <Badge variant="outline">
-            <Clock class="size-3" />
-            Session
-          </Badge>
-        </CardAction>
       </CardHeader>
-      <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          <template v-if="uptime">
-            Running since start <TrendingUp class="size-4" />
-          </template>
-          <template v-else>
-            Server not running
-          </template>
-        </div>
+      <CardFooter class="text-sm">
         <div class="text-muted-foreground">
-          Current session duration
+          {{ uptime ? 'Current session' : 'Not running' }}
         </div>
       </CardFooter>
     </Card>

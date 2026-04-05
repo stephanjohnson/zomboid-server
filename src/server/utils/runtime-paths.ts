@@ -54,6 +54,19 @@ export function getLuaBridgePath(): string {
   return resolveRuntimePath('LUA_BRIDGE_PATH', configuredPath, fallback)
 }
 
+export function getPzServerPath(): string {
+  const config = useRuntimeConfig()
+  const localDev = isLocalDevRuntime()
+  const configuredPath = asOptionalString(config.pzServerPath)
+  const fallback = localDev ? './dev-data/pzm-server' : '/pzm-server'
+
+  if (localDev && (!configuredPath || configuredPath === '/pzm-server')) {
+    return resolve(process.cwd(), fallback)
+  }
+
+  return resolveRuntimePath('PZ_SERVER_PATH', configuredPath, fallback)
+}
+
 export function getGameServerModSourcePath(): string {
   const config = useRuntimeConfig()
   return resolveRuntimePath('GAME_SERVER_MOD_SOURCE_PATH', asOptionalString(config.gameServerModSourcePath), '../lua-bridge/ZomboidManager')
@@ -80,6 +93,18 @@ export function getGameServerLuaBridgeMountSource(): string {
   return resolveMountSource(
     configuredSource,
     isLocalDevRuntime() ? './dev-data/lua-bridge' : 'pzm-lua-bridge',
+  )
+}
+
+export function getGameServerServerFilesMountSource(): string {
+  const config = useRuntimeConfig()
+  const configuredSource = asOptionalString(config.gameServerServerFilesMountSource)
+    ?? asOptionalString(process.env.NUXT_GAME_SERVER_SERVER_FILES_MOUNT_SOURCE)
+    ?? asOptionalString(process.env.GAME_SERVER_SERVER_FILES_MOUNT_SOURCE)
+
+  return resolveMountSource(
+    configuredSource,
+    isLocalDevRuntime() ? './dev-data/pzm-server' : 'pzm-server-files',
   )
 }
 

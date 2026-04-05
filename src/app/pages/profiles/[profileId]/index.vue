@@ -19,8 +19,13 @@ onMounted(() => {
 
 const { data: profile } = await useFetch(`/api/profiles/${profileId}`)
 const { data: players } = useFetch('/api/players', { default: () => ({ players: [], count: 0 }) })
+const { data: logs, refresh: refreshLogs, pending: logsLoading } = await useFetch('/api/zomboid/logs', {
+  default: () => ({ containerLogs: '', serverConsole: '' }),
+})
 
 const actionLoading = ref<string | null>(null)
+const requestUrl = useRequestURL()
+const host = computed(() => requestUrl.hostname || 'localhost')
 
 function getActionErrorMessage(error: unknown, fallback: string): string {
   return (error as { data?: { message?: string }, statusMessage?: string })?.data?.message
@@ -50,6 +55,8 @@ async function serverAction(action: string) {
     actionLoading.value = null
   }
 }
+
+const showLogs = ref(false)
 </script>
 
 <template>
@@ -106,6 +113,100 @@ async function serverAction(action: string) {
         <RefreshCw class="size-4" :class="loading ? 'animate-spin' : ''" />
         <span class="hidden sm:inline">Refresh</span>
       </Button>
+    </div>
+
+    <!-- Connection Info -->
+    <div v-if="profile" class="px-4 lg:px-6">
+      <Card>
+        <CardHeader>
+          <CardTitle class="text-base font-medium">
+            Connection Info
+          </CardTitle>
+          <CardDescription>
+            Use these details in the Project Zomboid client.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <p class="text-xs text-muted-foreground uppercase tracking-wide">
+                Host
+              </p>
+              <p class="text-sm font-medium">
+                {{ host }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-muted-foreground uppercase tracking-wide">
+                Game Port (UDP)
+              </p>
+              <p class="text-sm font-medium">
+                {{ profile.gamePort }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-muted-foreground uppercase tracking-wide">
+                Direct Port (UDP)
+              </p>
+              <p class="text-sm font-medium">
+                {{ profile.directPort }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-muted-foreground uppercase tracking-wide">
+                RCON Port (TCP)
+              </p>
+              <p class="text-sm font-medium">
+                {{ profile.rconPort }}
+              </p>
+            </div>
+          </div>
+          <p class="mt-4 text-xs text-muted-foreground">
+            For local testing, use 127.0.0.1 as the host. For LAN clients, use this machine’s IP and ensure UDP ports are allowed by your firewall.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+
+    <!-- Server Logs -->
+    <div class="px-4 lg:px-6">
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle class="text-base font-medium">
+              Server Logs
+            </CardTitle>
+            <CardDescription>
+              Container output and server console logs (last entries).
+            </CardDescription>
+          </div>
+          <div class="flex items-center gap-2">
+            <Button variant="outline" size="sm" :disabled="logsLoading" @click="refreshLogs">
+              <RefreshCw class="size-4" :class="logsLoading ? 'animate-spin' : ''" />
+              Refresh
+            </Button>
+            <Button variant="ghost" size="sm" @click="showLogs = !showLogs">
+              {{ showLogs ? 'Hide' : 'Show' }}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent v-if="showLogs">
+          <div class="grid gap-4 lg:grid-cols-2">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Container Logs
+              </p>
+              <pre class="mt-2 max-h-72 overflow-auto rounded-md border border-border bg-muted/30 p-3 text-xs whitespace-pre-wrap">{{ logs?.containerLogs || 'No container logs yet.' }}</pre>
+            </div>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Server Console
+              </p>
+              <pre class="mt-2 max-h-72 overflow-auto rounded-md border border-border bg-muted/30 p-3 text-xs whitespace-pre-wrap">{{ logs?.serverConsole || 'server-console.txt not available yet.' }}</pre>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
 
     <!-- Online Players -->

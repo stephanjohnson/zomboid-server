@@ -80,6 +80,7 @@ export async function seedInitialSetup(
         isActive: true,
         servername: toServerSlug(serverName),
         steamBuild: input.steamBuild ?? 'public',
+        rconPassword: input.adminPassword,
         mapName: input.mapName || 'Muldraugh, KY',
         maxPlayers: input.maxPlayers ?? 16,
         pvp: input.pvp ?? true,

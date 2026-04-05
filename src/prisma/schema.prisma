@@ -63,6 +63,7 @@ model ServerProfile {
   gamePort   Int @default(16261) @map("game_port")
   directPort Int @default(16262) @map("direct_port")
   rconPort   Int @default(27015) @map("rcon_port")
+  rconPassword String @default("") @map("rcon_password")
 
   // Game settings
   mapName    String  @default("Muldraugh, KY") @map("map_name")
