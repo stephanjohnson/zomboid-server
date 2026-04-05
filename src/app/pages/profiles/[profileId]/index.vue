@@ -2,6 +2,8 @@
 import { toast } from 'vue-sonner'
 import {
   Archive,
+  Check,
+  Clipboard,
   Play,
   Power,
   RefreshCw,
@@ -14,16 +16,28 @@ const profileId = route.params.profileId as string
 
 const { status, refresh, loading } = useServerStatus()
 
+const { data: players, refresh: refreshPlayers } = useFetch('/api/players', { default: () => ({ players: [], count: 0 }) })
+
 onMounted(() => {
   refresh()
 })
 
-const { data: profile } = await useFetch(`/api/profiles/${profileId}`)
-const { data: players } = useFetch('/api/players', { default: () => ({ players: [], count: 0 }) })
+// Refresh players alongside status polling
+watch(status, () => {
+  refreshPlayers()
+})
 
+const { data: profile } = await useFetch(`/api/profiles/${profileId}`)
 const actionLoading = ref<string | null>(null)
 const requestUrl = useRequestURL()
 const host = computed(() => requestUrl.hostname || 'localhost')
+const copiedField = ref<string | null>(null)
+
+function copyToClipboard(value: string, field: string) {
+  navigator.clipboard.writeText(value)
+  copiedField.value = field
+  setTimeout(() => copiedField.value = null, 1500)
+}
 
 function getActionErrorMessage(error: unknown, fallback: string): string {
   return (error as { data?: { message?: string }, statusMessage?: string })?.data?.message
@@ -120,52 +134,27 @@ async function serverAction(action: string) {
     <!-- Connection Info -->
     <div v-if="profile" class="px-4 lg:px-6">
       <Card>
-        <CardHeader>
-          <CardTitle class="text-base font-medium">
-            Connection Info
-          </CardTitle>
-          <CardDescription>
-            Use these details in the Project Zomboid client.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div class="grid gap-4 md:grid-cols-2">
-            <div>
-              <p class="text-xs text-muted-foreground uppercase tracking-wide">
-                Host
-              </p>
-              <p class="text-sm font-medium">
-                {{ host }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs text-muted-foreground uppercase tracking-wide">
-                Game Port (UDP)
-              </p>
-              <p class="text-sm font-medium">
-                {{ profile.gamePort }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs text-muted-foreground uppercase tracking-wide">
-                Direct Port (UDP)
-              </p>
-              <p class="text-sm font-medium">
-                {{ profile.directPort }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs text-muted-foreground uppercase tracking-wide">
-                RCON Port (TCP)
-              </p>
-              <p class="text-sm font-medium">
-                {{ profile.rconPort }}
-              </p>
+        <CardContent class="flex flex-wrap items-center gap-x-6 gap-y-2 py-4">
+          <span class="text-sm font-medium">Connection Info</span>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div v-for="item in [
+              { label: ‘Host’, value: host, key: ‘host’ },
+              { label: ‘Game Port’, value: String(profile.gamePort), key: ‘game’ },
+              { label: ‘Direct Port’, value: String(profile.directPort), key: ‘direct’ },
+              { label: ‘RCON Port’, value: String(profile.rconPort), key: ‘rcon’ },
+            ]" :key="item.key" class="flex items-center gap-1.5">
+              <span class="text-xs text-muted-foreground">{{ item.label }}</span>
+              <code class="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">{{ item.value }}</code>
+              <button
+                class="inline-flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                :title="`Copy ${item.label}`"
+                @click="copyToClipboard(item.value, item.key)"
+              >
+                <Check v-if="copiedField === item.key" class="size-3 text-emerald-500" />
+                <Clipboard v-else class="size-3" />
+              </button>
             </div>
           </div>
-          <p class="mt-4 text-xs text-muted-foreground">
-            For local testing, use 127.0.0.1 as the host. For LAN clients, use this machine’s IP and ensure UDP ports are allowed by your firewall.
-          </p>
         </CardContent>
       </Card>
     </div>

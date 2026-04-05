@@ -55,7 +55,17 @@ mkdir -p "$SERVER_DIR"
 
 ZM_WORKSHOP_ID="3685323705"
 ZM_SOURCE_DIR="${ZM_SOURCE_DIR:-/opt/ZomboidManager-source}"
-ZM_WORKSHOP_DIR="/home/steam/ZomboidDedicatedServer/steamapps/workshop/content/108600/${ZM_WORKSHOP_ID}/mods/ZomboidManager"
+
+# Detect the actual game install directory used by the image
+# renegademaster uses /home/steam/pzserver, but BASE_GAME_DIR may vary
+if [ -d "/home/steam/pzserver/steamapps" ]; then
+    GAME_INSTALL_DIR="/home/steam/pzserver"
+elif [ -d "/home/steam/ZomboidDedicatedServer/steamapps" ]; then
+    GAME_INSTALL_DIR="/home/steam/ZomboidDedicatedServer"
+else
+    GAME_INSTALL_DIR="/home/steam/pzserver"
+fi
+ZM_WORKSHOP_DIR="${GAME_INSTALL_DIR}/steamapps/workshop/content/108600/${ZM_WORKSHOP_ID}/mods/ZomboidManager"
 
 # Create a minimal ini so the local bridge mod can be enabled on first boot
 if [ ! -f "$INI_FILE" ]; then

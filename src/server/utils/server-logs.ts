@@ -135,6 +135,10 @@ const BENIGN_ERROR_PATTERNS: RegExp[] = [
   /CraftRecipeComponentScript/i,
   /duplicate texture/i,
   /IsoSpriteManager\.AddSprite/i,
+  /MOD:ZomboidManager/i,
+  /ZM_Main\.lua/i,
+  /ZM_Utils\.lua/i,
+  /ZM_PvpTracker\.lua/i,
 ]
 
 function isBenignErrorLine(line: string, nearbyLines: string[]): boolean {
