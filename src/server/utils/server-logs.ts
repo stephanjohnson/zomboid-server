@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { getPzDataPath } from './runtime-paths'
@@ -85,6 +85,17 @@ export function readPreviousConsoleLog(): string | null {
   }
 
   return sanitizeLogText(readFileSync(prevPath, 'utf-8'))
+}
+
+export function deletePreviousConsoleLog(): boolean {
+  const prevPath = join(getPzDataPath(), 'server-console.prev.txt')
+
+  if (!existsSync(prevPath)) {
+    return false
+  }
+
+  unlinkSync(prevPath)
+  return true
 }
 
 function findLastIndex(lines: string[], pattern: RegExp): number {
@@ -262,8 +273,13 @@ function resolveConsolePhase(serverConsole: string): GameServerPhase | null {
 function resolveContainerPhase(containerLogs: string): GameServerPhase {
   const lines = splitLogLines(containerLogs)
 
-  const errorEntry = findLastLine(lines, [/Failed to install app/i, /SteamCMD failed/i, /^FATAL:/i, /^ERROR!/i])
-  if (errorEntry) {
+  const errorEntry = findLastLine(lines, [/Failed to install app/i, /SteamCMD failed/i, /^FATAL:/i])
+  const updateEntry = findLastLine(lines, [/Update state/i])
+  const steamcmdUpdateEntry = findLastLine(lines, [/Downloading update \(/i, /Updating Project Zomboid Server/i, /app_update 380870/i])
+
+  // Only treat SteamCMD errors as fatal if they appear after the last update progress line
+  const lastUpdateIndex = Math.max(updateEntry?.index ?? -1, steamcmdUpdateEntry?.index ?? -1)
+  if (errorEntry && (lastUpdateIndex === -1 || errorEntry.index > lastUpdateIndex)) {
     return {
       state: 'error',
       label: 'Error',
@@ -271,7 +287,6 @@ function resolveContainerPhase(containerLogs: string): GameServerPhase {
     }
   }
 
-  const updateEntry = findLastLine(lines, [/Update state/i])
   if (updateEntry) {
     let detail = 'Updating server files'
     let progress: number | undefined
@@ -284,6 +299,29 @@ function resolveContainerPhase(containerLogs: string): GameServerPhase {
     else if (/downloading/i.test(updateEntry.line)) detail = 'Downloading server files'
     else if (/verifying/i.test(updateEntry.line)) detail = 'Verifying server files'
     else if (/committing/i.test(updateEntry.line)) detail = 'Finalizing update'
+
+    return {
+      state: 'updating',
+      label: 'Updating',
+      detail,
+      progress,
+    }
+  }
+
+  if (steamcmdUpdateEntry) {
+    let detail = 'Updating server files'
+    let progress: number | undefined
+    const dlMatch = steamcmdUpdateEntry.line.match(/Downloading update \((\d+) of (\d+) KB\)/)
+    if (dlMatch) {
+      detail = 'Updating SteamCMD'
+      progress = Math.round((Number(dlMatch[1]) / Number(dlMatch[2])) * 100)
+    }
+    else if (/Updating Project Zomboid/i.test(steamcmdUpdateEntry.line)) {
+      detail = 'Running SteamCMD update'
+    }
+    else if (/app_update/i.test(steamcmdUpdateEntry.line)) {
+      detail = 'Downloading game server'
+    }
 
     return {
       state: 'updating',
@@ -309,11 +347,27 @@ function resolveContainerPhase(containerLogs: string): GameServerPhase {
     }
   }
 
-  if (findLastLine(lines, [/start-server\.sh/i, /ProjectZomboid64/i])) {
+  if (findLastLine(lines, [/start-server\.sh/i, /ProjectZomboid64/i, /Starting Project Zomboid Server/i])) {
     return {
       state: 'starting',
       label: 'Starting',
       detail: 'Launching server process',
+    }
+  }
+
+  if (findLastLine(lines, [/Applying Post Install Configuration/i, /Checking if this is the first run/i, /\[configure\]/i])) {
+    return {
+      state: 'starting',
+      label: 'Starting',
+      detail: 'Applying server configuration',
+    }
+  }
+
+  if (findLastLine(lines, [/Setting variables/i, /Applying Pre Install Configuration/i, /\[entrypoint\]/i])) {
+    return {
+      state: 'initializing',
+      label: 'Initializing',
+      detail: 'Preparing server environment',
     }
   }
 
@@ -325,10 +379,16 @@ function resolveContainerPhase(containerLogs: string): GameServerPhase {
 }
 
 export function resolveServerPhase(containerLogs: string, serverConsole: string): GameServerPhase {
+  // Container-level phases (updating, errors) take priority over stale console data
+  const containerPhase = resolveContainerPhase(containerLogs)
+  if (containerPhase.state === 'updating' || containerPhase.state === 'error') {
+    return containerPhase
+  }
+
   const consolePhase = resolveConsolePhase(serverConsole)
   if (consolePhase) {
     return consolePhase
   }
 
-  return resolveContainerPhase(containerLogs)
+  return containerPhase
 }

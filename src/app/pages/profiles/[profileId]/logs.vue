@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
-import { ArrowDownToLine, ArrowUpDown, RefreshCw } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpDown, RefreshCw, Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const profileId = route.params.profileId as string
@@ -18,11 +18,19 @@ const { pause, resume } = useIntervalFn(() => {
 }, 5000, { immediate: true })
 
 onScopeDispose(pause)
+
+async function deletePreviousLog() {
+  await $fetch('/api/zomboid/logs/previous', { method: 'DELETE' })
+  await refreshLogs()
+  if (activeTab.value === 'previous') {
+    activeTab.value = 'console'
+  }
+}
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6 min-h-0">
-    <div class="flex items-center justify-between px-4 lg:px-6">
+  <div class="flex flex-1 flex-col gap-4 min-h-0">
+    <div class="flex items-center justify-between">
       <div>
         <h1 class="text-lg font-semibold">
           Server Logs
@@ -67,7 +75,7 @@ onScopeDispose(pause)
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col min-h-0 px-4 lg:px-6">
+    <div class="flex flex-1 flex-col min-h-0">
       <Tabs v-model="activeTab" class="flex flex-1 flex-col min-h-0">
         <TabsList class="self-start">
           <TabsTrigger value="console">
@@ -89,6 +97,12 @@ onScopeDispose(pause)
           />
         </TabsContent>
         <TabsContent v-if="logs?.previousConsole" value="previous" class="flex flex-1 flex-col min-h-0 mt-4">
+          <div class="flex items-center justify-end mb-2">
+            <Button variant="outline" size="sm" class="text-destructive hover:bg-destructive/10" @click="deletePreviousLog">
+              <Trash2 class="size-4" />
+              <span class="hidden sm:inline">Clear Previous Log</span>
+            </Button>
+          </div>
           <LogViewer
             :value="logs.previousConsole"
             placeholder="No previous console log."

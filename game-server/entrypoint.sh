@@ -53,4 +53,11 @@ if [ -z "${MOD_WORKSHOP_IDS:-}" ]; then
     unset MOD_WORKSHOP_IDS
 fi
 
+if [ ! -f /home/steam/run_server.sh ]; then
+    echo "[entrypoint] ERROR: /home/steam/run_server.sh not found."
+    echo "[entrypoint] This entrypoint requires the renegademaster/zomboid-dedicated-server image."
+    echo "[entrypoint] Check that GAME_SERVER_IMAGE is set correctly and recreate the container."
+    exit 1
+fi
+
 exec /home/steam/run_server.sh

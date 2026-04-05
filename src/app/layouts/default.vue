@@ -40,8 +40,8 @@ const pageTitle = computed(() => {
             </h1>
           </div>
         </header>
-        <div class="flex flex-1 flex-col">
-          <div class="@container/main flex flex-1 flex-col gap-2 p-4">
+        <div class="flex flex-1 flex-col overflow-hidden">
+          <div class="@container/main flex flex-1 flex-col gap-2 overflow-hidden p-4">
             <slot />
           </div>
         </div>

@@ -5,9 +5,12 @@ export default defineEventHandler(async () => {
   const consoleLog = readServerConsoleLog()
   const previousConsole = readPreviousConsoleLog()
 
+  const tailedConsole = tailLogText(consoleLog, 500)
+  const tailedPrevious = previousConsole ? tailLogText(previousConsole, 500) : null
+
   return {
     containerLogs: tailLogText(containerLogs, 1500),
-    serverConsole: tailLogText(consoleLog, 500),
-    previousConsole: previousConsole ? tailLogText(previousConsole, 500) : null,
+    serverConsole: tailedConsole,
+    previousConsole: tailedPrevious && tailedPrevious !== tailedConsole ? tailedPrevious : null,
   }
 })
