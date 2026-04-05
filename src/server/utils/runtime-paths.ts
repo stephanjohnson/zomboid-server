@@ -19,7 +19,7 @@ function resolveRuntimePath(envName: string, configuredPath: string | undefined,
 }
 
 function resolveMountSource(configuredSource: string | undefined, fallback: string): string {
-  const mountSource = configuredSource ?? fallback
+  const mountSource = hasValue(configuredSource) ? configuredSource : fallback
 
   if (mountSource.includes('/') || mountSource.startsWith('.')) {
     return isAbsolute(mountSource) ? mountSource : resolve(process.cwd(), mountSource)
@@ -30,20 +30,28 @@ function resolveMountSource(configuredSource: string | undefined, fallback: stri
 
 export function getPzDataPath(): string {
   const config = useRuntimeConfig()
-  return resolveRuntimePath(
-    'PZ_DATA_PATH',
-    asOptionalString(config.pzDataPath),
-    isLocalDevRuntime() ? './dev-data/pzm-data' : '/pzm-data',
-  )
+  const localDev = isLocalDevRuntime()
+  const configuredPath = asOptionalString(config.pzDataPath)
+  const fallback = localDev ? './dev-data/pzm-data' : '/pzm-data'
+
+  if (localDev && (!configuredPath || configuredPath === '/pzm-data' || configuredPath === '/pz-data')) {
+    return resolve(process.cwd(), fallback)
+  }
+
+  return resolveRuntimePath('PZ_DATA_PATH', configuredPath, fallback)
 }
 
 export function getLuaBridgePath(): string {
   const config = useRuntimeConfig()
-  return resolveRuntimePath(
-    'LUA_BRIDGE_PATH',
-    asOptionalString(config.luaBridgePath),
-    isLocalDevRuntime() ? './dev-data/lua-bridge' : '/lua-bridge',
-  )
+  const localDev = isLocalDevRuntime()
+  const configuredPath = asOptionalString(config.luaBridgePath)
+  const fallback = localDev ? './dev-data/lua-bridge' : '/lua-bridge'
+
+  if (localDev && (!configuredPath || configuredPath === '/lua-bridge')) {
+    return resolve(process.cwd(), fallback)
+  }
+
+  return resolveRuntimePath('LUA_BRIDGE_PATH', configuredPath, fallback)
 }
 
 export function getGameServerModSourcePath(): string {
