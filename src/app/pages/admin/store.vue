@@ -151,6 +151,8 @@ const { data: catalogSearch, refresh: refreshCatalogSearch, pending: catalogPend
 )
 
 const activeTab = ref('overview')
+const productDialogOpen = ref(false)
+const productDialogTab = ref('catalog')
 const categoryNotice = ref('')
 const productNotice = ref('')
 const bundleNotice = ref('')
@@ -368,6 +370,31 @@ function resetProductForm() {
   ]
 }
 
+function resetProductImportState() {
+  catalogImportNotice.value = ''
+  catalogImportError.value = ''
+  lastCatalogImport.value = null
+}
+
+function resetProductDraft() {
+  resetProductForm()
+  resetProductImportState()
+  catalogQuery.value = ''
+  if (catalogSearch.value) {
+    catalogSearch.value = {
+      ...catalogDefault,
+      items: [],
+    }
+  }
+  productDialogTab.value = 'catalog'
+}
+
+function openCreateProductDialog() {
+  resetProductDraft()
+  activeTab.value = 'products'
+  productDialogOpen.value = true
+}
+
 function resetBundleForm() {
   bundleForm.name = ''
   bundleForm.slug = ''
@@ -515,6 +542,10 @@ function seedVariantFromCatalog(item: CatalogSearchResult) {
     imageUrl: item.iconUrl || '',
     price: 0,
   })
+
+  activeTab.value = 'products'
+  productDialogTab.value = 'variants'
+  productDialogOpen.value = true
 }
 
 function applyImportedCatalogItem(enrichment: CatalogItemEnrichment) {
@@ -567,6 +598,8 @@ async function importCatalogItem(fullType: string) {
     lastCatalogImport.value = response.enrichment
     applyImportedCatalogItem(response.enrichment)
     activeTab.value = 'products'
+    productDialogTab.value = 'details'
+    productDialogOpen.value = true
     catalogImportNotice.value = `Imported ${response.enrichment.item.name} into the product builder.`
   }
   catch (error) {
@@ -617,7 +650,8 @@ async function submitProduct() {
   })
 
   productNotice.value = 'Product created'
-  resetProductForm()
+  productDialogOpen.value = false
+  resetProductDraft()
   await refreshBootstrap()
 }
 
@@ -666,9 +700,14 @@ async function deleteBundle(bundleId: string) {
         </p>
       </div>
 
-      <Badge variant="secondary" class="w-fit px-3 py-1">
-        {{ bootstrap.profile?.name || 'No active profile' }}
-      </Badge>
+      <div class="flex flex-wrap items-center gap-3">
+        <Badge variant="secondary" class="w-fit px-3 py-1">
+          {{ bootstrap.profile?.name || 'No active profile' }}
+        </Badge>
+        <Button @click="openCreateProductDialog">
+          Add product
+        </Button>
+      </div>
     </div>
 
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -921,288 +960,471 @@ async function deleteBundle(bundleId: string) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Create Product</CardTitle>
+            <CardTitle>Product Builder</CardTitle>
             <CardDescription>
-              Parent products hold the merchandising copy; variants map to exact in-game item codes.
+              Open a focused dialog to search the game catalog first, then move through the remaining product data in tabs.
             </CardDescription>
           </CardHeader>
-          <CardContent class="space-y-8">
-            <div class="grid gap-4 lg:grid-cols-2">
-              <div class="space-y-2">
-                <Label>Name</Label>
-                <Input v-model="productForm.name" placeholder="Military kneepads" />
+          <CardContent class="space-y-4">
+            <div class="grid gap-4 lg:grid-cols-3">
+              <div class="rounded-xl border bg-muted/20 p-4">
+                <p class="text-sm font-medium">1. Search first</p>
+                <p class="mt-2 text-sm text-muted-foreground">
+                  Start with the live item catalog so the item code, images, and derived copy land in the builder before the rest of the setup.
+                </p>
               </div>
-              <div class="space-y-2">
-                <Label>Slug</Label>
-                <Input v-model="productForm.slug" placeholder="Optional custom slug" />
+              <div class="rounded-xl border bg-muted/20 p-4">
+                <p class="text-sm font-medium">2. Fill in merchandising</p>
+                <p class="mt-2 text-sm text-muted-foreground">
+                  Keep the richer product metadata, but split it across focused tabs instead of one long scrolling form.
+                </p>
               </div>
-              <div class="space-y-2">
-                <Label>Badge</Label>
-                <Input v-model="productForm.badge" placeholder="Featured" />
-              </div>
-              <div class="space-y-2">
-                <Label>Accent color</Label>
-                <Input v-model="productForm.accentColor" placeholder="#b45309" />
-              </div>
-            </div>
-
-            <div class="space-y-2">
-              <Label>Summary</Label>
-              <Textarea v-model="productForm.summary" :rows="2" />
-            </div>
-
-            <div class="space-y-2">
-              <Label>Description</Label>
-              <Textarea v-model="productForm.description" :rows="3" />
-            </div>
-
-            <div class="space-y-2">
-              <Label>Overview</Label>
-              <Textarea v-model="productForm.overview" :rows="4" />
-            </div>
-
-            <div class="grid gap-6 lg:grid-cols-2">
-              <div class="space-y-2">
-                <Label>Feature bullets</Label>
-                <Textarea
-                  v-model="productForm.featureBulletsText"
-                  :rows="6"
-                  placeholder="One feature per line"
-                />
-              </div>
-
-              <div class="space-y-2">
-                <Label>Specs</Label>
-                <Textarea
-                  v-model="productForm.specsText"
-                  :rows="6"
-                  placeholder="Group | Label: Value"
-                />
-              </div>
-            </div>
-
-            <div class="grid gap-6 lg:grid-cols-2">
-              <div class="space-y-3">
-                <Label>Categories</Label>
-                <div class="grid gap-2 rounded-lg border p-4">
-                  <label
-                    v-for="category in bootstrap.categories"
-                    :key="category.id"
-                    class="flex items-center justify-between gap-3 text-sm"
-                  >
-                    <span>{{ category.name }}</span>
-                    <input
-                      :checked="productForm.categoryIds.includes(category.id)"
-                      type="checkbox"
-                      class="h-4 w-4"
-                      @change="productForm.categoryIds = toggleSelection(productForm.categoryIds, category.id)"
-                    >
-                  </label>
-                </div>
-              </div>
-
-              <div class="space-y-3">
-                <Label>Recommended add-ons</Label>
-                <div class="grid gap-2 rounded-lg border p-4">
-                  <label
-                    v-for="recommendation in bootstrap.recommendationOptions"
-                    :key="recommendation.id"
-                    class="flex items-center justify-between gap-3 text-sm"
-                  >
-                    <span>{{ recommendation.name }}</span>
-                    <input
-                      :checked="productForm.recommendationProductIds.includes(recommendation.id)"
-                      type="checkbox"
-                      class="h-4 w-4"
-                      @change="productForm.recommendationProductIds = toggleSelection(productForm.recommendationProductIds, recommendation.id)"
-                    >
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-lg font-medium">
-                    Variant axes
-                  </h3>
-                  <p class="text-sm text-muted-foreground">
-                    Define selectors like side, color, or finish.
-                  </p>
-                </div>
-                <Button variant="outline" @click="addOptionGroup">
-                  Add option group
-                </Button>
-              </div>
-
-              <div class="grid gap-4">
-                <Card
-                  v-for="(group, groupIndex) in productForm.optionGroups"
-                  :key="`group-${groupIndex}`"
-                >
-                  <CardHeader class="pb-4">
-                    <div class="flex items-center justify-between gap-3">
-                      <CardTitle class="text-base">
-                        Option group {{ groupIndex + 1 }}
-                      </CardTitle>
-                      <Button variant="ghost" size="sm" @click="removeOptionGroup(groupIndex)">
-                        Remove
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent class="space-y-4">
-                    <div class="grid gap-4 md:grid-cols-3">
-                      <Input v-model="group.name" placeholder="Name" />
-                      <Input v-model="group.slug" placeholder="Slug" />
-                      <select v-model="group.displayType" class="h-10 rounded-md border bg-background px-3 text-sm">
-                        <option value="TEXT">
-                          Text
-                        </option>
-                        <option value="COLOR">
-                          Color
-                        </option>
-                      </select>
-                    </div>
-
-                    <div class="space-y-3">
-                      <div
-                        v-for="(value, valueIndex) in group.values"
-                        :key="`value-${valueIndex}`"
-                        class="grid gap-3 md:grid-cols-[1fr_1fr_160px_auto]"
-                      >
-                        <Input v-model="value.label" placeholder="Value label" />
-                        <Input v-model="value.slug" placeholder="Value slug" />
-                        <Input v-model="value.colorHex" placeholder="#94a3b8" />
-                        <Button variant="ghost" @click="removeOptionValue(groupIndex, valueIndex)">
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Button variant="outline" @click="addOptionValue(groupIndex)">
-                      Add value
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-lg font-medium">
-                    Variants
-                  </h3>
-                  <p class="text-sm text-muted-foreground">
-                    Each variant should point to an actual Project Zomboid item code.
-                  </p>
-                </div>
-                <Button variant="outline" @click="addVariant()">
-                  Add variant
-                </Button>
-              </div>
-
-              <div class="grid gap-4">
-                <Card
-                  v-for="(variant, variantIndex) in productForm.variants"
-                  :key="`variant-${variantIndex}`"
-                >
-                  <CardHeader class="pb-4">
-                    <div class="flex items-center justify-between gap-3">
-                      <CardTitle class="text-base">
-                        Variant {{ variantIndex + 1 }}
-                      </CardTitle>
-                      <Button variant="ghost" size="sm" @click="removeVariant(variantIndex)">
-                        Remove
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent class="space-y-4">
-                    <div class="grid gap-4 lg:grid-cols-2">
-                      <Input v-model="variant.name" placeholder="Variant name" />
-                      <Input v-model="variant.sku" placeholder="SKU (optional)" />
-                      <Input v-model="variant.itemCode" placeholder="Base.Kneepad_Left_Army" />
-                      <Input v-model="variant.gameName" placeholder="Game display name" />
-                      <Input v-model="variant.gameCategory" placeholder="Game category" />
-                      <Input v-model="variant.badge" placeholder="Variant badge" />
-                    </div>
-
-                    <div class="grid gap-4 lg:grid-cols-5">
-                      <Input v-model.number="variant.price" type="number" min="0" placeholder="Price" />
-                      <Input v-model.number="variant.compareAtPrice" type="number" min="0" placeholder="Compare-at" />
-                      <Input v-model.number="variant.quantity" type="number" min="1" placeholder="PZ quantity" />
-                      <Input v-model.number="variant.stock" type="number" min="0" placeholder="Stock (blank = unlimited)" />
-                      <Input v-model.number="variant.weight" type="number" min="0" step="0.01" placeholder="Weight" />
-                    </div>
-
-                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px]">
-                      <Input v-model="variant.imageUrl" placeholder="Image URL" />
-                      <div class="flex h-24 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
-                        <img
-                          v-if="variant.imageUrl"
-                          :src="variant.imageUrl"
-                          :alt="variant.gameName || variant.name || 'Variant image'"
-                          class="h-full w-full object-contain"
-                        >
-                        <span v-else class="text-xs text-muted-foreground">No image</span>
-                      </div>
-                    </div>
-
-                    <div class="grid gap-4 lg:grid-cols-2">
-                      <label class="flex items-center gap-3 text-sm">
-                        <input v-model="variant.isDefault" type="checkbox" class="h-4 w-4">
-                        Default variant
-                      </label>
-                      <label class="flex items-center gap-3 text-sm">
-                        <input v-model="variant.isActive" type="checkbox" class="h-4 w-4">
-                        Active
-                      </label>
-                    </div>
-
-                    <div
-                      v-if="productForm.optionGroups.length"
-                      class="grid gap-4 lg:grid-cols-3"
-                    >
-                      <div
-                        v-for="(group, groupIndex) in productForm.optionGroups"
-                        :key="`variant-${variantIndex}-${groupIndex}`"
-                        class="space-y-2"
-                      >
-                        <Label>{{ group.name || `Option ${groupIndex + 1}` }}</Label>
-                        <select
-                          v-model="variant.selections[groupKey(group, groupIndex)]"
-                          class="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        >
-                          <option
-                            v-for="(value, valueIndex) in group.values"
-                            :key="`option-${valueIndex}`"
-                            :value="optionValueKey(value, valueIndex)"
-                          >
-                            {{ value.label || `Value ${valueIndex + 1}` }}
-                          </option>
-                        </select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div class="rounded-xl border bg-muted/20 p-4">
+                <p class="text-sm font-medium">3. Finish variants</p>
+                <p class="mt-2 text-sm text-muted-foreground">
+                  Define option axes and exact Project Zomboid mappings only after the parent product is seeded.
+                </p>
               </div>
             </div>
 
             <div class="flex flex-wrap gap-3">
-              <Button :disabled="bootstrapPending" @click="submitProduct">
-                Create product
+              <Button @click="openCreateProductDialog">
+                Add product
               </Button>
-              <Button variant="outline" @click="resetProductForm">
-                Reset form
+              <Button variant="outline" @click="productDialogOpen = true">
+                Resume draft
               </Button>
             </div>
           </CardContent>
         </Card>
+
+        <Dialog v-model:open="productDialogOpen">
+          <DialogContent class="max-h-[90vh] w-[calc(100vw-2rem)] max-w-6xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create Product</DialogTitle>
+              <DialogDescription>
+                Start with the item search, then step through the remaining tabs to finish the product.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Alert v-if="catalogImportNotice || catalogImportError || lastCatalogImport?.wiki.note">
+              <AlertTitle>
+                {{ catalogImportError || catalogImportNotice || 'Imported item details' }}
+              </AlertTitle>
+              <AlertDescription>
+                {{ catalogImportError || lastCatalogImport?.wiki.note || 'Review the imported copy, specs, weight, and image fields before creating the product.' }}
+              </AlertDescription>
+            </Alert>
+
+            <Tabs v-model="productDialogTab" default-value="catalog" class="space-y-6">
+              <TabsList class="grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 lg:grid-cols-5">
+                <TabsTrigger value="catalog" class="border data-[state=active]:border-border data-[state=active]:bg-background">
+                  Item Search
+                </TabsTrigger>
+                <TabsTrigger value="details" class="border data-[state=active]:border-border data-[state=active]:bg-background">
+                  Details
+                </TabsTrigger>
+                <TabsTrigger value="merchandising" class="border data-[state=active]:border-border data-[state=active]:bg-background">
+                  Merchandising
+                </TabsTrigger>
+                <TabsTrigger value="options" class="border data-[state=active]:border-border data-[state=active]:bg-background">
+                  Options
+                </TabsTrigger>
+                <TabsTrigger value="variants" class="border data-[state=active]:border-border data-[state=active]:bg-background">
+                  Variants
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="catalog" class="space-y-6">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                  <div class="space-y-2">
+                    <Label for="product-item-search">Item search</Label>
+                    <Input
+                      id="product-item-search"
+                      v-model="catalogQuery"
+                      placeholder="Search item code or display name"
+                      @keydown.enter.prevent="searchCatalog"
+                    />
+                  </div>
+                  <div class="flex flex-wrap gap-3">
+                    <Button :disabled="catalogPending" @click="searchCatalog">
+                      {{ catalogPending ? 'Searching…' : 'Search catalog' }}
+                    </Button>
+                    <Button variant="outline" @click="productDialogTab = 'details'">
+                      Skip to details
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+                  This comes first now, like the original flow, so you can lock in the Project Zomboid item before working through merchandising, tabs, and variants.
+                </div>
+
+                <div v-if="catalogSearch.items.length" class="grid gap-3 xl:grid-cols-2">
+                  <Card
+                    v-for="item in catalogSearch.items"
+                    :key="item.fullType"
+                    class="border-dashed"
+                  >
+                    <CardHeader class="pb-3">
+                      <div class="flex items-start gap-3">
+                        <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
+                          <img
+                            v-if="item.iconUrl"
+                            :src="item.iconUrl"
+                            :alt="item.name"
+                            class="h-full w-full object-contain"
+                          >
+                          <div v-else class="text-xs text-muted-foreground">
+                            No image
+                          </div>
+                        </div>
+                        <div class="min-w-0 space-y-1">
+                          <CardTitle class="text-base">
+                            {{ item.name }}
+                          </CardTitle>
+                          <CardDescription>
+                            {{ item.fullType }}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent class="space-y-4 text-sm">
+                      <div class="flex flex-wrap gap-2">
+                        <Badge variant="outline">
+                          {{ item.displayCategory || item.category || 'Unknown category' }}
+                        </Badge>
+                        <Badge v-if="typeof item.weight === 'number'" variant="outline">
+                          {{ item.weight }} enc.
+                        </Badge>
+                        <Badge v-if="item.isTwoHandWeapon" variant="outline">
+                          Two-handed
+                        </Badge>
+                        <Badge v-if="typeof item.maxCondition === 'number'" variant="outline">
+                          Cond. {{ item.maxCondition }}
+                        </Badge>
+                      </div>
+
+                      <div class="flex flex-wrap justify-end gap-2">
+                        <Button variant="outline" @click="seedVariantFromCatalog(item)">
+                          Add variant only
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          :disabled="catalogImportingFullType === item.fullType"
+                          @click="importCatalogItem(item.fullType)"
+                        >
+                          {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import details' }}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card v-else class="border-dashed">
+                  <CardContent class="py-10 text-center text-sm text-muted-foreground">
+                    Search the game catalog to seed the first variant, or move straight to Details if you want to build the product manually.
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="details" class="space-y-6">
+                <div class="grid gap-4 lg:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label>Name</Label>
+                    <Input v-model="productForm.name" placeholder="Military kneepads" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label>Slug</Label>
+                    <Input v-model="productForm.slug" placeholder="Optional custom slug" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label>Badge</Label>
+                    <Input v-model="productForm.badge" placeholder="Featured" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label>Accent color</Label>
+                    <Input v-model="productForm.accentColor" placeholder="#b45309" />
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <Label>Summary</Label>
+                  <Textarea v-model="productForm.summary" :rows="2" />
+                </div>
+
+                <div class="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea v-model="productForm.description" :rows="3" />
+                </div>
+
+                <div class="space-y-2">
+                  <Label>Overview</Label>
+                  <Textarea v-model="productForm.overview" :rows="4" />
+                </div>
+
+                <div class="grid gap-6 lg:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label>Feature bullets</Label>
+                    <Textarea
+                      v-model="productForm.featureBulletsText"
+                      :rows="6"
+                      placeholder="One feature per line"
+                    />
+                  </div>
+
+                  <div class="space-y-2">
+                    <Label>Specs</Label>
+                    <Textarea
+                      v-model="productForm.specsText"
+                      :rows="6"
+                      placeholder="Group | Label: Value"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="merchandising" class="space-y-6">
+                <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]">
+                  <div class="space-y-3">
+                    <Label>Categories</Label>
+                    <div class="grid max-h-80 gap-2 overflow-y-auto rounded-lg border p-4">
+                      <label
+                        v-for="category in bootstrap.categories"
+                        :key="category.id"
+                        class="flex items-center justify-between gap-3 text-sm"
+                      >
+                        <span>{{ category.name }}</span>
+                        <input
+                          :checked="productForm.categoryIds.includes(category.id)"
+                          type="checkbox"
+                          class="h-4 w-4"
+                          @change="productForm.categoryIds = toggleSelection(productForm.categoryIds, category.id)"
+                        >
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="space-y-3">
+                    <Label>Recommended add-ons</Label>
+                    <div class="grid max-h-80 gap-2 overflow-y-auto rounded-lg border p-4">
+                      <label
+                        v-for="recommendation in bootstrap.recommendationOptions"
+                        :key="recommendation.id"
+                        class="flex items-center justify-between gap-3 text-sm"
+                      >
+                        <span>{{ recommendation.name }}</span>
+                        <input
+                          :checked="productForm.recommendationProductIds.includes(recommendation.id)"
+                          type="checkbox"
+                          class="h-4 w-4"
+                          @change="productForm.recommendationProductIds = toggleSelection(productForm.recommendationProductIds, recommendation.id)"
+                        >
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="space-y-4">
+                    <div class="space-y-2">
+                      <Label>Sort order</Label>
+                      <Input v-model.number="productForm.sortOrder" type="number" min="0" />
+                    </div>
+
+                    <label class="flex items-center gap-3 rounded-lg border p-4 text-sm">
+                      <input v-model="productForm.isFeatured" type="checkbox" class="h-4 w-4">
+                      Featured product
+                    </label>
+
+                    <label class="flex items-center gap-3 rounded-lg border p-4 text-sm">
+                      <input v-model="productForm.isActive" type="checkbox" class="h-4 w-4">
+                      Active in store
+                    </label>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="options" class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-lg font-medium">
+                      Variant axes
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                      Define selectors like side, color, or finish.
+                    </p>
+                  </div>
+                  <Button variant="outline" @click="addOptionGroup">
+                    Add option group
+                  </Button>
+                </div>
+
+                <div class="grid gap-4">
+                  <Card
+                    v-for="(group, groupIndex) in productForm.optionGroups"
+                    :key="`group-${groupIndex}`"
+                  >
+                    <CardHeader class="pb-4">
+                      <div class="flex items-center justify-between gap-3">
+                        <CardTitle class="text-base">
+                          Option group {{ groupIndex + 1 }}
+                        </CardTitle>
+                        <Button variant="ghost" size="sm" @click="removeOptionGroup(groupIndex)">
+                          Remove
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                      <div class="grid gap-4 md:grid-cols-3">
+                        <Input v-model="group.name" placeholder="Name" />
+                        <Input v-model="group.slug" placeholder="Slug" />
+                        <select v-model="group.displayType" class="h-10 rounded-md border bg-background px-3 text-sm">
+                          <option value="TEXT">
+                            Text
+                          </option>
+                          <option value="COLOR">
+                            Color
+                          </option>
+                        </select>
+                      </div>
+
+                      <div class="space-y-3">
+                        <div
+                          v-for="(value, valueIndex) in group.values"
+                          :key="`value-${valueIndex}`"
+                          class="grid gap-3 md:grid-cols-[1fr_1fr_160px_auto]"
+                        >
+                          <Input v-model="value.label" placeholder="Value label" />
+                          <Input v-model="value.slug" placeholder="Value slug" />
+                          <Input v-model="value.colorHex" placeholder="#94a3b8" />
+                          <Button variant="ghost" @click="removeOptionValue(groupIndex, valueIndex)">
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+
+                      <Button variant="outline" @click="addOptionValue(groupIndex)">
+                        Add value
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="variants" class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-lg font-medium">
+                      Variants
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                      Each variant should point to an actual Project Zomboid item code.
+                    </p>
+                  </div>
+                  <Button variant="outline" @click="addVariant()">
+                    Add variant
+                  </Button>
+                </div>
+
+                <div class="grid gap-4">
+                  <Card
+                    v-for="(variant, variantIndex) in productForm.variants"
+                    :key="`variant-${variantIndex}`"
+                  >
+                    <CardHeader class="pb-4">
+                      <div class="flex items-center justify-between gap-3">
+                        <CardTitle class="text-base">
+                          Variant {{ variantIndex + 1 }}
+                        </CardTitle>
+                        <Button variant="ghost" size="sm" @click="removeVariant(variantIndex)">
+                          Remove
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                      <div class="grid gap-4 lg:grid-cols-2">
+                        <Input v-model="variant.name" placeholder="Variant name" />
+                        <Input v-model="variant.sku" placeholder="SKU (optional)" />
+                        <Input v-model="variant.itemCode" placeholder="Base.Kneepad_Left_Army" />
+                        <Input v-model="variant.gameName" placeholder="Game display name" />
+                        <Input v-model="variant.gameCategory" placeholder="Game category" />
+                        <Input v-model="variant.badge" placeholder="Variant badge" />
+                      </div>
+
+                      <div class="grid gap-4 lg:grid-cols-5">
+                        <Input v-model.number="variant.price" type="number" min="0" placeholder="Price" />
+                        <Input v-model.number="variant.compareAtPrice" type="number" min="0" placeholder="Compare-at" />
+                        <Input v-model.number="variant.quantity" type="number" min="1" placeholder="PZ quantity" />
+                        <Input v-model.number="variant.stock" type="number" min="0" placeholder="Stock (blank = unlimited)" />
+                        <Input v-model.number="variant.weight" type="number" min="0" step="0.01" placeholder="Weight" />
+                      </div>
+
+                      <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px]">
+                        <Input v-model="variant.imageUrl" placeholder="Image URL" />
+                        <div class="flex h-24 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
+                          <img
+                            v-if="variant.imageUrl"
+                            :src="variant.imageUrl"
+                            :alt="variant.gameName || variant.name || 'Variant image'"
+                            class="h-full w-full object-contain"
+                          >
+                          <span v-else class="text-xs text-muted-foreground">No image</span>
+                        </div>
+                      </div>
+
+                      <div class="grid gap-4 lg:grid-cols-2">
+                        <label class="flex items-center gap-3 text-sm">
+                          <input v-model="variant.isDefault" type="checkbox" class="h-4 w-4">
+                          Default variant
+                        </label>
+                        <label class="flex items-center gap-3 text-sm">
+                          <input v-model="variant.isActive" type="checkbox" class="h-4 w-4">
+                          Active
+                        </label>
+                      </div>
+
+                      <div
+                        v-if="productForm.optionGroups.length"
+                        class="grid gap-4 lg:grid-cols-3"
+                      >
+                        <div
+                          v-for="(group, groupIndex) in productForm.optionGroups"
+                          :key="`variant-${variantIndex}-${groupIndex}`"
+                          class="space-y-2"
+                        >
+                          <Label>{{ group.name || `Option ${groupIndex + 1}` }}</Label>
+                          <select
+                            v-model="variant.selections[groupKey(group, groupIndex)]"
+                            class="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          >
+                            <option
+                              v-for="(value, valueIndex) in group.values"
+                              :key="`option-${valueIndex}`"
+                              :value="optionValueKey(value, valueIndex)"
+                            >
+                              {{ value.label || `Value ${valueIndex + 1}` }}
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter>
+              <Button variant="outline" @click="productDialogOpen = false">
+                Close
+              </Button>
+              <Button variant="outline" @click="resetProductDraft">
+                Reset form
+              </Button>
+              <Button :disabled="bootstrapPending" @click="submitProduct">
+                Create product
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </TabsContent>
 
       <TabsContent value="bundles" class="space-y-6">

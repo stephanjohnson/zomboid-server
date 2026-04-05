@@ -44,7 +44,7 @@ export function decodeDockerLogBuffer(logs: string | Buffer): string {
   let offset = 0
 
   while (offset + 8 <= logs.length) {
-    const streamType = logs[offset]
+    const streamType = logs[offset]!
     const payloadSize = logs.readUInt32BE(offset + 4)
     const nextOffset = offset + 8 + payloadSize
 
@@ -100,7 +100,7 @@ export function deletePreviousConsoleLog(): boolean {
 
 function findLastIndex(lines: string[], pattern: RegExp): number {
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    if (pattern.test(lines[index])) {
+    if (pattern.test(lines[index]!)) {
       return index
     }
   }
@@ -110,8 +110,8 @@ function findLastIndex(lines: string[], pattern: RegExp): number {
 
 function findLastLine(lines: string[], patterns: RegExp[]): { index: number, line: string } | null {
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    if (patterns.some(pattern => pattern.test(lines[index]))) {
-      return { index, line: lines[index] }
+    if (patterns.some(pattern => pattern.test(lines[index]!))) {
+      return { index, line: lines[index]! }
     }
   }
 
@@ -169,7 +169,7 @@ function summarizeErrorLine(line: string, nextLine?: string): string {
 
   if (nextLine) {
     const propertyMatch = nextLine.match(/(Property Name not found:\s*.+)$/i)
-    if (propertyMatch) {
+    if (propertyMatch?.[1]) {
       return propertyMatch[1].trim()
     }
   }
@@ -179,11 +179,12 @@ function summarizeErrorLine(line: string, nextLine?: string): string {
 
 function findLastNonBenignError(lines: string[]): { index: number, line: string } | null {
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    if (/^FATAL:/i.test(lines[index])) {
-      return { index, line: lines[index] }
+    const line = lines[index]!
+    if (/^FATAL:/i.test(line)) {
+      return { index, line }
     }
-    if (/^ERROR:/i.test(lines[index]) && !isBenignErrorLine(lines[index], lines.slice(index + 1, index + 6))) {
-      return { index, line: lines[index] }
+    if (/^ERROR:/i.test(line) && !isBenignErrorLine(line, lines.slice(index + 1, index + 6))) {
+      return { index, line }
     }
   }
   return null

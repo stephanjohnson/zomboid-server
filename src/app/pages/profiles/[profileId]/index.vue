@@ -138,10 +138,10 @@ async function serverAction(action: string) {
           <span class="text-sm font-medium">Connection Info</span>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
             <div v-for="item in [
-              { label: ‘Host’, value: host, key: ‘host’ },
-              { label: ‘Game Port’, value: String(profile.gamePort), key: ‘game’ },
-              { label: ‘Direct Port’, value: String(profile.directPort), key: ‘direct’ },
-              { label: ‘RCON Port’, value: String(profile.rconPort), key: ‘rcon’ },
+              { label: 'Host', value: host, key: 'host' },
+              { label: 'Game Port', value: String(profile.gamePort), key: 'game' },
+              { label: 'Direct Port', value: String(profile.directPort), key: 'direct' },
+              { label: 'RCON Port', value: String(profile.rconPort), key: 'rcon' },
             ]" :key="item.key" class="flex items-center gap-1.5">
               <span class="text-xs text-muted-foreground">{{ item.label }}</span>
               <code class="rounded bg-muted px-1.5 py-0.5 text-xs font-medium">{{ item.value }}</code>
