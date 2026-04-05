@@ -1,10 +1,13 @@
 import Dockerode from 'dockerode'
 import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
+import { resolve } from 'node:path'
 
 import { prepareGameServerRuntimeFiles } from './game-server-runtime'
 import {
+  getGameServerConfigureScriptPath,
   getGameServerDataMountSource,
+  getGameServerEntrypointPath,
   getGameServerLuaBridgeMountSource,
   getGameServerModSourceMount,
   getGameServerServerFilesMountSource,
@@ -12,6 +15,7 @@ import {
   getPzDataPath,
   getPzServerPath,
 } from './runtime-paths'
+import { decodeDockerLogBuffer } from './server-logs'
 
 let docker: Dockerode | null = null
 
@@ -91,6 +95,21 @@ function createEnv(profile: GameServerProfileRuntime): string[] {
     `PZ_MAX_PLAYERS=${profile.maxPlayers}`,
     `PZ_PVP=${profile.pvp ? 'true' : 'false'}`,
     `ZM_API_BASE_URL=${config.modApiBaseUrl}`,
+    `ADMIN_PASSWORD=${rconPassword}`,
+    `ADMIN_USERNAME=admin`,
+    `DEFAULT_PORT=${profile.gamePort}`,
+    `UDP_PORT=${profile.directPort}`,
+    `RCON_PASSWORD=${rconPassword}`,
+    `RCON_PORT=${profile.rconPort}`,
+    `SERVER_NAME=${profile.servername}`,
+    `GAME_VERSION=${profile.steamBuild || 'public'}`,
+    `MAP_NAMES=${profile.mapName}`,
+    `MAX_PLAYERS=${profile.maxPlayers}`,
+    `PUBLIC_SERVER=true`,
+    `PAUSE_ON_EMPTY=true`,
+    `STEAM_VAC=true`,
+    `MOD_NAMES=ZomboidManager`,
+    `MOD_WORKSHOP_IDS=3685323705`,
   ]
 
   // Serialize INI overrides as newline-separated key=value pairs
@@ -112,12 +131,22 @@ function createExpectedBinds(): string[] {
   const binds = [
     `${getGameServerDataMountSource()}:/home/steam/Zomboid`,
     `${getGameServerLuaBridgeMountSource()}:/home/steam/Zomboid/Lua`,
-    `${getGameServerServerFilesMountSource()}:/home/steam/pzserver`,
+    `${getGameServerServerFilesMountSource()}:/home/steam/ZomboidDedicatedServer`,
   ]
 
   const modSourceMount = getGameServerModSourceMount()
   if (modSourceMount) {
     binds.push(`${modSourceMount}:/opt/ZomboidManager-source:ro`)
+  }
+
+  const entrypointPath = getGameServerEntrypointPath()
+  if (existsSync(entrypointPath)) {
+    binds.push(`${resolve(entrypointPath)}:/home/steam/entrypoint.sh:ro`)
+  }
+
+  const configureScriptPath = getGameServerConfigureScriptPath()
+  if (existsSync(configureScriptPath)) {
+    binds.push(`${resolve(configureScriptPath)}:/home/steam/configure-server.sh:ro`)
   }
 
   return binds
@@ -181,6 +210,7 @@ async function createGameContainer(profile: GameServerProfileRuntime): Promise<D
     return await client.createContainer({
       name: config.gameServerContainerName,
       Image: config.gameServerImageName,
+      Entrypoint: ['/bin/bash', '/home/steam/entrypoint.sh'],
       Env: createEnv(profile),
       NetworkingConfig: {
         EndpointsConfig: {
@@ -318,5 +348,5 @@ export async function getContainerLogs(tail: number = 100): Promise<string> {
     tail,
     timestamps: true,
   })
-  return logs.toString()
+  return decodeDockerLogBuffer(logs)
 }

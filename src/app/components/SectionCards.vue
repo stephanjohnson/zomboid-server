@@ -44,6 +44,8 @@ const serverStateLabel = computed(() => {
   return 'Not Created'
 })
 
+const phaseState = computed(() => props.status?.phase?.state)
+
 const phaseDetail = computed(() => {
   if (!props.status?.phase) return null
   const { detail, progress } = props.status.phase
@@ -66,7 +68,15 @@ const serverRunning = computed(() => props.status?.container?.running)
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
           <template v-if="status?.phase">
-            <LoaderCircle class="size-4 animate-spin text-amber-500" />
+            <LoaderCircle
+              v-if="phaseState === 'updating' || phaseState === 'initializing' || phaseState === 'starting'"
+              class="size-4 animate-spin text-amber-500"
+            />
+            <span
+              v-else
+              class="size-2 rounded-full"
+              :class="phaseState === 'ready' ? 'bg-emerald-500' : phaseState === 'error' ? 'bg-red-500' : 'bg-muted-foreground'"
+            />
             {{ status.phase.detail ?? status.phase.label }}
           </template>
           <template v-else>

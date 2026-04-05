@@ -3,11 +3,9 @@ services:
   # PZ Game Server — Dedicated server via SteamCMD
   # ---------------------------------------------------------------------------
   game-server:
-    build:
-      context: .
-      dockerfile: game-server/Dockerfile
-    image: ${GAME_SERVER_IMAGE:-pzm-game-server:local}
+    image: ${GAME_SERVER_IMAGE:-renegademaster/zomboid-dedicated-server:latest}
     container_name: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
+    entrypoint: ["/bin/bash", "/home/steam/entrypoint.sh"]
     restart: unless-stopped
     ports:
       - "${PZ_GAME_PORT:-16261}:${PZ_GAME_PORT:-16261}/udp"
@@ -15,16 +13,31 @@ services:
     volumes:
       - zomboid-data:/home/steam/Zomboid
       - lua-bridge:/home/steam/Zomboid/Lua
-      - zomboid-server:/home/steam/pzserver
+      - zomboid-server:/home/steam/ZomboidDedicatedServer
+      - ./game-server/entrypoint.sh:/home/steam/entrypoint.sh:ro
+      - ./game-server/configure-server.sh:/home/steam/configure-server.sh:ro
+      - ./lua-bridge/ZomboidManager:/opt/ZomboidManager-source:ro
     environment:
-      SERVERNAME: ${SERVERNAME:-servertest}
-      PZ_GAME_PORT: ${PZ_GAME_PORT:-16261}
-      PZ_DIRECT_PORT: ${PZ_DIRECT_PORT:-16262}
-      PZ_RCON_PORT: ${PZ_RCON_PORT:-27015}
-      PZ_RCON_PASSWORD: ${PZ_RCON_PASSWORD:-}
-      PZ_ADMIN_PASSWORD: ${PZ_RCON_PASSWORD:-}
-      PZ_STEAM_BRANCH: ${PZ_STEAM_BRANCH:-public}
-      ZM_API_BASE_URL: ${MOD_API_BASE_URL:-http://nitro-app:3000/api/mod}
+      ADMIN_PASSWORD: ${PZ_ADMIN_PASSWORD:-${PZ_RCON_PASSWORD:-}}
+      ADMIN_USERNAME: ${PZ_ADMIN_USERNAME:-admin}
+      AUTOSAVE_INTERVAL: ${PZ_AUTOSAVE_INTERVAL:-15}
+      BIND_IP: "0.0.0.0"
+      DEFAULT_PORT: ${PZ_GAME_PORT:-16261}
+      GAME_VERSION: ${PZ_STEAM_BRANCH:-public}
+      MAP_NAMES: ${PZ_MAP_NAMES:-Muldraugh, KY}
+      MAX_PLAYERS: ${PZ_MAX_PLAYERS:-16}
+      MAX_RAM: ${PZ_MAX_RAM:-4096m}
+      MOD_NAMES: "${PZ_MOD_IDS:-ZomboidManager}"
+      MOD_WORKSHOP_IDS: ${PZ_WORKSHOP_IDS:-3685323705}
+      PAUSE_ON_EMPTY: ${PZ_PAUSE_ON_EMPTY:-true}
+      PUBLIC_SERVER: ${PZ_PUBLIC_SERVER:-true}
+      RCON_PASSWORD: ${PZ_RCON_PASSWORD:-}
+      RCON_PORT: ${PZ_RCON_PORT:-27015}
+      SERVER_NAME: ${SERVERNAME:-servertest}
+      STEAM_VAC: ${PZ_STEAM_VAC:-true}
+      UDP_PORT: ${PZ_DIRECT_PORT:-16262}
+      USE_STEAM: "true"
+      TZ: ${TZ:-UTC}
     networks:
       - zomboid-net
 
@@ -49,6 +62,9 @@ services:
       - zomboid-server:/pzm-server:ro
       - backup-data:/backups
       - lua-bridge:/lua-bridge
+      - ./game-server/entrypoint.sh:/opt/game-server/entrypoint.sh:ro
+      - ./game-server/configure-server.sh:/opt/game-server/configure-server.sh:ro
+      - ./lua-bridge/ZomboidManager:/opt/ZomboidManager-source:ro
     env_file: .env
     environment:
       NUXT_DB_HOST: ${DB_HOST:-db}
@@ -71,6 +87,9 @@ services:
       NUXT_GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE: pzm-lua-bridge
       NUXT_GAME_SERVER_SERVER_FILES_MOUNT_SOURCE: pzm-server-files
       NUXT_GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
+      NUXT_GAME_SERVER_ENTRYPOINT_PATH: /opt/game-server/entrypoint.sh
+      NUXT_GAME_SERVER_CONFIGURE_SCRIPT_PATH: /opt/game-server/configure-server.sh
+      NUXT_GAME_SERVER_MOD_SOURCE_MOUNT: /opt/ZomboidManager-source
     cap_drop:
       - ALL
     cap_add:
@@ -100,6 +119,9 @@ services:
       - zomboid-server:/pzm-server:ro
       - backup-data:/backups
       - lua-bridge:/lua-bridge
+      - ./game-server/entrypoint.sh:/opt/game-server/entrypoint.sh:ro
+      - ./game-server/configure-server.sh:/opt/game-server/configure-server.sh:ro
+      - ./lua-bridge/ZomboidManager:/opt/ZomboidManager-source:ro
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${DB_USER:-zomboid}:${DB_PASSWORD:-zomboid}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-zomboid}
@@ -116,6 +138,9 @@ services:
       GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE: pzm-lua-bridge
       GAME_SERVER_SERVER_FILES_MOUNT_SOURCE: pzm-server-files
       GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
+      GAME_SERVER_ENTRYPOINT_MOUNT: /opt/game-server/entrypoint.sh
+      GAME_SERVER_CONFIGURE_SCRIPT_MOUNT: /opt/game-server/configure-server.sh
+      GAME_SERVER_MOD_SOURCE_MOUNT: /opt/ZomboidManager-source
     cap_drop:
       - ALL
     networks:

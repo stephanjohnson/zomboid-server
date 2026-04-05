@@ -133,6 +133,7 @@ export function buildContainerEnv(profile: ServerProfile, options: {
   forceUpdate?: boolean
 }): string[] {
   const rconPassword = profile.rconPassword || options.rconPassword || ''
+  const branch = options.branch ?? profile.steamBuild || 'public'
   const env = [
     `SERVERNAME=${profile.servername}`,
     `PZ_GAME_PORT=${profile.gamePort}`,
@@ -140,11 +141,26 @@ export function buildContainerEnv(profile: ServerProfile, options: {
     `PZ_RCON_PORT=${profile.rconPort}`,
     `PZ_RCON_PASSWORD=${rconPassword}`,
     `PZ_ADMIN_PASSWORD=${rconPassword}`,
-    `PZ_STEAM_BRANCH=${options.branch ?? profile.steamBuild || 'public'}`,
+    `PZ_STEAM_BRANCH=${branch}`,
     `PZ_MAP_NAMES=${profile.mapName}`,
     `PZ_MAX_PLAYERS=${profile.maxPlayers}`,
     `PZ_PVP=${profile.pvp ? 'true' : 'false'}`,
     `ZM_API_BASE_URL=${options.modApiBaseUrl}`,
+    `ADMIN_PASSWORD=${rconPassword}`,
+    `ADMIN_USERNAME=admin`,
+    `DEFAULT_PORT=${profile.gamePort}`,
+    `UDP_PORT=${profile.directPort}`,
+    `RCON_PASSWORD=${rconPassword}`,
+    `RCON_PORT=${profile.rconPort}`,
+    `SERVER_NAME=${profile.servername}`,
+    `GAME_VERSION=${branch}`,
+    `MAP_NAMES=${profile.mapName}`,
+    `MAX_PLAYERS=${profile.maxPlayers}`,
+    `PUBLIC_SERVER=true`,
+    `PAUSE_ON_EMPTY=true`,
+    `STEAM_VAC=true`,
+    `MOD_NAMES=ZomboidManager`,
+    `MOD_WORKSHOP_IDS=3685323705`,
   ]
 
   const iniOverrides = asStringRecord(profile.serverIniOverrides)
@@ -211,16 +227,27 @@ export function createContainerOptions(profile: ServerProfile, options: {
   const binds = [
     `${getGameServerDataMountSource()}:/home/steam/Zomboid`,
     `${getGameServerLuaBridgeMountSource()}:/home/steam/Zomboid/Lua`,
-    `${getGameServerServerFilesMountSource()}:/home/steam/pzserver`,
+    `${getGameServerServerFilesMountSource()}:/home/steam/ZomboidDedicatedServer`,
   ]
 
   if (modSourceMount) {
     binds.push(`${modSourceMount}:/opt/ZomboidManager-source:ro`)
   }
 
+  const entrypointMount = process.env.GAME_SERVER_ENTRYPOINT_MOUNT
+  if (entrypointMount) {
+    binds.push(`${resolveMountSource(entrypointMount, entrypointMount)}:/home/steam/entrypoint.sh:ro`)
+  }
+
+  const configureScriptMount = process.env.GAME_SERVER_CONFIGURE_SCRIPT_MOUNT
+  if (configureScriptMount) {
+    binds.push(`${resolveMountSource(configureScriptMount, configureScriptMount)}:/home/steam/configure-server.sh:ro`)
+  }
+
   return {
     name: options.containerName,
     Image: options.image,
+    Entrypoint: ['/bin/bash', '/home/steam/entrypoint.sh'],
     Env: options.env,
     NetworkingConfig: {
       EndpointsConfig: {

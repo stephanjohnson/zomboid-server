@@ -8,6 +8,14 @@ set -e
 SERVER_DIR="/home/steam/Zomboid/Server"
 INI_FILE="${SERVER_DIR}/${SERVERNAME}.ini"
 
+# Preserve previous console log before it gets overwritten by the new server process
+CONSOLE_LOG="/home/steam/Zomboid/server-console.txt"
+PREV_LOG="/home/steam/Zomboid/server-console.prev.txt"
+if [ -f "$CONSOLE_LOG" ] && [ -s "$CONSOLE_LOG" ]; then
+    cp "$CONSOLE_LOG" "$PREV_LOG"
+    echo "[configure] Saved previous console log to server-console.prev.txt"
+fi
+
 ensure_ini_value() {
     local key="$1"
     local value="$2"
@@ -47,7 +55,7 @@ mkdir -p "$SERVER_DIR"
 
 ZM_WORKSHOP_ID="3685323705"
 ZM_SOURCE_DIR="${ZM_SOURCE_DIR:-/opt/ZomboidManager-source}"
-ZM_WORKSHOP_DIR="/home/steam/pzserver/steamapps/workshop/content/108600/${ZM_WORKSHOP_ID}/mods/ZomboidManager"
+ZM_WORKSHOP_DIR="/home/steam/ZomboidDedicatedServer/steamapps/workshop/content/108600/${ZM_WORKSHOP_ID}/mods/ZomboidManager"
 
 # Create a minimal ini so the local bridge mod can be enabled on first boot
 if [ ! -f "$INI_FILE" ]; then

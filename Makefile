@@ -56,7 +56,9 @@ dev-infra-down:
 	$(DEV_COMPOSE) down
 
 dev: dev-infra
-	cd src && npm run db:migrate && npm run db:generate && npm run dev
+	cd src && npm run db:migrate && npm run db:generate && \
+	( while ! curl -s -o /dev/null http://localhost:3000; do sleep 1; done && xdg-open http://localhost:3000 & ) && \
+	npm run dev
 
 install:
 	cd src && npm install

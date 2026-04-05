@@ -1,81 +1,56 @@
 #!/bin/bash
-# Custom entrypoint for the PZ game server.
-# All configuration comes from environment variables set at container creation.
-# The web app creates containers with env vars derived from the DB profile.
-# No disk-based control files are used.
+# Wrapper entrypoint for the renegademaster/zomboid-dedicated-server image.
+# Patches run_server.sh to run configure-server.sh AFTER SteamCMD validate
+# but BEFORE start_server, then delegates to the image's own run_server.sh.
+#
+# ZomboidManager is loaded as a proper PZ mod via Workshop cache (added to
+# Mods=/WorkshopItems= by configure-server.sh). Source files are mounted
+# read-only at /opt/ZomboidManager-source by the compose file.
 
 set -e
 
-# --- Root-only init: fix volume permissions, then re-exec as steam ---
+# --- Root-only init: fix volume permissions ---
+# The renegademaster image runs as root natively.
 if [ "$(id -u)" = "0" ]; then
-    echo "[entrypoint] Running as root — fixing volume ownership..."
-    chown steam:steam /home/steam/Zomboid 2>/dev/null || true
-    chown -R steam:steam /home/steam/Zomboid/Lua 2>/dev/null || true
-    chown -R steam:steam /home/steam/Zomboid/mods 2>/dev/null || true
-    chown -R steam:steam /home/steam/Zomboid/Server 2>/dev/null || true
-    chown steam:steam /home/steam/Zomboid/db 2>/dev/null || true
-    chown steam:steam /home/steam/Zomboid/Saves 2>/dev/null || true
+    echo "[entrypoint] Fixing volume permissions..."
+    mkdir -p /home/steam/Zomboid/mods
+    mkdir -p /home/steam/Zomboid/Lua
+    mkdir -p /home/steam/Zomboid/Server
+    mkdir -p /home/steam/Zomboid/db
+    mkdir -p /home/steam/Zomboid/Saves
     chmod -R 1777 /home/steam/Zomboid/Lua 2>/dev/null || true
-    echo "[entrypoint] Dropping to steam user..."
-    exec env HOME=/home/steam su -p -s /bin/bash steam -- "$0" "$@"
+    chmod 777 /home/steam/Zomboid/Server 2>/dev/null || true
+    chmod 777 /home/steam/Zomboid/db 2>/dev/null || true
+    chmod 777 /home/steam/Zomboid/Saves 2>/dev/null || true
 fi
 
-# --- Everything below runs as steam user ---
-# All config comes from env vars (SERVERNAME, PZ_STEAM_BRANCH, PZ_FORCE_UPDATE, etc.)
+CONFIGURE_SCRIPT="/home/steam/configure-server.sh"
 
-STEAMCMD_BIN="${STEAMCMD_BIN:-$(command -v steamcmd || command -v steamcmd.sh || true)}"
-if [ -z "$STEAMCMD_BIN" ]; then
-    echo "[entrypoint] FATAL: SteamCMD executable not found in image."
-    sleep infinity
-    exit 1
-fi
-
-# Apply server configuration from environment variables
-bash /home/steam/configure-server.sh
-
-# Determine steam branch from env
-BRANCH="${PZ_STEAM_BRANCH:-public}"
-if [ "$BRANCH" = "public" ]; then
-    BETA_FLAG=""
-else
-    BETA_FLAG="-beta $BRANCH"
-fi
-
-# Only run SteamCMD if server files are missing or update forced via env
-if [ ! -f /home/steam/pzserver/start-server.sh ] || [ "${PZ_FORCE_UPDATE:-false}" = "true" ]; then
-    echo "[entrypoint] Installing/updating PZ server (branch: $BRANCH)..."
-    for attempt in 1 2 3; do
-        "$STEAMCMD_BIN" \
-            +@sSteamCmdForcePlatformType linux \
-            +force_install_dir /home/steam/pzserver \
-            +login anonymous \
-            +app_update 380870 $BETA_FLAG validate \
-            +quit && break
-        echo "[entrypoint] SteamCMD failed (attempt $attempt/3), retrying in 10s..."
-        sleep 10
-    done
-    if [ ! -f /home/steam/pzserver/start-server.sh ]; then
-        echo "[entrypoint] FATAL: SteamCMD failed after 3 attempts."
-        echo "[entrypoint] Container will stay alive for debugging."
-        sleep infinity
-        exit 1
+# Clean up previously injected ZM files from base game dir.
+# ZomboidManager is loaded from Workshop cache, not the base game directory.
+for dir in /home/steam/ZomboidDedicatedServer/media/lua/server /home/steam/ZomboidDedicatedServer/media/lua/client; do
+    if ls "$dir"/ZM_*.lua 1>/dev/null 2>&1; then
+        rm -f "$dir"/ZM_*.lua
+        echo "[entrypoint] Cleaned up old injected ZM files from $dir"
     fi
-else
-    echo "[entrypoint] Server files found, skipping SteamCMD."
+done
+
+# Remove any stale ZomboidManager from install dir (shadows Workshop version)
+rm -rf /home/steam/ZomboidDedicatedServer/mods/ZomboidManager
+
+# Patch run_server.sh to run configure-server.sh before server launch
+if [ -f "$CONFIGURE_SCRIPT" ] && [ -f /home/steam/run_server.sh ] && ! grep -q "configure-server.sh" /home/steam/run_server.sh; then
+    sed -i '/^start_server$/i bash '"$CONFIGURE_SCRIPT" /home/steam/run_server.sh
+    echo "[entrypoint] Patched run_server.sh to run configure-server.sh before start"
 fi
 
-# Build server start arguments
-SERVER_ARGS="-servername ${SERVERNAME}"
-if [ -n "${PZ_ADMIN_PASSWORD:-}" ]; then
-    SERVER_ARGS="${SERVER_ARGS} -adminpassword ${PZ_ADMIN_PASSWORD}"
+# Prevent renegademaster image from overwriting Mods=/WorkshopItems= with empty values.
+# When these env vars are set to "" the image clears mods added via the web UI.
+if [ -z "${MOD_NAMES:-}" ]; then
+    unset MOD_NAMES
+fi
+if [ -z "${MOD_WORKSHOP_IDS:-}" ]; then
+    unset MOD_WORKSHOP_IDS
 fi
 
-# Launch the server in a screen session with auto-restart loop
-screen -d -m -S zomboid /bin/bash -c " \
-    while true; do \
-        /home/steam/pzserver/start-server.sh ${SERVER_ARGS}; \
-        echo 'Server will restart in 10 seconds...'; \
-        for i in 10 9 8 7 6 5 4 3 2 1; do echo \"\$i...\"; sleep 1; done \
-    done \
-"
-sleep infinity
+exec /home/steam/run_server.sh

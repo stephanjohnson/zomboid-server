@@ -6,6 +6,7 @@ import {
   Power,
   RefreshCw,
   RotateCcw,
+  ScrollText,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -19,9 +20,6 @@ onMounted(() => {
 
 const { data: profile } = await useFetch(`/api/profiles/${profileId}`)
 const { data: players } = useFetch('/api/players', { default: () => ({ players: [], count: 0 }) })
-const { data: logs, refresh: refreshLogs, pending: logsLoading } = await useFetch('/api/zomboid/logs', {
-  default: () => ({ containerLogs: '', serverConsole: '' }),
-})
 
 const actionLoading = ref<string | null>(null)
 const requestUrl = useRequestURL()
@@ -55,8 +53,6 @@ async function serverAction(action: string) {
     actionLoading.value = null
   }
 }
-
-const showLogs = ref(false)
 </script>
 
 <template>
@@ -101,6 +97,12 @@ const showLogs = ref(false)
           <NuxtLink :to="`/profiles/${profileId}/backups`">
             <Archive class="size-4" />
             Backups
+          </NuxtLink>
+        </Button>
+        <Button variant="outline" size="sm" as-child>
+          <NuxtLink :to="`/profiles/${profileId}/logs`">
+            <ScrollText class="size-4" />
+            Logs
           </NuxtLink>
         </Button>
       </div>
@@ -164,47 +166,6 @@ const showLogs = ref(false)
           <p class="mt-4 text-xs text-muted-foreground">
             For local testing, use 127.0.0.1 as the host. For LAN clients, use this machine’s IP and ensure UDP ports are allowed by your firewall.
           </p>
-        </CardContent>
-      </Card>
-    </div>
-
-    <!-- Server Logs -->
-    <div class="px-4 lg:px-6">
-      <Card>
-        <CardHeader class="flex flex-row items-center justify-between gap-2">
-          <div>
-            <CardTitle class="text-base font-medium">
-              Server Logs
-            </CardTitle>
-            <CardDescription>
-              Container output and server console logs (last entries).
-            </CardDescription>
-          </div>
-          <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" :disabled="logsLoading" @click="refreshLogs">
-              <RefreshCw class="size-4" :class="logsLoading ? 'animate-spin' : ''" />
-              Refresh
-            </Button>
-            <Button variant="ghost" size="sm" @click="showLogs = !showLogs">
-              {{ showLogs ? 'Hide' : 'Show' }}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent v-if="showLogs">
-          <div class="grid gap-4 lg:grid-cols-2">
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Container Logs
-              </p>
-              <pre class="mt-2 max-h-72 overflow-auto rounded-md border border-border bg-muted/30 p-3 text-xs whitespace-pre-wrap">{{ logs?.containerLogs || 'No container logs yet.' }}</pre>
-            </div>
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Server Console
-              </p>
-              <pre class="mt-2 max-h-72 overflow-auto rounded-md border border-border bg-muted/30 p-3 text-xs whitespace-pre-wrap">{{ logs?.serverConsole || 'server-console.txt not available yet.' }}</pre>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

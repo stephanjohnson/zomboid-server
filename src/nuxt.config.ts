@@ -14,6 +14,7 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
     '@nuxt/eslint',
     'nuxt-auth-utils',
+    'nuxt-monaco-editor',
   ],
 
   // https://nuxt.com/modules/color-mode
@@ -64,6 +65,8 @@ export default defineNuxtConfig({
     gameServerServerFilesMountSource: readRuntimeEnv('GAME_SERVER_SERVER_FILES_MOUNT_SOURCE', ''),
     gameServerModSourceMount: readRuntimeEnv('GAME_SERVER_MOD_SOURCE_MOUNT', ''),
     gameServerModSourcePath: readRuntimeEnv('GAME_SERVER_MOD_SOURCE_PATH', '../lua-bridge/ZomboidManager'),
+    gameServerEntrypointPath: readRuntimeEnv('GAME_SERVER_ENTRYPOINT_PATH', '../game-server/entrypoint.sh'),
+    gameServerConfigureScriptPath: readRuntimeEnv('GAME_SERVER_CONFIGURE_SCRIPT_PATH', '../game-server/configure-server.sh'),
     modApiBaseUrl: readRuntimeEnv('MOD_API_BASE_URL', 'http://nitro-app:3000/api/mod'),
 
     pzRconHost: readRuntimeEnv('PZ_RCON_HOST', 'localhost'),

@@ -108,6 +108,16 @@ export function getGameServerServerFilesMountSource(): string {
   )
 }
 
+export function getGameServerEntrypointPath(): string {
+  const config = useRuntimeConfig()
+  return resolveRuntimePath('GAME_SERVER_ENTRYPOINT_PATH', asOptionalString(config.gameServerEntrypointPath), '../game-server/entrypoint.sh')
+}
+
+export function getGameServerConfigureScriptPath(): string {
+  const config = useRuntimeConfig()
+  return resolveRuntimePath('GAME_SERVER_CONFIGURE_SCRIPT_PATH', asOptionalString(config.gameServerConfigureScriptPath), '../game-server/configure-server.sh')
+}
+
 export function getGameServerModSourceMount(): string | undefined {
   const config = useRuntimeConfig()
   const configuredSource = asOptionalString(config.gameServerModSourceMount)

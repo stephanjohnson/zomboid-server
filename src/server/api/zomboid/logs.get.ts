@@ -1,15 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readPreviousConsoleLog, readServerConsoleLog, tailLogText } from '../../utils/server-logs'
 
 export default defineEventHandler(async () => {
-  const containerLogs = await getContainerLogs(300)
-
-  const config = useRuntimeConfig()
-  const consolePath = join(String(config.pzDataPath || '/pzm-data'), 'server-console.txt')
-  const consoleLog = existsSync(consolePath) ? readFileSync(consolePath, 'utf-8') : ''
+  const containerLogs = await getContainerLogs(2000)
+  const consoleLog = readServerConsoleLog()
+  const previousConsole = readPreviousConsoleLog()
 
   return {
-    containerLogs,
-    serverConsole: consoleLog,
+    containerLogs: tailLogText(containerLogs, 1500),
+    serverConsole: tailLogText(consoleLog, 500),
+    previousConsole: previousConsole ? tailLogText(previousConsole, 500) : null,
   }
 })
