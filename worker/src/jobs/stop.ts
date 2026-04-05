@@ -15,7 +15,7 @@ export async function handleStopJob(
     requestedBy: string
   }
 
-  const containerName = process.env.GAME_SERVER_CONTAINER_NAME || 'pz-game-server'
+  const containerName = process.env.GAME_SERVER_CONTAINER_NAME || 'pzm-game-server'
   const proxyUrl = process.env.DOCKER_PROXY_URL || 'http://docker-socket-proxy:2375'
 
   // Send countdown warnings

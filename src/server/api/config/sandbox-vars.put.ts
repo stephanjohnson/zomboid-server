@@ -3,6 +3,7 @@ import * as v from 'valibot'
 import { getProfileSandboxVarsOverrides } from '../../utils/profile-runtime-config'
 
 const UpdateSandboxSchema = v.object({
+  profileId: v.optional(v.string()),
   servername: v.optional(v.string()),
   vars: v.record(v.string(), v.unknown()),
 })
@@ -14,9 +15,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, v.parser(UpdateSandboxSchema))
-  const profile = body.servername
-    ? await prisma.serverProfile.findFirst({ where: { servername: body.servername } })
-    : await prisma.serverProfile.findFirst({ where: { isActive: true } })
+  const profile = body.profileId
+    ? await prisma.serverProfile.findUnique({ where: { id: body.profileId } })
+    : body.servername
+      ? await prisma.serverProfile.findFirst({ where: { servername: body.servername } })
+      : await prisma.serverProfile.findFirst({ where: { isActive: true } })
 
   if (!profile) {
     throw createError({ statusCode: 404, message: 'No matching server profile found for sandbox config' })

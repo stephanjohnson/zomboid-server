@@ -299,7 +299,7 @@ async function readTelemetryCatalog(profileId: string): Promise<GameCatalogEntry
 
 export async function getGameItemCatalog(profileId: string) {
   const config = useRuntimeConfig()
-  const scriptCatalog = await loadItemScriptCatalog(String(config.pzServerPath || '/pz-server'))
+  const scriptCatalog = await loadItemScriptCatalog(String(config.pzServerPath || '/pzm-server'))
   const luaBridgeItems = await readLuaBridgeCatalog()
   if (luaBridgeItems.length > 0) {
     return {

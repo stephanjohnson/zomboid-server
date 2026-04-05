@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client'
 import Dockerode from 'dockerode'
 import { Rcon } from 'rcon-client'
 import pino from 'pino'
+import { buildContainerEnv, createContainerOptions, prepareGameServerRuntimeFiles } from './game-server.js'
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
 
@@ -61,7 +62,7 @@ export async function handleRestartJob(
     throw new Error('No active server profile for restart')
   }
 
-  const containerName = process.env.GAME_SERVER_CONTAINER_NAME || 'pz-game-server'
+  const containerName = process.env.GAME_SERVER_CONTAINER_NAME || 'pzm-game-server'
   const docker = createDockerClient()
 
   // Stop and remove existing container
@@ -80,56 +81,19 @@ export async function handleRestartJob(
     }
   }
 
-  // Recreate with latest profile from DB
-  const pzDataPath = process.env.PZ_DATA_PATH || '/pz-data'
-  const luaBridgePath = process.env.LUA_BRIDGE_PATH || '/lua-bridge'
   const modApiBaseUrl = process.env.MOD_API_BASE_URL || 'http://nitro-app:3000/api/mod'
   const rconPassword = process.env.PZ_RCON_PASSWORD || ''
-  const gameServerImage = process.env.GAME_SERVER_IMAGE || 'pz-game-server:local'
-  const modSourcePath = process.env.GAME_SERVER_MOD_SOURCE_PATH || '/app/lua-bridge/ZomboidManager'
+  const gameServerImage = process.env.GAME_SERVER_IMAGE || 'pzm-game-server:local'
+  await prepareGameServerRuntimeFiles(profile, rconPassword)
 
-  const env: string[] = [
-    `SERVERNAME=${profile.servername}`,
-    `PZ_GAME_PORT=${profile.gamePort}`,
-    `PZ_DIRECT_PORT=${profile.directPort}`,
-    `PZ_RCON_PORT=${profile.rconPort}`,
-    `PZ_RCON_PASSWORD=${rconPassword}`,
-    `PZ_ADMIN_PASSWORD=${rconPassword}`,
-    `PZ_STEAM_BRANCH=${profile.steamBuild || 'public'}`,
-    `ZM_API_BASE_URL=${modApiBaseUrl}`,
-  ]
-
-  const iniOverrides = profile.serverIniOverrides as Record<string, string> | null
-  if (iniOverrides && Object.keys(iniOverrides).length > 0) {
-    const overrides = Object.entries(iniOverrides)
-      .map(([k, v]) => `${k}=${v}`)
-      .join('\n')
-    env.push(`PZ_INI_OVERRIDES=${overrides}`)
-  }
-
-  const container = await docker.createContainer({
-    name: containerName,
-    Image: gameServerImage,
-    Env: env,
-    ExposedPorts: {
-      [`${profile.gamePort}/udp`]: {},
-      [`${profile.directPort}/udp`]: {},
-      [`${profile.rconPort}/tcp`]: {},
-    },
-    HostConfig: {
-      Binds: [
-        `${pzDataPath}:/home/steam/Zomboid`,
-        `${luaBridgePath}:/home/steam/Zomboid/Lua`,
-        `${modSourcePath}:/home/steam/Zomboid/mods/ZomboidManager:ro`,
-      ],
-      PortBindings: {
-        [`${profile.gamePort}/udp`]: [{ HostPort: String(profile.gamePort) }],
-        [`${profile.directPort}/udp`]: [{ HostPort: String(profile.directPort) }],
-        [`${profile.rconPort}/tcp`]: [{ HostIp: '127.0.0.1', HostPort: String(profile.rconPort) }],
-      },
-      RestartPolicy: { Name: 'unless-stopped' },
-    },
-  })
+  const container = await docker.createContainer(createContainerOptions(profile, {
+    containerName,
+    image: gameServerImage,
+    env: buildContainerEnv(profile, {
+      modApiBaseUrl,
+      rconPassword,
+    }),
+  }))
 
   await container.start()
   logger.info({ profileId: profile.id }, 'Server restarted with latest profile')

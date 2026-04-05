@@ -4,10 +4,10 @@ services:
   # ---------------------------------------------------------------------------
   game-server:
     build:
-      context: ./game-server
-      dockerfile: Dockerfile
-    image: ${GAME_SERVER_IMAGE:-pz-game-server:local}
-    container_name: ${GAME_SERVER_CONTAINER_NAME:-pz-game-server}
+      context: .
+      dockerfile: game-server/Dockerfile
+    image: ${GAME_SERVER_IMAGE:-pzm-game-server:local}
+    container_name: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
     restart: unless-stopped
     ports:
       - "${PZ_GAME_PORT:-16261}:${PZ_GAME_PORT:-16261}/udp"
@@ -15,7 +15,6 @@ services:
     volumes:
       - zomboid-data:/home/steam/Zomboid
       - lua-bridge:/home/steam/Zomboid/Lua
-      - ./lua-bridge/ZomboidManager:/home/steam/Zomboid/mods/ZomboidManager:ro
     environment:
       SERVERNAME: ${SERVERNAME:-servertest}
       PZ_GAME_PORT: ${PZ_GAME_PORT:-16261}
@@ -45,8 +44,8 @@ services:
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     volumes:
-      - zomboid-data:/pz-data
-      - zomboid-server:/pz-server:ro
+      - zomboid-data:/pzm-data
+      - zomboid-server:/pzm-server:ro
       - backup-data:/backups
       - lua-bridge:/lua-bridge
     env_file: .env
@@ -63,11 +62,13 @@ services:
       NUXT_PZ_RCON_HOST: game-server
       NUXT_PZ_RCON_PORT: ${PZ_RCON_PORT:-27015}
       NUXT_PZ_RCON_PASSWORD: ${PZ_RCON_PASSWORD:-}
-      NUXT_PZ_DATA_PATH: /pz-data
-      NUXT_PZ_SERVER_PATH: /pz-server
+      NUXT_PZ_DATA_PATH: /pzm-data
+      NUXT_PZ_SERVER_PATH: /pzm-server
       NUXT_BACKUP_PATH: /backups
       NUXT_LUA_BRIDGE_PATH: /lua-bridge
-      NUXT_GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pz-game-server}
+      NUXT_GAME_SERVER_DATA_MOUNT_SOURCE: pzm-data
+      NUXT_GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE: pzm-lua-bridge
+      NUXT_GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
     cap_drop:
       - ALL
     cap_add:
@@ -93,8 +94,8 @@ services:
       rabbitmq:
         condition: service_healthy
     volumes:
-      - zomboid-data:/pz-data
-      - zomboid-server:/pz-server:ro
+      - zomboid-data:/pzm-data
+      - zomboid-server:/pzm-server:ro
       - backup-data:/backups
       - lua-bridge:/lua-bridge
     env_file: .env
@@ -105,11 +106,13 @@ services:
       PZ_RCON_HOST: game-server
       PZ_RCON_PORT: ${PZ_RCON_PORT:-27015}
       PZ_RCON_PASSWORD: ${PZ_RCON_PASSWORD:-}
-      PZ_DATA_PATH: /pz-data
-      PZ_SERVER_PATH: /pz-server
+      PZ_DATA_PATH: /pzm-data
+      PZ_SERVER_PATH: /pzm-server
       BACKUP_PATH: /backups
       LUA_BRIDGE_PATH: /lua-bridge
-      GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pz-game-server}
+      GAME_SERVER_DATA_MOUNT_SOURCE: pzm-data
+      GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE: pzm-lua-bridge
+      GAME_SERVER_CONTAINER_NAME: ${GAME_SERVER_CONTAINER_NAME:-pzm-game-server}
     cap_drop:
       - ALL
     networks:

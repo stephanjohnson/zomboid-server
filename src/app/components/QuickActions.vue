@@ -1,20 +1,40 @@
 <script setup lang="ts">
+import { toast } from 'vue-sonner'
+
 const props = defineProps<{
+  profileId: string
   status: {
     container: { exists: boolean, running: boolean }
     rcon: boolean
   } | null
 }>()
 
+const { refresh } = useServerStatus()
 const loading = ref<string | null>(null)
+
+function getActionErrorMessage(error: unknown, fallback: string): string {
+  return (error as { data?: { message?: string }, statusMessage?: string })?.data?.message
+    || (error as { statusMessage?: string })?.statusMessage
+    || fallback
+}
 
 async function serverAction(action: string) {
   loading.value = action
   try {
-    await $fetch(`/api/zomboid/${action}`, { method: 'POST', body: {} })
+    await $fetch(`/api/zomboid/${action}`, { method: 'POST', body: { profileId: props.profileId } })
+    await refresh()
+
+    toast.success(
+      action === 'start'
+        ? 'Server startup requested. First boot can take several minutes while SteamCMD installs Project Zomboid.'
+        : action === 'restart'
+          ? 'Server restart requested.'
+          : 'Server stop requested.',
+    )
   }
   catch (e: unknown) {
     console.error(`Failed to ${action}:`, e)
+    toast.error(getActionErrorMessage(e, `Failed to ${action} server.`))
   }
   finally {
     loading.value = null
@@ -54,7 +74,7 @@ async function serverAction(action: string) {
           {{ loading === 'restart' ? 'Restarting...' : 'Restart Server' }}
         </Button>
         <Button variant="outline" as-child>
-          <NuxtLink to="/backups">
+          <NuxtLink :to="`/profiles/${profileId}/backups`">
             Backups
           </NuxtLink>
         </Button>

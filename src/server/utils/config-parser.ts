@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 import { getPzDataPath } from './runtime-paths'
 
@@ -48,6 +48,7 @@ export function readServerIni(servername: string): Record<string, string> {
  */
 export function writeServerIni(servername: string, data: Record<string, string>): void {
   const iniPath = join(getPzDataPath(), 'Server', `${servername}.ini`)
+  mkdirSync(dirname(iniPath), { recursive: true })
   writeFileSync(iniPath, serializeServerIni(data), 'utf-8')
 }
 
@@ -117,5 +118,6 @@ export function readSandboxVars(servername: string): Record<string, unknown> {
  */
 export function writeSandboxVars(servername: string, data: Record<string, unknown>): void {
   const luaPath = join(getPzDataPath(), 'Server', `${servername}_SandboxVars.lua`)
+  mkdirSync(dirname(luaPath), { recursive: true })
   writeFileSync(luaPath, serializeSandboxVars(data), 'utf-8')
 }

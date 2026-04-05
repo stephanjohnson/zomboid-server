@@ -18,7 +18,7 @@ export async function handleBackupJob(
   }
 
   const backupPath = process.env.BACKUP_PATH || '/backups'
-  const pzDataPath = process.env.PZ_DATA_PATH || '/pz-data'
+  const pzDataPath = process.env.PZ_DATA_PATH || '/pzm-data'
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const fileName = `${servername}_${timestamp}.tar.gz`
   const filePath = join(backupPath, fileName)

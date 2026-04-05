@@ -1,5 +1,8 @@
 <script setup lang="ts">
-const { data: backups, refresh } = useFetch('/api/backups')
+const route = useRoute()
+const profileId = route.params.profileId as string
+
+const { data: backups, refresh } = useFetch('/api/backups', { query: { profileId } })
 const { isAdmin } = useAuth()
 const creating = ref(false)
 const restoring = ref<string | null>(null)
@@ -7,7 +10,7 @@ const restoring = ref<string | null>(null)
 async function createBackup() {
   creating.value = true
   try {
-    await $fetch('/api/backups/create', { method: 'POST' })
+    await $fetch('/api/backups/create', { method: 'POST', body: { profileId } })
     await refresh()
   }
   finally {

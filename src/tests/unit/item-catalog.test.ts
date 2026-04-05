@@ -97,7 +97,7 @@ describe('buildDerivedSpecs', () => {
       doorDamage: 8,
       knockback: 0.5,
       sharpness: 1,
-      scriptSource: '/pz-server/media/scripts/weapons.txt',
+      scriptSource: '/pzm-server/media/scripts/weapons.txt',
     }
 
     expect(buildDerivedSpecs(item)).toEqual(expect.arrayContaining([

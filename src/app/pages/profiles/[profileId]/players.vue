@@ -4,7 +4,6 @@ const { data: playerData, refresh } = useFetch('/api/players', {
   default: () => ({ players: [], count: 0 }),
 })
 
-const selectedPlayer = ref<string | null>(null)
 const actionLoading = ref<string | null>(null)
 
 async function kickPlayer(player: string) {

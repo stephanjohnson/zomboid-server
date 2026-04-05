@@ -1,18 +1,25 @@
 <script setup lang="ts">
+const route = useRoute()
+const profileId = route.params.profileId as string
+
 const tab = ref<'server-ini' | 'sandbox'>('server-ini')
 const saving = ref(false)
 const error = ref('')
 const success = ref('')
 
 // Server.ini
-const { data: iniData, refresh: refreshIni } = useFetch('/api/config/server-ini')
+const { data: iniData, refresh: refreshIni } = useFetch('/api/config/server-ini', {
+  query: { profileId },
+})
 const iniSettings = ref<Record<string, string>>({})
 watch(() => iniData.value, (v) => {
   if (v?.settings) iniSettings.value = { ...v.settings }
 }, { immediate: true })
 
 // SandboxVars
-const { data: sandboxData, refresh: refreshSandbox } = useFetch('/api/config/sandbox-vars')
+const { data: sandboxData, refresh: refreshSandbox } = useFetch('/api/config/sandbox-vars', {
+  query: { profileId },
+})
 const sandboxVars = ref<Record<string, unknown>>({})
 watch(() => sandboxData.value, (v) => {
   if (v?.vars) sandboxVars.value = { ...v.vars }
@@ -25,7 +32,7 @@ async function saveIni() {
   try {
     await $fetch('/api/config/server-ini', {
       method: 'PUT',
-      body: { settings: iniSettings.value },
+      body: { profileId, settings: iniSettings.value },
     })
     success.value = 'server.ini saved successfully'
     await refreshIni()
@@ -45,7 +52,7 @@ async function saveSandbox() {
   try {
     await $fetch('/api/config/sandbox-vars', {
       method: 'PUT',
-      body: { vars: sandboxVars.value },
+      body: { profileId, vars: sandboxVars.value },
     })
     success.value = 'SandboxVars.lua saved successfully'
     await refreshSandbox()

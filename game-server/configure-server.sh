@@ -46,7 +46,7 @@ ensure_ini_list_value() {
 mkdir -p "$SERVER_DIR"
 
 ZM_WORKSHOP_ID="3685323705"
-ZM_SOURCE_DIR="/home/steam/Zomboid/mods/ZomboidManager"
+ZM_SOURCE_DIR="${ZM_SOURCE_DIR:-/opt/ZomboidManager-source}"
 ZM_WORKSHOP_DIR="/home/steam/pzserver/steamapps/workshop/content/108600/${ZM_WORKSHOP_ID}/mods/ZomboidManager"
 
 # Create a minimal ini so the local bridge mod can be enabled on first boot
@@ -66,6 +66,18 @@ fi
 
 if [ -n "${PZ_GAME_PORT:-}" ]; then
     ensure_ini_value "DefaultPort" "${PZ_GAME_PORT}"
+fi
+if [ -n "${PZ_DIRECT_PORT:-}" ]; then
+    ensure_ini_value "UDPPort" "${PZ_DIRECT_PORT}"
+fi
+if [ -n "${PZ_MAP_NAMES:-}" ]; then
+    ensure_ini_value "Map" "${PZ_MAP_NAMES}"
+fi
+if [ -n "${PZ_MAX_PLAYERS:-}" ]; then
+    ensure_ini_value "MaxPlayers" "${PZ_MAX_PLAYERS}"
+fi
+if [ -n "${PZ_PVP:-}" ]; then
+    ensure_ini_value "PVP" "${PZ_PVP}"
 fi
 
 ensure_ini_value "DoLuaChecksum" "false"

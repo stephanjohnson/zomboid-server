@@ -2,6 +2,7 @@
 import type { SidebarProps } from '@/components/ui/sidebar'
 import {
   Archive,
+  Edit,
   Home,
   Package,
   PanelTop,
@@ -28,23 +29,43 @@ const props = withDefaults(defineProps<SidebarProps>(), {
   variant: 'inset',
 })
 
+const route = useRoute()
 const { user, logout, isAdmin } = useAuth()
 const { status } = useServerStatus()
 
-const navMain = computed(() => [
-  { title: 'Dashboard', url: '/', icon: Home },
-  { title: 'Profiles', url: '/profiles', icon: Server },
-  { title: 'Configuration', url: '/config', icon: Settings },
-  { title: 'Mods', url: '/mods', icon: Package },
-  { title: 'Backups', url: '/backups', icon: Archive },
-  { title: 'Players', url: '/players', icon: Users },
-  { title: 'Store', url: '/store', icon: ShoppingBag },
-  ...(isAdmin.value ? [{ title: 'Store Admin', url: '/admin/store', icon: PanelTop }] : []),
-])
+const profileId = computed(() => route.params.profileId as string | undefined)
 
-const navSecondary = [
-  { title: 'Settings', url: '/config', icon: Settings },
-]
+const navMain = computed(() => {
+  const pid = profileId.value
+  if (pid) {
+    return [
+      { title: 'Dashboard', url: `/profiles/${pid}`, icon: Home },
+      { title: 'Configuration', url: `/profiles/${pid}/config`, icon: Settings },
+      { title: 'Mods', url: `/profiles/${pid}/mods`, icon: Package },
+      { title: 'Backups', url: `/profiles/${pid}/backups`, icon: Archive },
+      { title: 'Players', url: `/profiles/${pid}/players`, icon: Users },
+      { title: 'Edit Profile', url: `/profiles/${pid}/edit`, icon: Edit },
+      { title: 'All Profiles', url: '/profiles', icon: Server },
+      { title: 'Store', url: '/store', icon: ShoppingBag },
+      ...(isAdmin.value ? [{ title: 'Store Admin', url: '/admin/store', icon: PanelTop }] : []),
+    ]
+  }
+  return [
+    { title: 'Profiles', url: '/profiles', icon: Server },
+    { title: 'Store', url: '/store', icon: ShoppingBag },
+    ...(isAdmin.value ? [{ title: 'Store Admin', url: '/admin/store', icon: PanelTop }] : []),
+  ]
+})
+
+const navSecondary = computed(() => {
+  const pid = profileId.value
+  if (pid) {
+    return [
+      { title: 'Settings', url: `/profiles/${pid}/config`, icon: Settings },
+    ]
+  }
+  return []
+})
 </script>
 
 <template>
@@ -56,7 +77,7 @@ const navSecondary = [
             as-child
             class="data-[slot=sidebar-menu-button]:!p-1.5"
           >
-            <NuxtLink to="/">
+            <NuxtLink :to="profileId ? `/profiles/${profileId}` : '/profiles'">
               <Skull class="!size-5" />
               <div class="grid flex-1 text-left text-sm leading-tight">
                 <span class="truncate font-semibold">ZM Manager</span>

@@ -12,8 +12,9 @@ RUN id -u steam &>/dev/null || useradd -m -s /bin/bash steam
 RUN mkdir -p /home/steam/Zomboid /home/steam/pzserver \
     && chown -R steam:steam /home/steam
 
-COPY entrypoint.sh /home/steam/entrypoint.sh
-COPY configure-server.sh /home/steam/configure-server.sh
+COPY game-server/entrypoint.sh /home/steam/entrypoint.sh
+COPY game-server/configure-server.sh /home/steam/configure-server.sh
+COPY lua-bridge/ZomboidManager /opt/ZomboidManager-source
 RUN chmod +x /home/steam/entrypoint.sh /home/steam/configure-server.sh
 
 ENV ZM_API_BASE_URL=http://nitro-app:3000/api/mod

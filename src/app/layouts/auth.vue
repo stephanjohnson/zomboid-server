@@ -36,8 +36,37 @@ const contentWidthClass = computed(() => {
           alt="Project Zomboid"
           class="absolute inset-0 h-full w-full object-cover"
         >
+        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div class="absolute inset-0 flex items-end justify-end p-8">
+          <img
+            src="/logo.png"
+            alt="Logo"
+            class="floating-logo w-64 drop-shadow-2xl"
+          >
+        </div>
       </div>
     </div>
     <Toaster rich-colors />
   </div>
 </template>
+
+<style scoped>
+.floating-logo {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-12px) rotate(1deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-1deg);
+  }
+  75% {
+    transform: translateY(-14px) rotate(0.5deg);
+  }
+}
+</style>

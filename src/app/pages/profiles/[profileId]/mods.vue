@@ -1,5 +1,8 @@
 <script setup lang="ts">
-const { data: mods, refresh } = useFetch('/api/mods')
+const route = useRoute()
+const profileId = route.params.profileId as string
+
+const { data: mods, refresh } = useFetch('/api/mods', { query: { profileId } })
 const { isAdmin } = useAuth()
 
 const newMod = reactive({
@@ -14,16 +17,9 @@ async function addMod() {
   error.value = ''
   adding.value = true
   try {
-    // Get active profile
-    const profiles = await $fetch<{ id: string, isActive: boolean }[]>('/api/profiles')
-    const active = profiles.find(p => p.isActive)
-    if (!active) {
-      error.value = 'No active profile'
-      return
-    }
     await $fetch('/api/mods', {
       method: 'POST',
-      body: { profileId: active.id, ...newMod },
+      body: { profileId, ...newMod },
     })
     newMod.workshopId = ''
     newMod.modName = ''
@@ -100,9 +96,8 @@ async function removeMod(modId: string) {
         </div>
         <Button
           v-if="isAdmin"
-          variant="ghost"
+          variant="destructive"
           size="sm"
-          class="text-destructive hover:text-destructive"
           @click="removeMod(mod.id)"
         >
           Remove

@@ -21,8 +21,8 @@ export async function handleRestoreJob(
     throw new Error(`Backup file not found: ${filePath}`)
   }
 
-  const pzDataPath = process.env.PZ_DATA_PATH || '/pz-data'
-  const containerName = process.env.GAME_SERVER_CONTAINER_NAME || 'pz-game-server'
+  const pzDataPath = process.env.PZ_DATA_PATH || '/pzm-data'
+  const containerName = process.env.GAME_SERVER_CONTAINER_NAME || 'pzm-game-server'
   const proxyUrl = process.env.DOCKER_PROXY_URL || 'http://docker-socket-proxy:2375'
 
   // Stop game server

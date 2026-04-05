@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Check } from 'lucide-vue-next'
 import { steamBuildOptions, type SteamBuild } from '~~/shared/game-build'
 
 const router = useRouter()
@@ -163,50 +162,33 @@ async function handleSubmit() {
         </div>
       </div>
 
-      <fieldset class="grid gap-3">
-        <legend class="text-sm font-medium">
-          Server version
-        </legend>
-        <p class="text-xs text-muted-foreground">
+      <FieldSet>
+        <FieldLegend>Server version</FieldLegend>
+        <FieldDescription>
           Choose which Steam branch this server should track.
-        </p>
-        <div class="grid gap-3">
-          <label
+        </FieldDescription>
+        <RadioGroup v-model="form.build" default-value="public">
+          <FieldLabel
             v-for="option in steamBuildOptions"
             :key="option.value"
             :for="`server-build-${option.value}`"
-            class="block cursor-pointer"
           >
-            <input
-              :id="`server-build-${option.value}`"
-              v-model="form.build"
-              class="peer sr-only"
-              type="radio"
-              name="server-build"
-              :value="option.value"
-            >
-            <div class="flex items-start gap-4 rounded-xl border border-input bg-background p-4 transition-all hover:border-ring/70 hover:bg-accent/30 peer-checked:border-primary peer-checked:bg-accent/50 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2">
-              <div class="grid gap-1">
-                <div class="flex items-center gap-2">
-                  <span class="font-semibold">{{ option.label }}</span>
-                  <span
-                    v-if="option.value === 'public'"
-                    class="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                  >
-                    Recommended
-                  </span>
-                </div>
-                <p class="text-sm text-muted-foreground">
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldTitle>{{ option.label }}</FieldTitle>
+                <FieldDescription>
                   {{ option.description }}
-                </p>
-              </div>
-              <div class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-input bg-background text-primary transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground">
-                <Check class="size-3.5 opacity-0 transition-opacity peer-checked:opacity-100" />
-              </div>
-            </div>
-          </label>
-        </div>
-      </fieldset>
+                </FieldDescription>
+              </FieldContent>
+              <RadioGroupItem
+                :id="`server-build-${option.value}`"
+                :value="option.value"
+                :aria-label="option.label"
+              />
+            </Field>
+          </FieldLabel>
+        </RadioGroup>
+      </FieldSet>
     </section>
 
     <Alert v-if="error" variant="destructive">

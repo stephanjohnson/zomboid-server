@@ -1,6 +1,9 @@
 import * as v from 'valibot'
 
+import { getProfileSandboxVarsOverrides, getProfileServerIniOverrides } from '../../utils/profile-runtime-config'
+
 const RestartSchema = v.object({
+  profileId: v.optional(v.string()),
   countdown: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(600)), 0),
 })
 
@@ -38,13 +41,13 @@ export default defineEventHandler(async (event) => {
       // RCON may not be available
     }
 
-    const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
+    const profile = body.profileId
+      ? await prisma.serverProfile.findUnique({ where: { id: body.profileId } })
+      : await prisma.serverProfile.findFirst({ where: { isActive: true } })
 
     if (!profile) {
-      throw createError({ statusCode: 409, message: 'No active server profile' })
+      throw createError({ statusCode: 409, message: 'No server profile found to restart' })
     }
-
-    const serverIniOverrides = profile.serverIniOverrides as Record<string, string> | null
 
     await reconcileGameContainer({
       servername: profile.servername,
@@ -52,7 +55,11 @@ export default defineEventHandler(async (event) => {
       directPort: profile.directPort,
       rconPort: profile.rconPort,
       steamBuild: profile.steamBuild,
-      serverIniOverrides: serverIniOverrides ?? undefined,
+      mapName: profile.mapName,
+      maxPlayers: profile.maxPlayers,
+      pvp: profile.pvp,
+      serverIniOverrides: getProfileServerIniOverrides(profile),
+      sandboxVarsOverrides: getProfileSandboxVarsOverrides(profile),
     })
 
     await prisma.auditLog.create({

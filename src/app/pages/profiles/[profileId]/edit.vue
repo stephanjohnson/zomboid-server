@@ -2,7 +2,6 @@
 const route = useRoute()
 const router = useRouter()
 const profileId = route.params.profileId as string
-const isNew = profileId === 'new'
 
 const form = reactive({
   name: '',
@@ -19,24 +18,17 @@ const form = reactive({
 const loading = ref(false)
 const error = ref('')
 
-if (!isNew) {
-  const { data } = await useFetch(`/api/profiles/${profileId}`)
-  if (data.value) {
-    Object.assign(form, data.value)
-  }
+const { data } = await useFetch(`/api/profiles/${profileId}`)
+if (data.value) {
+  Object.assign(form, data.value)
 }
 
 async function handleSubmit() {
   error.value = ''
   loading.value = true
   try {
-    if (isNew) {
-      await $fetch('/api/profiles', { method: 'POST', body: form })
-    }
-    else {
-      await $fetch(`/api/profiles/${profileId}`, { method: 'PUT', body: form })
-    }
-    await router.push('/profiles')
+    await $fetch(`/api/profiles/${profileId}`, { method: 'PUT', body: form })
+    await router.push(`/profiles/${profileId}`)
   }
   catch (e: unknown) {
     error.value = (e as { data?: { message?: string } })?.data?.message || 'Failed to save'
@@ -54,14 +46,14 @@ async function handleSubmit() {
         <CardHeader class="gap-4">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div class="space-y-2">
-              <CardTitle>{{ isNew ? 'New Profile' : 'Edit Profile' }}</CardTitle>
+              <CardTitle>Edit Profile</CardTitle>
               <CardDescription class="max-w-2xl">
                 Configure the profile basics, map rotation, player limits, and default rules for this server profile.
                 Profile-scoped telemetry, objectives, and achievements stay available in the automation studio.
               </CardDescription>
             </div>
 
-            <Button v-if="!isNew" variant="outline" as-child>
+            <Button variant="outline" as-child>
               <NuxtLink :to="`/profiles/${profileId}/telemetry`">
                 Open Studio
               </NuxtLink>
@@ -167,7 +159,7 @@ async function handleSubmit() {
           </Button>
 
           <Button variant="outline" as-child>
-            <NuxtLink to="/profiles">
+            <NuxtLink :to="`/profiles/${profileId}`">
               Cancel
             </NuxtLink>
           </Button>

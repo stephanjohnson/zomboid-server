@@ -55,8 +55,13 @@ export default defineNuxtConfig({
     rabbitmqUrl: readRuntimeEnv('RABBITMQ_URL', 'amqp://zomboid:zomboid@localhost:5672'),
 
     dockerProxyUrl: readRuntimeEnv('DOCKER_PROXY_URL', 'http://localhost:2375'),
-    gameServerContainerName: readRuntimeEnv('GAME_SERVER_CONTAINER_NAME', 'pz-game-server'),
-    gameServerImageName: readRuntimeEnv('GAME_SERVER_IMAGE', 'pz-game-server:local'),
+    gameServerContainerName: readRuntimeEnv('GAME_SERVER_CONTAINER_NAME', 'pzm-game-server'),
+    gameServerImageName: readRuntimeEnv('GAME_SERVER_IMAGE', 'pzm-game-server:local'),
+    gameServerNetworkName: readRuntimeEnv('GAME_SERVER_NETWORK_NAME', 'zomboid-server_zomboid-net'),
+    gameServerNetworkAlias: readRuntimeEnv('GAME_SERVER_NETWORK_ALIAS', 'game-server'),
+    gameServerDataMountSource: readRuntimeEnv('GAME_SERVER_DATA_MOUNT_SOURCE', ''),
+    gameServerLuaBridgeMountSource: readRuntimeEnv('GAME_SERVER_LUA_BRIDGE_MOUNT_SOURCE', ''),
+    gameServerModSourceMount: readRuntimeEnv('GAME_SERVER_MOD_SOURCE_MOUNT', ''),
     gameServerModSourcePath: readRuntimeEnv('GAME_SERVER_MOD_SOURCE_PATH', '../lua-bridge/ZomboidManager'),
     modApiBaseUrl: readRuntimeEnv('MOD_API_BASE_URL', 'http://nitro-app:3000/api/mod'),
 
@@ -64,8 +69,8 @@ export default defineNuxtConfig({
     pzRconPort: Number(readRuntimeEnv('PZ_RCON_PORT', '27015')),
     pzRconPassword: readRuntimeEnv('PZ_RCON_PASSWORD', ''),
 
-    pzDataPath: readRuntimeEnv('PZ_DATA_PATH', '/pz-data'),
-    pzServerPath: readRuntimeEnv('PZ_SERVER_PATH', '/pz-server'),
+    pzDataPath: readRuntimeEnv('PZ_DATA_PATH', '/pzm-data'),
+    pzServerPath: readRuntimeEnv('PZ_SERVER_PATH', '/pzm-server'),
     backupPath: readRuntimeEnv('BACKUP_PATH', '/backups'),
     luaBridgePath: readRuntimeEnv('LUA_BRIDGE_PATH', '/lua-bridge'),
 

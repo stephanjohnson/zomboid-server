@@ -11,6 +11,8 @@ async function activateProfile(profileId: string) {
       body: { isActive: true },
     })
     await refresh()
+    // Navigate to the activated profile's dashboard
+    await navigateTo(`/profiles/${profileId}`)
   }
   finally {
     loading.value = null
@@ -49,9 +51,9 @@ async function deleteProfile(profileId: string) {
       >
         <div>
           <div class="flex items-center gap-2">
-            <h3 class="font-semibold">
+            <NuxtLink :to="`/profiles/${profile.id}`" class="font-semibold hover:underline">
               {{ profile.name }}
-            </h3>
+            </NuxtLink>
             <Badge
               v-if="profile.isActive"
               variant="secondary"
@@ -88,7 +90,7 @@ async function deleteProfile(profileId: string) {
             size="sm"
             as-child
           >
-            <NuxtLink :to="`/profiles/${profile.id}`">
+            <NuxtLink :to="`/profiles/${profile.id}/edit`">
               Edit
             </NuxtLink>
           </Button>

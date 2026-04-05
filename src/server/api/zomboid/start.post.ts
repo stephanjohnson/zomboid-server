@@ -1,3 +1,11 @@
+import * as v from 'valibot'
+
+import { getProfileSandboxVarsOverrides, getProfileServerIniOverrides } from '../../utils/profile-runtime-config'
+
+const StartSchema = v.object({
+  profileId: v.optional(v.string()),
+})
+
 export default defineEventHandler(async (event) => {
   const user = event.context.user
   if (!user || (user.role !== 'ADMIN' && user.role !== 'MODERATOR')) {
@@ -5,13 +13,15 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
+    const body = await readValidatedBody(event, v.parser(StartSchema))
+
+    const profile = body.profileId
+      ? await prisma.serverProfile.findUnique({ where: { id: body.profileId } })
+      : await prisma.serverProfile.findFirst({ where: { isActive: true } })
 
     if (!profile) {
-      throw createError({ statusCode: 409, message: 'No active server profile available to start' })
+      throw createError({ statusCode: 409, message: 'No server profile found to start' })
     }
-
-    const serverIniOverrides = profile.serverIniOverrides as Record<string, string> | null
 
     await startGameContainer({
       servername: profile.servername,
@@ -19,7 +29,11 @@ export default defineEventHandler(async (event) => {
       directPort: profile.directPort,
       rconPort: profile.rconPort,
       steamBuild: profile.steamBuild,
-      serverIniOverrides: serverIniOverrides ?? undefined,
+      mapName: profile.mapName,
+      maxPlayers: profile.maxPlayers,
+      pvp: profile.pvp,
+      serverIniOverrides: getProfileServerIniOverrides(profile),
+      sandboxVarsOverrides: getProfileSandboxVarsOverrides(profile),
     })
 
     await prisma.auditLog.create({
