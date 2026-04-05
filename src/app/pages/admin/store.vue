@@ -50,7 +50,7 @@ interface CatalogSearchResult {
   iconName: string | null
   textureIcon?: string | null
   iconUrl?: string | null
-  source: 'lua_bridge' | 'telemetry'
+  source: 'lua_bridge' | 'scripts' | 'telemetry'
   weight?: number | null
   isTwoHandWeapon?: boolean | null
   maxCondition?: number | null
@@ -134,7 +134,7 @@ const { data: bootstrap, refresh: refreshBootstrap, pending: bootstrapPending } 
   },
 )
 
-const { data: catalogSearch, refresh: refreshCatalogSearch, pending: catalogPending } = await useFetch<{
+const { data: catalogSearch, refresh: refreshCatalogSearch, pending: catalogPending, error: catalogSearchRequestError } = await useFetch<{
   source: string
   total: number
   items: CatalogSearchResult[]
@@ -142,6 +142,7 @@ const { data: catalogSearch, refresh: refreshCatalogSearch, pending: catalogPend
   '/api/store/admin/catalog',
   {
     query: computed(() => ({
+      profileId: bootstrap.value.profile?.id,
       q: catalogQuery.value.trim(),
       limit: 20,
     })),
@@ -156,10 +157,13 @@ const productDialogTab = ref('catalog')
 const categoryNotice = ref('')
 const productNotice = ref('')
 const bundleNotice = ref('')
+const catalogSearchError = ref('')
+const hasCatalogSearchRun = ref(false)
 const catalogImportNotice = ref('')
 const catalogImportError = ref('')
 const catalogImportingFullType = ref('')
 const lastCatalogImport = ref<CatalogItemEnrichment | null>(null)
+let catalogSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 const categoryForm = reactive({
   name: '',
@@ -386,6 +390,8 @@ function resetProductDraft() {
       items: [],
     }
   }
+  catalogSearchError.value = ''
+  hasCatalogSearchRun.value = false
   productDialogTab.value = 'catalog'
 }
 
@@ -582,9 +588,73 @@ function applyImportedCatalogItem(enrichment: CatalogItemEnrichment) {
   })
 }
 
-async function searchCatalog() {
-  await refreshCatalogSearch()
+function clearCatalogSearchTimer() {
+  if (!catalogSearchTimer) {
+    return
+  }
+
+  clearTimeout(catalogSearchTimer)
+  catalogSearchTimer = null
 }
+
+function queueCatalogSearch(delay = 180) {
+  clearCatalogSearchTimer()
+  catalogSearchTimer = setTimeout(() => {
+    void searchCatalog()
+  }, delay)
+}
+
+async function searchCatalog() {
+  clearCatalogSearchTimer()
+  hasCatalogSearchRun.value = true
+  catalogSearchError.value = ''
+
+  try {
+    await refreshCatalogSearch()
+  }
+  catch (error) {
+    catalogSearchError.value = error instanceof Error
+      ? error.message
+      : 'Failed to search the game catalog.'
+    catalogSearch.value = {
+      ...catalogDefault,
+      items: [],
+    }
+    return
+  }
+
+  if (catalogSearchRequestError.value) {
+    catalogSearchError.value = catalogSearchRequestError.value.message || 'Failed to search the game catalog.'
+    catalogSearch.value = {
+      ...catalogDefault,
+      items: [],
+    }
+  }
+}
+
+watch(() => catalogQuery.value.trim(), (query, previousQuery) => {
+  if (query === previousQuery) {
+    return
+  }
+
+  queueCatalogSearch(query.length > 0 ? 180 : 0)
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'overview' && !hasCatalogSearchRun.value) {
+    queueCatalogSearch(0)
+  }
+}, { immediate: true })
+
+watch(productDialogOpen, (open) => {
+  if (open && !hasCatalogSearchRun.value) {
+    queueCatalogSearch(0)
+  }
+})
+
+onBeforeUnmount(() => {
+  clearCatalogSearchTimer()
+})
 
 async function importCatalogItem(fullType: string) {
   catalogImportingFullType.value = fullType
@@ -794,75 +864,102 @@ async function deleteBundle(bundleId: string) {
               </AlertDescription>
             </Alert>
 
-            <div class="flex flex-col gap-3 md:flex-row">
+            <div class="space-y-2">
               <Input
                 v-model="catalogQuery"
                 placeholder="Search item code or display name"
               />
-              <Button :disabled="catalogPending" @click="searchCatalog">
-                {{ catalogPending ? 'Searching…' : 'Search catalog' }}
-              </Button>
+              <p class="text-xs text-muted-foreground">
+                Live search matches both the Project Zomboid item code and the display name, with results kept in the panel below.
+              </p>
             </div>
 
-            <div class="grid gap-3 md:grid-cols-2">
-              <Card
-                v-for="item in catalogSearch.items"
-                :key="item.fullType"
-                class="border-dashed"
-              >
-                <CardHeader class="pb-3">
-                  <div class="flex items-start gap-3">
-                    <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
-                      <img
-                        v-if="item.iconUrl"
-                        :src="item.iconUrl"
-                        :alt="item.name"
-                        class="h-full w-full object-contain"
-                      >
-                      <div v-else class="text-xs text-muted-foreground">
-                        No image
-                      </div>
-                    </div>
-                    <div class="min-w-0 space-y-1">
-                      <CardTitle class="text-base">
-                        {{ item.name }}
-                      </CardTitle>
-                      <CardDescription>
-                        {{ item.fullType }}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent class="space-y-4 text-sm">
-                  <div class="flex flex-wrap gap-2">
-                    <Badge variant="outline">
-                      {{ item.displayCategory || item.category || 'Unknown category' }}
-                    </Badge>
-                    <Badge v-if="typeof item.weight === 'number'" variant="outline">
-                      {{ item.weight }} enc.
-                    </Badge>
-                    <Badge v-if="item.isTwoHandWeapon" variant="outline">
-                      Two-handed
-                    </Badge>
-                    <Badge v-if="typeof item.maxCondition === 'number'" variant="outline">
-                      Cond. {{ item.maxCondition }}
-                    </Badge>
-                  </div>
+            <div class="rounded-xl border">
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 text-sm">
+                <p class="text-muted-foreground">
+                  <span v-if="catalogPending">Searching catalog…</span>
+                  <span v-else-if="catalogSearchError">{{ catalogSearchError }}</span>
+                  <span v-else>{{ catalogSearch.total }} matches from {{ catalogSearch.source }}.</span>
+                </p>
+                <Badge variant="outline">
+                  {{ bootstrap.catalog.total }} total known items
+                </Badge>
+              </div>
 
-                  <div class="flex flex-wrap justify-end gap-2">
-                    <Button variant="outline" @click="seedVariantFromCatalog(item)">
-                      Add variant only
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      :disabled="catalogImportingFullType === item.fullType"
-                      @click="importCatalogItem(item.fullType)"
-                    >
-                      {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import details' }}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div class="p-4">
+                <div v-if="catalogPending" class="py-8 text-center text-sm text-muted-foreground">
+                  Searching catalog…
+                </div>
+
+                <div v-else-if="catalogSearchError" class="py-8 text-center text-sm text-destructive">
+                  {{ catalogSearchError }}
+                </div>
+
+                <div v-else-if="catalogSearch.items.length" class="grid gap-3 md:grid-cols-2">
+                  <Card
+                    v-for="item in catalogSearch.items"
+                    :key="item.fullType"
+                    class="border-dashed"
+                  >
+                    <CardHeader class="pb-3">
+                      <div class="flex items-start gap-3">
+                        <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
+                          <img
+                            v-if="item.iconUrl"
+                            :src="item.iconUrl"
+                            :alt="item.name"
+                            class="h-full w-full object-contain"
+                          >
+                          <div v-else class="text-xs text-muted-foreground">
+                            No image
+                          </div>
+                        </div>
+                        <div class="min-w-0 space-y-1">
+                          <CardTitle class="text-base">
+                            {{ item.name }}
+                          </CardTitle>
+                          <CardDescription>
+                            {{ item.fullType }}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent class="space-y-4 text-sm">
+                      <div class="flex flex-wrap gap-2">
+                        <Badge variant="outline">
+                          {{ item.displayCategory || item.category || 'Unknown category' }}
+                        </Badge>
+                        <Badge v-if="typeof item.weight === 'number'" variant="outline">
+                          {{ item.weight }} enc.
+                        </Badge>
+                        <Badge v-if="item.isTwoHandWeapon" variant="outline">
+                          Two-handed
+                        </Badge>
+                        <Badge v-if="typeof item.maxCondition === 'number'" variant="outline">
+                          Cond. {{ item.maxCondition }}
+                        </Badge>
+                      </div>
+
+                      <div class="flex flex-wrap justify-end gap-2">
+                        <Button variant="outline" @click="seedVariantFromCatalog(item)">
+                          Add variant only
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          :disabled="catalogImportingFullType === item.fullType"
+                          @click="importCatalogItem(item.fullType)"
+                        >
+                          {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import details' }}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div v-else class="py-8 text-center text-sm text-muted-foreground">
+                  No catalog items matched that search.
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1043,13 +1140,12 @@ async function deleteBundle(bundleId: string) {
                       id="product-item-search"
                       v-model="catalogQuery"
                       placeholder="Search item code or display name"
-                      @keydown.enter.prevent="searchCatalog"
                     />
+                    <p class="text-xs text-muted-foreground">
+                      Search updates as you type. Results stay pinned below so the next batch-import workflow can grow from this area later.
+                    </p>
                   </div>
                   <div class="flex flex-wrap gap-3">
-                    <Button :disabled="catalogPending" @click="searchCatalog">
-                      {{ catalogPending ? 'Searching…' : 'Search catalog' }}
-                    </Button>
                     <Button variant="outline" @click="productDialogTab = 'details'">
                       Skip to details
                     </Button>
@@ -1060,72 +1156,93 @@ async function deleteBundle(bundleId: string) {
                   This comes first now, like the original flow, so you can lock in the Project Zomboid item before working through merchandising, tabs, and variants.
                 </div>
 
-                <div v-if="catalogSearch.items.length" class="grid gap-3 xl:grid-cols-2">
-                  <Card
-                    v-for="item in catalogSearch.items"
-                    :key="item.fullType"
-                    class="border-dashed"
-                  >
-                    <CardHeader class="pb-3">
-                      <div class="flex items-start gap-3">
-                        <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
-                          <img
-                            v-if="item.iconUrl"
-                            :src="item.iconUrl"
-                            :alt="item.name"
-                            class="h-full w-full object-contain"
-                          >
-                          <div v-else class="text-xs text-muted-foreground">
-                            No image
+                <div class="rounded-xl border">
+                  <div class="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 text-sm">
+                    <p class="text-muted-foreground">
+                      <span v-if="catalogPending">Searching catalog…</span>
+                      <span v-else-if="catalogSearchError">{{ catalogSearchError }}</span>
+                      <span v-else>{{ catalogSearch.total }} matches from {{ catalogSearch.source }}.</span>
+                    </p>
+                    <Badge variant="outline">
+                      {{ bootstrap.catalog.total }} total known items
+                    </Badge>
+                  </div>
+
+                  <div class="p-4">
+                    <div v-if="catalogPending" class="py-8 text-center text-sm text-muted-foreground">
+                      Searching catalog…
+                    </div>
+
+                    <div v-else-if="catalogSearchError" class="py-8 text-center text-sm text-destructive">
+                      {{ catalogSearchError }}
+                    </div>
+
+                    <div v-else-if="catalogSearch.items.length" class="grid gap-3 xl:grid-cols-2">
+                      <Card
+                        v-for="item in catalogSearch.items"
+                        :key="item.fullType"
+                        class="border-dashed"
+                      >
+                        <CardHeader class="pb-3">
+                          <div class="flex items-start gap-3">
+                            <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-muted/20">
+                              <img
+                                v-if="item.iconUrl"
+                                :src="item.iconUrl"
+                                :alt="item.name"
+                                class="h-full w-full object-contain"
+                              >
+                              <div v-else class="text-xs text-muted-foreground">
+                                No image
+                              </div>
+                            </div>
+                            <div class="min-w-0 space-y-1">
+                              <CardTitle class="text-base">
+                                {{ item.name }}
+                              </CardTitle>
+                              <CardDescription>
+                                {{ item.fullType }}
+                              </CardDescription>
+                            </div>
                           </div>
-                        </div>
-                        <div class="min-w-0 space-y-1">
-                          <CardTitle class="text-base">
-                            {{ item.name }}
-                          </CardTitle>
-                          <CardDescription>
-                            {{ item.fullType }}
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent class="space-y-4 text-sm">
-                      <div class="flex flex-wrap gap-2">
-                        <Badge variant="outline">
-                          {{ item.displayCategory || item.category || 'Unknown category' }}
-                        </Badge>
-                        <Badge v-if="typeof item.weight === 'number'" variant="outline">
-                          {{ item.weight }} enc.
-                        </Badge>
-                        <Badge v-if="item.isTwoHandWeapon" variant="outline">
-                          Two-handed
-                        </Badge>
-                        <Badge v-if="typeof item.maxCondition === 'number'" variant="outline">
-                          Cond. {{ item.maxCondition }}
-                        </Badge>
-                      </div>
+                        </CardHeader>
+                        <CardContent class="space-y-4 text-sm">
+                          <div class="flex flex-wrap gap-2">
+                            <Badge variant="outline">
+                              {{ item.displayCategory || item.category || 'Unknown category' }}
+                            </Badge>
+                            <Badge v-if="typeof item.weight === 'number'" variant="outline">
+                              {{ item.weight }} enc.
+                            </Badge>
+                            <Badge v-if="item.isTwoHandWeapon" variant="outline">
+                              Two-handed
+                            </Badge>
+                            <Badge v-if="typeof item.maxCondition === 'number'" variant="outline">
+                              Cond. {{ item.maxCondition }}
+                            </Badge>
+                          </div>
 
-                      <div class="flex flex-wrap justify-end gap-2">
-                        <Button variant="outline" @click="seedVariantFromCatalog(item)">
-                          Add variant only
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          :disabled="catalogImportingFullType === item.fullType"
-                          @click="importCatalogItem(item.fullType)"
-                        >
-                          {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import details' }}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                          <div class="flex flex-wrap justify-end gap-2">
+                            <Button variant="outline" @click="seedVariantFromCatalog(item)">
+                              Add variant only
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              :disabled="catalogImportingFullType === item.fullType"
+                              @click="importCatalogItem(item.fullType)"
+                            >
+                              {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import details' }}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div v-else class="py-8 text-center text-sm text-muted-foreground">
+                      No catalog items matched that search. You can still skip ahead and build the product manually.
+                    </div>
+                  </div>
                 </div>
-
-                <Card v-else class="border-dashed">
-                  <CardContent class="py-10 text-center text-sm text-muted-foreground">
-                    Search the game catalog to seed the first variant, or move straight to Details if you want to build the product manually.
-                  </CardContent>
-                </Card>
               </TabsContent>
 
               <TabsContent value="details" class="space-y-6">

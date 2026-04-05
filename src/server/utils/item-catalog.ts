@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import { loadItemScriptCatalog } from './item-script-catalog'
@@ -13,7 +14,7 @@ export interface GameCatalogEntry {
   iconName: string | null
   textureIcon: string | null
   iconUrl: string | null
-  source: 'lua_bridge' | 'telemetry'
+  source: 'lua_bridge' | 'scripts' | 'telemetry'
   itemType: string | null
   weight: number | null
   tags: string[]
@@ -48,6 +49,42 @@ function humanizeItemToken(token: string) {
 export function humanizeItemCode(fullType: string) {
   const [, rawName = fullType] = fullType.split('.', 2)
   return humanizeItemToken(rawName)
+}
+
+function mapScriptCatalogEntry(record: ParsedItemScriptRecord): GameCatalogEntry {
+  const category = record.displayCategory ?? record.itemType
+
+  return {
+    fullType: record.fullType,
+    name: humanizeItemToken(record.itemName),
+    category,
+    displayCategory: category,
+    iconName: record.icon,
+    textureIcon: record.icon,
+    iconUrl: buildPzWikiFileUrl(record.icon),
+    source: 'scripts',
+    itemType: record.itemType,
+    weight: record.weight,
+    tags: record.tags,
+    categories: record.categories,
+    attachmentType: record.attachmentType,
+    attachmentSlots: record.attachmentSlots,
+    isTwoHandWeapon: record.isTwoHandWeapon,
+    maxCondition: record.conditionMax,
+    conditionLowerChance: record.conditionLowerChanceOneIn,
+    minDamage: record.minDamage,
+    maxDamage: record.maxDamage,
+    minRange: record.minRange,
+    maxRange: record.maxRange,
+    attackSpeed: record.baseSpeed,
+    critChance: record.criticalChance,
+    maxHitCount: record.maxHitCount,
+    treeDamage: record.treeDamage,
+    doorDamage: record.doorDamage,
+    knockback: record.knockback,
+    sharpness: record.sharpness,
+    scriptSource: record.sourceFile,
+  }
 }
 
 function normalizeString(value: unknown) {
@@ -231,6 +268,28 @@ function mergeScriptCatalogEntry(entry: GameCatalogEntry, scriptEntry: ParsedIte
   } satisfies GameCatalogEntry
 }
 
+function getScriptCatalogRoots() {
+  const config = useRuntimeConfig()
+  const home = homedir()
+
+  return [
+    String(config.pzServerPath || ''),
+    join(home, '.local/share/Steam/steamapps/common/ProjectZomboid/projectzomboid'),
+    join(home, '.steam/steam/steamapps/common/ProjectZomboid/projectzomboid'),
+  ].filter((root, index, roots) => root.length > 0 && roots.indexOf(root) === index)
+}
+
+async function loadBestScriptCatalog() {
+  for (const rootDir of getScriptCatalogRoots()) {
+    const catalog = await loadItemScriptCatalog(rootDir)
+    if (catalog.size > 0) {
+      return catalog
+    }
+  }
+
+  return new Map<string, ParsedItemScriptRecord>()
+}
+
 async function readTelemetryCatalog(profileId: string): Promise<GameCatalogEntry[]> {
   const players = await prisma.serverPlayer.findMany({
     where: { profileId },
@@ -298,8 +357,7 @@ async function readTelemetryCatalog(profileId: string): Promise<GameCatalogEntry
 }
 
 export async function getGameItemCatalog(profileId: string) {
-  const config = useRuntimeConfig()
-  const scriptCatalog = await loadItemScriptCatalog(String(config.pzServerPath || '/pzm-server'))
+  const scriptCatalog = await loadBestScriptCatalog()
   const luaBridgeItems = await readLuaBridgeCatalog()
   if (luaBridgeItems.length > 0) {
     return {
@@ -308,6 +366,15 @@ export async function getGameItemCatalog(profileId: string) {
         const scriptEntry = scriptCatalog.get(item.fullType)
         return scriptEntry ? mergeScriptCatalogEntry(item, scriptEntry) : item
       }),
+    }
+  }
+
+  if (scriptCatalog.size > 0) {
+    return {
+      source: 'scripts' as const,
+      items: [...scriptCatalog.values()]
+        .map(mapScriptCatalogEntry)
+        .sort((left, right) => left.name.localeCompare(right.name)),
     }
   }
 
@@ -325,6 +392,12 @@ function scoreCatalogMatch(item: GameCatalogEntry, query: string) {
   const normalizedQuery = query.toLowerCase()
   const fullType = item.fullType.toLowerCase()
   const name = item.name.toLowerCase()
+  const displayCategory = (item.displayCategory || '').toLowerCase()
+  const itemType = (item.itemType || '').toLowerCase()
+  const iconName = (item.iconName || '').toLowerCase()
+  const textureIcon = (item.textureIcon || '').toLowerCase()
+  const tags = item.tags.map(tag => tag.toLowerCase())
+  const categories = item.categories.map(category => category.toLowerCase())
 
   if (fullType === normalizedQuery) {
     return 100
@@ -348,6 +421,18 @@ function scoreCatalogMatch(item: GameCatalogEntry, query: string) {
 
   if (name.includes(normalizedQuery)) {
     return 55
+  }
+
+  if (displayCategory.includes(normalizedQuery) || itemType.includes(normalizedQuery)) {
+    return 45
+  }
+
+  if (iconName.includes(normalizedQuery) || textureIcon.includes(normalizedQuery)) {
+    return 42
+  }
+
+  if (tags.some(tag => tag.includes(normalizedQuery)) || categories.some(category => category.includes(normalizedQuery))) {
+    return 40
   }
 
   return 0

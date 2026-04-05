@@ -1,9 +1,17 @@
 import * as v from 'valibot'
 
+const QueryNumberSchema = v.pipe(
+  v.union([v.string(), v.number()]),
+  v.transform(value => typeof value === 'string' ? Number(value) : value),
+  v.number(),
+  v.minValue(1),
+  v.maxValue(100),
+)
+
 const QuerySchema = v.object({
   profileId: v.optional(v.string()),
   q: v.optional(v.string(), ''),
-  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)), 25),
+  limit: v.optional(QueryNumberSchema, 25),
 })
 
 export default defineEventHandler(async (event) => {
