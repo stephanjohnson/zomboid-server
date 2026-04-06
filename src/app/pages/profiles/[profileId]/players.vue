@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { isModerator, isAdmin } = useAuth()
-const { data: playerData, refresh } = useFetch('/api/players', {
+const { data: playerData, refresh, pending: playersPending } = useLazyFetch('/api/players', {
   default: () => ({ players: [], count: 0 }),
 })
 
@@ -51,7 +51,17 @@ async function banPlayer(player: string) {
       </Button>
     </div>
 
-    <div v-if="playerData?.players?.length" class="space-y-2">
+    <div v-if="playersPending" class="space-y-2">
+      <div v-for="i in 3" :key="i" class="rounded-lg border p-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <Skeleton class="h-2.5 w-2.5 rounded-full" />
+          <Skeleton class="h-5 w-32" />
+        </div>
+        <Skeleton class="h-8 w-16" />
+      </div>
+    </div>
+
+    <div v-else-if="playerData?.players?.length" class="space-y-2">
       <div
         v-for="player in playerData.players"
         :key="player"

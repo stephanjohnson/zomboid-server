@@ -27,7 +27,7 @@ watch(status, () => {
   refreshPlayers()
 })
 
-const { data: profile } = await useFetch(`/api/profiles/${profileId}`)
+const { data: profile, pending: profilePending } = useLazyFetch(`/api/profiles/${profileId}`)
 const actionLoading = ref<string | null>(null)
 const requestUrl = useRequestURL()
 const host = computed(() => requestUrl.hostname || 'localhost')
@@ -71,7 +71,19 @@ async function serverAction(action: string) {
 
 <template>
   <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-    <SectionCards :status="status" :player-count="players?.count ?? 0" />
+    <!-- Status Cards Skeleton -->
+    <div v-if="!status" class="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+      <Card v-for="i in 4" :key="i">
+        <CardHeader>
+          <Skeleton class="h-4 w-24" />
+          <Skeleton class="mt-2 h-6 w-32" />
+        </CardHeader>
+        <CardFooter>
+          <Skeleton class="h-4 w-36" />
+        </CardFooter>
+      </Card>
+    </div>
+    <SectionCards v-else :status="status" :player-count="players?.count ?? 0" />
 
     <!-- Quick Actions -->
     <div class="flex items-center justify-between px-4 lg:px-6">
@@ -132,7 +144,17 @@ async function serverAction(action: string) {
     </div>
 
     <!-- Connection Info -->
-    <div v-if="profile" class="px-4 lg:px-6">
+    <div v-if="profilePending" class="px-4 lg:px-6">
+      <Card>
+        <CardContent class="flex flex-wrap items-center gap-x-6 gap-y-2 py-4">
+          <Skeleton class="h-4 w-28" />
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Skeleton v-for="i in 4" :key="i" class="h-5 w-24" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+    <div v-else-if="profile" class="px-4 lg:px-6">
       <Card>
         <CardContent class="flex flex-wrap items-center gap-x-6 gap-y-2 py-4">
           <span class="text-sm font-medium">Connection Info</span>
@@ -213,7 +235,24 @@ async function serverAction(action: string) {
     </div>
 
     <!-- Profile Info -->
-    <div v-if="profile" class="px-4 lg:px-6">
+    <div v-if="profilePending" class="px-4 lg:px-6">
+      <Card>
+        <CardHeader>
+          <Skeleton class="h-5 w-28" />
+          <Skeleton class="mt-1 h-4 w-48" />
+        </CardHeader>
+        <CardContent>
+          <div class="flex items-center gap-x-3 py-2">
+            <Skeleton class="size-10 rounded-full" />
+            <div class="flex-1 space-y-2">
+              <Skeleton class="h-4 w-32" />
+              <Skeleton class="h-3 w-24" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+    <div v-else-if="profile" class="px-4 lg:px-6">
       <Card>
         <CardHeader>
           <CardTitle class="text-base font-medium">

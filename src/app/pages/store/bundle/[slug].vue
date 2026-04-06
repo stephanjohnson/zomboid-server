@@ -5,7 +5,7 @@ const route = useRoute()
 const { addItem } = useStoreCart()
 const notice = ref('')
 
-const { data } = await useFetch(`/api/store/bundles/${route.params.slug}`, {
+const { data } = useLazyFetch(`/api/store/bundles/${route.params.slug}`, {
   default: () => ({
     profile: null,
     bundle: null,
@@ -42,7 +42,34 @@ function addBundleToCart() {
 </script>
 
 <template>
-  <div v-if="bundle" class="mx-auto max-w-6xl space-y-8 px-6 py-10">
+  <div v-if="!bundle" class="mx-auto max-w-6xl space-y-8 px-6 py-10">
+    <Skeleton class="h-8 w-28" />
+    <section class="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+      <Card>
+        <CardHeader class="space-y-4">
+          <div class="flex gap-2">
+            <Skeleton class="h-6 w-24" />
+            <Skeleton class="h-6 w-20" />
+          </div>
+          <div class="space-y-2">
+            <Skeleton class="h-9 w-48" />
+            <Skeleton class="h-5 w-full max-w-md" />
+          </div>
+        </CardHeader>
+      </Card>
+      <Card class="h-fit">
+        <CardHeader>
+          <Skeleton class="h-6 w-28" />
+          <Skeleton class="h-4 w-36" />
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <Skeleton class="h-9 w-24" />
+          <Skeleton class="h-10 w-full" />
+        </CardContent>
+      </Card>
+    </section>
+  </div>
+  <div v-else class="mx-auto max-w-6xl space-y-8 px-6 py-10">
     <Button variant="ghost" size="sm" as-child>
       <NuxtLink to="/store">
         Back to store

@@ -2,7 +2,7 @@
 const route = useRoute()
 const profileId = route.params.profileId as string
 
-const { data: backups, refresh } = useFetch('/api/backups', { query: { profileId } })
+const { data: backups, refresh, pending: backupsPending } = useLazyFetch('/api/backups', { query: { profileId } })
 const { isAdmin } = useAuth()
 const creating = ref(false)
 const restoring = ref<string | null>(null)
@@ -53,7 +53,17 @@ function formatSize(bytes: number | bigint): string {
       </Button>
     </div>
 
-    <div class="space-y-2">
+    <div v-if="backupsPending" class="space-y-2">
+      <div v-for="i in 3" :key="i" class="rounded-lg border p-3 flex items-center justify-between">
+        <div class="space-y-2">
+          <Skeleton class="h-5 w-48" />
+          <Skeleton class="h-4 w-64" />
+        </div>
+        <Skeleton class="h-8 w-20" />
+      </div>
+    </div>
+
+    <div v-else class="space-y-2">
       <div
         v-for="backup in backups"
         :key="backup.id"
@@ -81,7 +91,7 @@ function formatSize(bytes: number | bigint): string {
       </div>
     </div>
 
-    <p v-if="!backups?.length" class="text-muted-foreground text-center py-8">
+    <p v-if="!backupsPending && !backups?.length" class="text-muted-foreground text-center py-8">
       No backups yet.
     </p>
   </div>

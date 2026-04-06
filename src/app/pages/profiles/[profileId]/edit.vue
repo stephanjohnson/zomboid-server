@@ -18,10 +18,10 @@ const form = reactive({
 const loading = ref(false)
 const error = ref('')
 
-const { data } = await useFetch(`/api/profiles/${profileId}`)
-if (data.value) {
-  Object.assign(form, data.value)
-}
+const { data } = useLazyFetch(`/api/profiles/${profileId}`)
+watch(data, (val) => {
+  if (val) Object.assign(form, val)
+}, { immediate: true })
 
 async function handleSubmit() {
   error.value = ''

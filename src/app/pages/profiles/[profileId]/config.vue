@@ -8,7 +8,7 @@ const error = ref('')
 const success = ref('')
 
 // Server.ini
-const { data: iniData, refresh: refreshIni } = useFetch('/api/config/server-ini', {
+const { data: iniData, refresh: refreshIni, pending: iniPending } = useLazyFetch('/api/config/server-ini', {
   query: { profileId },
 })
 const iniSettings = ref<Record<string, string>>({})
@@ -17,7 +17,7 @@ watch(() => iniData.value, (v) => {
 }, { immediate: true })
 
 // SandboxVars
-const { data: sandboxData, refresh: refreshSandbox } = useFetch('/api/config/sandbox-vars', {
+const { data: sandboxData, refresh: refreshSandbox, pending: sandboxPending } = useLazyFetch('/api/config/sandbox-vars', {
   query: { profileId },
 })
 const sandboxVars = ref<Record<string, unknown>>({})
@@ -92,6 +92,12 @@ async function saveSandbox() {
 
       <!-- server.ini editor -->
       <TabsContent value="server-ini" class="space-y-3">
+        <div v-if="iniPending" class="space-y-3">
+          <div v-for="i in 6" :key="i" class="grid grid-cols-3 gap-2 items-center">
+            <Skeleton class="ml-auto h-4 w-24" />
+            <Skeleton class="col-span-2 h-9" />
+          </div>
+        </div>
         <div v-for="(value, key) in iniSettings" :key="key" class="grid grid-cols-3 gap-2 items-center">
           <Label class="text-right pr-2">{{ key }}</Label>
           <Input
@@ -110,6 +116,12 @@ async function saveSandbox() {
 
       <!-- SandboxVars editor -->
       <TabsContent value="sandbox" class="space-y-3">
+        <div v-if="sandboxPending" class="space-y-3">
+          <div v-for="i in 6" :key="i" class="grid grid-cols-3 gap-2 items-center">
+            <Skeleton class="ml-auto h-4 w-24" />
+            <Skeleton class="col-span-2 h-9" />
+          </div>
+        </div>
         <div v-for="(value, key) in sandboxVars" :key="key" class="grid grid-cols-3 gap-2 items-center">
           <Label class="text-right pr-2">{{ key }}</Label>
           <Switch

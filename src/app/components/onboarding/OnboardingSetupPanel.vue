@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { steamBuildOptions, type SteamBuild } from '~~/shared/game-build'
 
-const router = useRouter()
 const { fetchStatus } = useOnboardingStatus()
 
 const loading = ref(false)
@@ -59,7 +58,7 @@ async function handleSubmit() {
     })
 
     await fetchStatus(true)
-    await router.push('/')
+    reloadNuxtApp({ path: '/' })
   }
   catch (caughtError: unknown) {
     error.value = (caughtError as { data?: { message?: string } })?.data?.message || 'Setup failed.'
@@ -84,112 +83,63 @@ async function handleSubmit() {
       </p>
     </div>
 
-    <section class="grid gap-6 rounded-xl border border-border/70 bg-card/80 p-6 shadow-xs md:p-7">
-      <div class="space-y-1">
-        <h2 class="text-base font-semibold">
-          Server setup
-        </h2>
-        <p class="text-sm text-muted-foreground">
-          Name the first server profile, create the admin account, and choose which Project Zomboid branch to track.
+    <div class="grid gap-5 md:grid-cols-2">
+      <div class="grid gap-2 md:col-span-2">
+        <Label for="server-name">Server name</Label>
+        <Input id="server-name" v-model="form.serverName" type="text" required autocomplete="organization"
+          placeholder="Weekend Survivors" />
+        <p class="text-xs text-muted-foreground">
+          This becomes the initial active profile and default server slug.
         </p>
       </div>
 
-      <div class="grid gap-5 md:grid-cols-2">
-        <div class="grid gap-2 md:col-span-2">
-          <Label for="server-name">Server name</Label>
-          <Input
-            id="server-name"
-            v-model="form.serverName"
-            type="text"
-            required
-            autocomplete="organization"
-            placeholder="Weekend Survivors"
-          />
-          <p class="text-xs text-muted-foreground">
-            This becomes the initial active profile and default server slug.
-          </p>
-        </div>
-
-        <div class="grid gap-2 md:col-span-2">
-          <Label for="admin-username">Dashboard admin username</Label>
-          <Input
-            id="admin-username"
-            v-model="form.adminUsername"
-            type="text"
-            required
-            minlength="3"
-            autocomplete="username"
-            placeholder="admin"
-          />
-          <p class="text-xs text-muted-foreground">
-            Use at least 3 characters. This controls dashboard sign-ins. The game server admin user remains "admin".
-          </p>
-        </div>
-
-        <div class="grid gap-2">
-          <Label for="admin-password">Admin password</Label>
-          <Input
-            id="admin-password"
-            v-model="form.password"
-            type="password"
-            required
-            minlength="8"
-            autocomplete="new-password"
-            placeholder="Minimum 8 characters"
-          />
-          <p class="text-xs text-muted-foreground">
-            Use a strong password with at least 8 characters.
-          </p>
-        </div>
-
-        <div class="grid gap-2">
-          <Label for="admin-password-confirm">Confirm password</Label>
-          <Input
-            id="admin-password-confirm"
-            v-model="form.confirmPassword"
-            type="password"
-            required
-            minlength="8"
-            autocomplete="new-password"
-            placeholder="Re-enter password"
-          />
-          <p
-            class="text-xs"
-            :class="passwordMismatch ? 'text-destructive' : 'text-muted-foreground'"
-          >
-            {{ passwordMismatch ? 'Passwords must match.' : 'Re-enter the password to confirm it.' }}
-          </p>
-        </div>
+      <div class="grid gap-2 md:col-span-2">
+        <Label for="admin-username">Dashboard admin username</Label>
+        <Input id="admin-username" v-model="form.adminUsername" type="text" required minlength="3"
+          autocomplete="username" placeholder="admin" />
+        <p class="text-xs text-muted-foreground">
+          Use at least 3 characters. This controls dashboard sign-ins. The game server admin user remains "admin".
+        </p>
       </div>
 
-      <FieldSet>
-        <FieldLegend>Server version</FieldLegend>
-        <FieldDescription>
-          Choose which Steam branch this server should track.
-        </FieldDescription>
-        <RadioGroup v-model="form.build" default-value="public">
-          <FieldLabel
-            v-for="option in steamBuildOptions"
-            :key="option.value"
-            :for="`server-build-${option.value}`"
-          >
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldTitle>{{ option.label }}</FieldTitle>
-                <FieldDescription>
-                  {{ option.description }}
-                </FieldDescription>
-              </FieldContent>
-              <RadioGroupItem
-                :id="`server-build-${option.value}`"
-                :value="option.value"
-                :aria-label="option.label"
-              />
-            </Field>
-          </FieldLabel>
-        </RadioGroup>
-      </FieldSet>
-    </section>
+      <div class="grid gap-2">
+        <Label for="admin-password">Admin password</Label>
+        <Input id="admin-password" v-model="form.password" type="password" required minlength="8"
+          autocomplete="new-password" placeholder="Minimum 8 characters" />
+        <p class="text-xs text-muted-foreground">
+          Use a strong password with at least 8 characters.
+        </p>
+      </div>
+
+      <div class="grid gap-2">
+        <Label for="admin-password-confirm">Confirm password</Label>
+        <Input id="admin-password-confirm" v-model="form.confirmPassword" type="password" required minlength="8"
+          autocomplete="new-password" placeholder="Re-enter password" />
+        <p class="text-xs" :class="passwordMismatch ? 'text-destructive' : 'text-muted-foreground'">
+          {{ passwordMismatch ? 'Passwords must match.' : 'Re-enter the password to confirm it.' }}
+        </p>
+      </div>
+    </div>
+
+    <FieldSet>
+      <FieldLegend>Server version</FieldLegend>
+      <FieldDescription>
+        Choose which Steam branch this server should track.
+      </FieldDescription>
+      <RadioGroup v-model="form.build" default-value="public">
+        <FieldLabel v-for="option in steamBuildOptions" :key="option.value" :for="`server-build-${option.value}`">
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldTitle>{{ option.label }}</FieldTitle>
+              <FieldDescription>
+                {{ option.description }}
+              </FieldDescription>
+            </FieldContent>
+            <RadioGroupItem :id="`server-build-${option.value}`" :value="option.value" :aria-label="option.label" />
+          </Field>
+        </FieldLabel>
+      </RadioGroup>
+    </FieldSet>
 
     <Alert v-if="error" variant="destructive">
       <AlertDescription>{{ error }}</AlertDescription>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { isAdmin } = useAuth()
-const { data: profiles, refresh } = useFetch('/api/profiles')
+const { data: profiles, refresh, pending: profilesPending } = useLazyFetch('/api/profiles')
 const loading = ref<string | null>(null)
 
 async function activateProfile(profileId: string) {
@@ -42,7 +42,20 @@ async function deleteProfile(profileId: string) {
       </Button>
     </div>
 
-    <div class="grid gap-4">
+    <div v-if="profilesPending" class="grid gap-4">
+      <div v-for="i in 3" :key="i" class="rounded-lg border p-4 flex items-center justify-between">
+        <div class="space-y-2">
+          <Skeleton class="h-5 w-40" />
+          <Skeleton class="h-4 w-64" />
+        </div>
+        <div class="flex gap-2">
+          <Skeleton class="h-8 w-20" />
+          <Skeleton class="h-8 w-16" />
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="grid gap-4">
       <div
         v-for="profile in profiles"
         :key="profile.id"
@@ -106,7 +119,7 @@ async function deleteProfile(profileId: string) {
       </div>
     </div>
 
-    <p v-if="!profiles?.length" class="text-muted-foreground text-center py-8">
+    <p v-if="!profilesPending && !profiles?.length" class="text-muted-foreground text-center py-8">
       No profiles yet. Create one to get started.
     </p>
   </div>

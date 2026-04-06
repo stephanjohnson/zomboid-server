@@ -1,8 +1,16 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { status, fetchStatus } = useOnboardingStatus()
-  const setupStatus = status.value || await fetchStatus()
+  // The loading page handles its own bootstrapping — never intercept it
+  if (to.path === '/loading') return
 
-  if (!setupStatus.isComplete) {
+  const { status } = useOnboardingStatus()
+
+  // Status not yet fetched — send to a page that renders instantly,
+  // fetches onboarding state after paint, then redirects.
+  if (!status.value) {
+    return navigateTo('/loading')
+  }
+
+  if (!status.value.isComplete) {
     if (to.path !== '/onboarding') {
       return navigateTo('/onboarding')
     }

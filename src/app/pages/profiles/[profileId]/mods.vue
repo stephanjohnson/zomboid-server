@@ -2,7 +2,7 @@
 const route = useRoute()
 const profileId = route.params.profileId as string
 
-const { data: mods, refresh } = useFetch('/api/mods', { query: { profileId } })
+const { data: mods, refresh, pending: modsPending } = useLazyFetch('/api/mods', { query: { profileId } })
 const { isAdmin } = useAuth()
 
 const newMod = reactive({
@@ -80,7 +80,17 @@ async function removeMod(modId: string) {
     </Card>
 
     <!-- Mod List -->
-    <div class="space-y-2">
+    <div v-if="modsPending" class="space-y-2">
+      <div v-for="i in 3" :key="i" class="rounded-lg border p-3 flex items-center justify-between">
+        <div class="space-y-2">
+          <Skeleton class="h-5 w-36" />
+          <Skeleton class="h-4 w-56" />
+        </div>
+        <Skeleton class="h-8 w-20" />
+      </div>
+    </div>
+
+    <div v-else class="space-y-2">
       <div
         v-for="mod in mods"
         :key="mod.id"
@@ -105,7 +115,7 @@ async function removeMod(modId: string) {
       </div>
     </div>
 
-    <p v-if="!mods?.length" class="text-muted-foreground text-center py-8">
+    <p v-if="!modsPending && !mods?.length" class="text-muted-foreground text-center py-8">
       No mods installed.
     </p>
   </div>

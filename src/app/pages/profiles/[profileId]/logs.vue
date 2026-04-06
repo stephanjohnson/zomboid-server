@@ -5,7 +5,7 @@ import { ArrowDownToLine, ArrowUpDown, RefreshCw, Trash2 } from 'lucide-vue-next
 const route = useRoute()
 const profileId = route.params.profileId as string
 
-const { data: logs, refresh: refreshLogs, pending: logsLoading } = await useFetch('/api/zomboid/logs', {
+const { data: logs, refresh: refreshLogs, pending: logsLoading } = useLazyFetch('/api/zomboid/logs', {
   default: () => ({ containerLogs: '', serverConsole: '', previousConsole: null as string | null }),
 })
 
@@ -75,7 +75,16 @@ async function deletePreviousLog() {
       </div>
     </div>
 
-    <div class="flex flex-1 flex-col min-h-0">
+    <div v-if="logsLoading && !logs?.serverConsole" class="flex flex-1 flex-col gap-4 min-h-0">
+      <div class="flex gap-2 self-start">
+        <Skeleton class="h-9 w-40" />
+        <Skeleton class="h-9 w-36" />
+        <Skeleton class="h-9 w-36" />
+      </div>
+      <Skeleton class="flex-1 min-h-[200px] rounded-md" />
+    </div>
+
+    <div v-else class="flex flex-1 flex-col min-h-0">
       <Tabs v-model="activeTab" class="flex flex-1 flex-col min-h-0">
         <TabsList class="self-start">
           <TabsTrigger value="console">

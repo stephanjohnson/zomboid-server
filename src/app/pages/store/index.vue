@@ -3,7 +3,7 @@ import { formatStoreMoney, type StoreBundleSummary, type StoreCategorySummary, t
 
 const search = ref('')
 
-const { data, pending, refresh } = await useFetch('/api/store', {
+const { data, pending, refresh } = useLazyFetch('/api/store', {
   default: () => ({
     profile: null,
     viewer: null,
@@ -37,6 +37,74 @@ const filteredProducts = computed(() => {
 
 <template>
   <div class="mx-auto max-w-7xl space-y-10 px-6 py-10">
+    <!-- Loading skeleton -->
+    <template v-if="pending && !data?.products?.length">
+      <section class="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <Card>
+          <CardHeader class="space-y-4">
+            <div class="flex gap-2">
+              <Skeleton class="h-6 w-28" />
+              <Skeleton class="h-6 w-20" />
+            </div>
+            <div class="space-y-2">
+              <Skeleton class="h-9 w-56" />
+              <Skeleton class="h-5 w-full max-w-md" />
+              <Skeleton class="h-5 w-full max-w-sm" />
+            </div>
+          </CardHeader>
+          <CardFooter class="gap-2">
+            <Skeleton class="h-9 w-36" />
+            <Skeleton class="h-9 w-28" />
+          </CardFooter>
+        </Card>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <Card v-for="i in 4" :key="i">
+            <CardHeader class="space-y-1">
+              <Skeleton class="h-4 w-20" />
+              <Skeleton class="h-9 w-16" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton class="h-4 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section class="space-y-6">
+        <div class="space-y-2">
+          <Skeleton class="h-7 w-48" />
+          <Skeleton class="h-4 w-72" />
+        </div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card v-for="i in 4" :key="i">
+            <CardHeader class="space-y-3">
+              <Skeleton class="h-6 w-24" />
+              <Skeleton class="h-6 w-32" />
+              <Skeleton class="h-4 w-full" />
+            </CardHeader>
+          </Card>
+        </div>
+      </section>
+
+      <section class="space-y-6">
+        <div class="space-y-2">
+          <Skeleton class="h-7 w-32" />
+          <Skeleton class="h-4 w-64" />
+        </div>
+        <div class="grid gap-5 xl:grid-cols-3">
+          <Card v-for="i in 6" :key="i">
+            <CardHeader>
+              <Skeleton class="h-40 w-full rounded-md" />
+              <Skeleton class="mt-3 h-5 w-36" />
+              <Skeleton class="h-4 w-full" />
+            </CardHeader>
+          </Card>
+        </div>
+      </section>
+    </template>
+
+    <!-- Loaded content -->
+    <template v-else>
     <section class="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
       <Card>
         <CardHeader class="space-y-4">
@@ -233,5 +301,6 @@ const filteredProducts = computed(() => {
         </CardContent>
       </Card>
     </section>
+    </template>
   </div>
 </template>
