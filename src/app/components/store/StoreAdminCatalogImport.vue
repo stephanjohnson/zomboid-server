@@ -82,6 +82,8 @@ const catalogImportNotice = ref('')
 const catalogImportError = ref('')
 const catalogImportingFullType = ref('')
 const lastCatalogImport = ref<CatalogItemEnrichment | null>(null)
+const selectedFullTypes = ref<string[]>([])
+const multiImporting = ref(false)
 let catalogSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 const catalogDefault = {
@@ -184,6 +186,65 @@ async function importCatalogItem(fullType: string) {
     catalogImportingFullType.value = ''
   }
 }
+
+function toggleSelection(fullType: string) {
+  const idx = selectedFullTypes.value.indexOf(fullType)
+  if (idx >= 0) {
+    selectedFullTypes.value.splice(idx, 1)
+  }
+  else {
+    selectedFullTypes.value.push(fullType)
+  }
+}
+
+function toggleSelectAll() {
+  const items = catalogSearch.value.items
+  const allSelected = items.length > 0 && items.every(i => selectedFullTypes.value.includes(i.fullType))
+  if (allSelected) {
+    selectedFullTypes.value = selectedFullTypes.value.filter(
+      ft => !items.some(i => i.fullType === ft),
+    )
+  }
+  else {
+    const existing = new Set(selectedFullTypes.value)
+    for (const item of items) {
+      if (!existing.has(item.fullType)) {
+        selectedFullTypes.value.push(item.fullType)
+      }
+    }
+  }
+}
+
+const allVisibleSelected = computed(() => {
+  const items = catalogSearch.value.items
+  return items.length > 0 && items.every(i => selectedFullTypes.value.includes(i.fullType))
+})
+
+async function importSelectedItems() {
+  if (selectedFullTypes.value.length === 0) return
+
+  if (selectedFullTypes.value.length === 1) {
+    const fullType = selectedFullTypes.value[0]!
+    await importCatalogItem(fullType)
+    return
+  }
+
+  multiImporting.value = true
+  catalogImportError.value = ''
+
+  try {
+    const fullTypes = selectedFullTypes.value.join(',')
+    await navigateTo(`/admin/store/products/new?importFullTypes=${encodeURIComponent(fullTypes)}`)
+  }
+  catch (e) {
+    catalogImportError.value = e instanceof Error
+      ? e.message
+      : 'Failed to create product from selected items.'
+  }
+  finally {
+    multiImporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -224,14 +285,32 @@ async function importCatalogItem(fullType: string) {
         <Card>
           <CardContent class="p-0">
             <div class="flex items-center justify-between border-b px-4 py-3">
-              <p class="text-sm text-muted-foreground">
-                <span v-if="catalogPending">Searching…</span>
-                <span v-else-if="catalogSearchError">{{ catalogSearchError }}</span>
-                <span v-else>{{ catalogSearch.total }} matches from {{ catalogSearch.source }}</span>
-              </p>
-              <Badge variant="outline" class="text-xs">
-                {{ bootstrap.catalog.total }} total items
-              </Badge>
+              <div class="flex items-center gap-3">
+                <Checkbox
+                  v-if="catalogSearch.items.length"
+                  :checked="allVisibleSelected"
+                  aria-label="Select all visible items"
+                  @update:checked="toggleSelectAll()"
+                />
+                <p class="text-sm text-muted-foreground">
+                  <span v-if="catalogPending">Searching…</span>
+                  <span v-else-if="catalogSearchError">{{ catalogSearchError }}</span>
+                  <span v-else>{{ catalogSearch.total }} matches from {{ catalogSearch.source }}</span>
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <Button
+                  v-if="selectedFullTypes.length > 0"
+                  size="sm"
+                  :disabled="multiImporting"
+                  @click="importSelectedItems"
+                >
+                  {{ multiImporting ? 'Creating…' : `Create product (${selectedFullTypes.length})` }}
+                </Button>
+                <Badge variant="outline" class="text-xs">
+                  {{ bootstrap.catalog.total }} total items
+                </Badge>
+              </div>
             </div>
 
             <div v-if="catalogPending" class="flex flex-col items-center justify-center py-12 text-center">
@@ -250,9 +329,16 @@ async function importCatalogItem(fullType: string) {
               <li
                 v-for="item in catalogSearch.items"
                 :key="item.fullType"
-                class="flex items-center justify-between gap-x-4 px-4 py-4 lg:px-6"
+                class="flex cursor-pointer items-center justify-between gap-x-4 px-4 py-4 transition-colors hover:bg-muted/50 lg:px-6"
+                @click="toggleSelection(item.fullType)"
               >
                 <div class="flex min-w-0 items-center gap-x-4">
+                  <Checkbox
+                    :checked="selectedFullTypes.includes(item.fullType)"
+                    :aria-label="`Select ${item.name}`"
+                    @click.stop
+                    @update:checked="toggleSelection(item.fullType)"
+                  />
                   <div class="flex size-10 flex-none items-center justify-center overflow-hidden rounded-lg border bg-muted">
                     <img
                       v-if="item.iconUrl"
@@ -275,8 +361,9 @@ async function importCatalogItem(fullType: string) {
                 </div>
                 <Button
                   size="sm"
+                  variant="ghost"
                   :disabled="catalogImportingFullType === item.fullType"
-                  @click="importCatalogItem(item.fullType)"
+                  @click.stop="importCatalogItem(item.fullType)"
                 >
                   {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import' }}
                 </Button>

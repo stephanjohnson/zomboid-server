@@ -35,6 +35,59 @@ export function tailLogText(text: string, lineCount: number): string {
   return splitLogLines(text).slice(-lineCount).join('\n')
 }
 
+// Matches Docker ISO timestamp prefix: 2026-04-06T09:27:16.022084912Z
+const DOCKER_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2}\.\d{3})\d*Z\s+/
+// Matches PZ log level prefix: LOG :, WARN :, ERROR :, FATAL :
+const PZ_LOG_LEVEL_RE = /^(LOG|WARN|ERROR|FATAL)\s*:\s*/
+// Matches the PZ epoch-millis field: t:1775467719012
+const PZ_EPOCH_RE = /\bt:(\d{10,})\b/
+// Matches PZ metadata fields: "f:0, t:1775467692480, st:76,026,483>"
+const PZ_METADATA_RE = /f:\d+,\s*t:\d[\d,]*,\s*st:\d[\d,]*>\s*/g
+
+function epochToTimestamp(epochMs: number): string {
+  const d = new Date(epochMs)
+  const date = d.toISOString().slice(0, 10)
+  const time = d.toISOString().slice(11, 23)
+  return `${date} ${time}`
+}
+
+function stripMetadataFields(text: string): string {
+  return text.replace(PZ_METADATA_RE, '')
+}
+
+function formatLogLine(line: string): string {
+  // Container log: starts with Docker ISO timestamp
+  const tsMatch = line.match(DOCKER_TIMESTAMP_RE)
+  if (tsMatch) {
+    const timestamp = `${tsMatch[1]} ${tsMatch[2]}`
+    const rest = stripMetadataFields(line.slice(tsMatch[0].length))
+    const levelMatch = rest.match(PZ_LOG_LEVEL_RE)
+    if (levelMatch) {
+      return `${timestamp} [${levelMatch[1]}] ${rest.slice(levelMatch[0].length)}`
+    }
+    return `${timestamp} ${rest}`
+  }
+
+  // Server console log: starts with PZ log level (no Docker timestamp)
+  const levelMatch = line.match(PZ_LOG_LEVEL_RE)
+  if (levelMatch) {
+    const rest = line.slice(levelMatch[0].length)
+    const epochMatch = rest.match(PZ_EPOCH_RE)
+    if (epochMatch) {
+      const timestamp = epochToTimestamp(Number(epochMatch[1]))
+      return `${timestamp} [${levelMatch[1]}] ${stripMetadataFields(rest)}`
+    }
+    return `[${levelMatch[1]}] ${stripMetadataFields(rest)}`
+  }
+
+  return line
+}
+
+export function formatLogForDisplay(text: string): string {
+  if (!text) return text
+  return splitLogLines(text).map(formatLogLine).join('\n')
+}
+
 export function decodeDockerLogBuffer(logs: string | Buffer): string {
   if (typeof logs === 'string') {
     return sanitizeLogText(logs)

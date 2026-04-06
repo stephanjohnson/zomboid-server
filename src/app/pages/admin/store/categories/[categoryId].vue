@@ -64,7 +64,7 @@ async function handleSubmit() {
     })
 
     toast.success('Category updated.')
-    await router.push('/admin/store?tab=categories')
+    await router.push('/admin/store/categories')
   }
   catch (e: unknown) {
     error.value = (e as { data?: { message?: string } })?.data?.message || 'Failed to update category.'

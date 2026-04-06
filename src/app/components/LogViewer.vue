@@ -57,16 +57,14 @@ function registerPzLogLanguage(monaco: typeof import('monaco-editor')) {
   monaco.languages.setMonarchTokensProvider('pz-log', {
     tokenizer: {
       root: [
-        // Timestamp/frame patterns: f:0, t:1234, st:1,234,567
-        [/\bf:\d+\b/, 'comment'],
-        [/\bt:\d[\d,]*\b/, 'comment'],
-        [/\bst:\d[\d,]*\b/, 'comment'],
+        // Unified timestamp: 2026-04-06 09:27:16.022
+        [/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}/, 'pz-timestamp'],
 
-        // Log levels
-        [/^FATAL\s*:/, 'pz-fatal'],
-        [/^ERROR\s*:/, 'pz-error'],
-        [/^WARN\s*:/, 'pz-warn'],
-        [/^LOG\s*:/, 'pz-log'],
+        // Log levels (bracketed format)
+        [/\[FATAL\]/, 'pz-fatal'],
+        [/\[ERROR\]/, 'pz-error'],
+        [/\[WARN\]/, 'pz-warn'],
+        [/\[LOG\]/, 'pz-log'],
 
         // Category tags after log level
         [/\b(General|Script|Network|WorldGen|Sound|Lua|Multiplayer|ActionSystem|Vehicles)\b/, 'pz-category'],
@@ -100,6 +98,7 @@ function registerPzLogLanguage(monaco: typeof import('monaco-editor')) {
   })
 
   const sharedRules = [
+    { token: 'pz-timestamp', foreground: '6b7280' },
     { token: 'pz-fatal', foreground: 'ef4444', fontStyle: 'bold' },
     { token: 'pz-error', foreground: 'f87171' },
     { token: 'pz-warn', foreground: 'facc15' },
@@ -127,6 +126,7 @@ function registerPzLogLanguage(monaco: typeof import('monaco-editor')) {
     base: 'vs',
     inherit: true,
     rules: [
+      { token: 'pz-timestamp', foreground: '9ca3af' },
       { token: 'pz-fatal', foreground: 'dc2626', fontStyle: 'bold' },
       { token: 'pz-error', foreground: 'ef4444' },
       { token: 'pz-warn', foreground: 'ca8a04' },

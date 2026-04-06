@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { verifyPassword } from '../../lib/password'
 
 const LoginSchema = v.object({
   username: v.pipe(v.string(), v.minLength(1)),

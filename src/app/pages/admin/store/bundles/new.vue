@@ -90,7 +90,7 @@ async function handleSubmit() {
     })
 
     toast.success('Bundle created.')
-    await router.push('/admin/store?tab=bundles')
+    await router.push('/admin/store/bundles')
   }
   catch (e: unknown) {
     error.value = (e as { data?: { message?: string } })?.data?.message || 'Failed to create bundle.'

@@ -1,7 +1,7 @@
 import * as prismaClient from '@prisma/client'
 import type { PrismaClient } from '@prisma/client'
 
-import { hashPassword } from './auth'
+import { hashPassword } from '../lib/password'
 import { prisma } from './db'
 import { defaultActionRules, defaultTelemetryListeners } from './telemetry-config'
 import type { SteamBuild } from '../../shared/game-build'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { decodeDockerLogBuffer, resolveServerPhase, tailLogText } from '../../server/utils/server-logs'
+import { decodeDockerLogBuffer, formatLogForDisplay, resolveServerPhase, tailLogText } from '../../server/utils/server-logs'
 
 function dockerFrame(stream: number, line: string): Buffer {
   const payload = Buffer.from(line, 'utf-8')
@@ -154,5 +154,54 @@ describe('resolveServerPhase', () => {
       label: 'Error',
       detail: 'Server failed to bind port 16261',
     })
+  })
+})
+
+describe('formatLogForDisplay', () => {
+  it('reformats Docker timestamp + log level and strips metadata fields', () => {
+    const input = '2026-04-06T09:27:16.022084912Z LOG : General      f:0, t:1775467716022, st:76,050,025> Loading world'
+    expect(formatLogForDisplay(input)).toBe(
+      '2026-04-06 09:27:16.022 [LOG] General      Loading world',
+    )
+  })
+
+  it('reformats Docker timestamp without a PZ log level', () => {
+    const input = '2026-04-06T09:27:16.022084912Z [entrypoint] Starting server...'
+    expect(formatLogForDisplay(input)).toBe(
+      '2026-04-06 09:27:16.022 [entrypoint] Starting server...',
+    )
+  })
+
+  it('reformats server console log level with epoch timestamp and strips metadata', () => {
+    const input = 'WARN : Sprite       f:0, t:1775467659806, st:75,993,810> something'
+    expect(formatLogForDisplay(input)).toBe(
+      '2026-04-06 09:27:39.806 [WARN] Sprite       something',
+    )
+  })
+
+  it('reformats server console log level without t: field', () => {
+    const input = 'LOG : General > LOADING ASSETS: START'
+    expect(formatLogForDisplay(input)).toBe(
+      '[LOG] General > LOADING ASSETS: START',
+    )
+  })
+
+  it('passes through stack trace lines unchanged', () => {
+    const input = '\tzombie.core.IsoPropertyType$Exception: Property Name not found'
+    expect(formatLogForDisplay(input)).toBe(input)
+  })
+
+  it('handles multi-line log with mixed formats', () => {
+    const input = [
+      '2026-04-06T09:27:16.022084912Z LOG : General > LOADING ASSETS: START',
+      '2026-04-06T09:27:17.123456789Z ERROR: Script       f:0, t:1775467717123, st:76,051,126> no such model "null"',
+      '2026-04-06T09:27:18.000000000Z [entrypoint] Done',
+    ].join('\n')
+
+    expect(formatLogForDisplay(input)).toBe([
+      '2026-04-06 09:27:16.022 [LOG] General > LOADING ASSETS: START',
+      '2026-04-06 09:27:17.123 [ERROR] Script       no such model "null"',
+      '2026-04-06 09:27:18.000 [entrypoint] Done',
+    ].join('\n'))
   })
 })

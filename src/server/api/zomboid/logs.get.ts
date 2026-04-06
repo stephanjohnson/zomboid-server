@@ -1,4 +1,4 @@
-import { readPreviousConsoleLog, readServerConsoleLog, tailLogText } from '../../utils/server-logs'
+import { formatLogForDisplay, readPreviousConsoleLog, readServerConsoleLog, tailLogText } from '../../utils/server-logs'
 
 export default defineEventHandler(async () => {
   const containerLogs = await getContainerLogs(2000)
@@ -9,8 +9,8 @@ export default defineEventHandler(async () => {
   const tailedPrevious = previousConsole ? tailLogText(previousConsole, 500) : null
 
   return {
-    containerLogs: tailLogText(containerLogs, 1500),
-    serverConsole: tailedConsole,
-    previousConsole: tailedPrevious && tailedPrevious !== tailedConsole ? tailedPrevious : null,
+    containerLogs: formatLogForDisplay(tailLogText(containerLogs, 1500)),
+    serverConsole: formatLogForDisplay(tailedConsole),
+    previousConsole: tailedPrevious && tailedPrevious !== tailedConsole ? formatLogForDisplay(tailedPrevious) : null,
   }
 })

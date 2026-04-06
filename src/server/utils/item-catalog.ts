@@ -36,6 +36,7 @@ export interface GameCatalogEntry {
   knockback: number | null
   sharpness: number | null
   scriptSource: string | null
+  scriptProperties: Record<string, string> | null
 }
 
 function humanizeItemToken(token: string) {
@@ -84,6 +85,7 @@ function mapScriptCatalogEntry(record: ParsedItemScriptRecord): GameCatalogEntry
     knockback: record.knockback,
     sharpness: record.sharpness,
     scriptSource: record.sourceFile,
+    scriptProperties: record.rawProperties,
   }
 }
 
@@ -209,6 +211,7 @@ function normalizeCatalogEntry(
     knockback,
     sharpness,
     scriptSource,
+    scriptProperties: null,
   }
 }
 
@@ -265,6 +268,7 @@ function mergeScriptCatalogEntry(entry: GameCatalogEntry, scriptEntry: ParsedIte
     knockback: scriptEntry.knockback ?? entry.knockback,
     sharpness: scriptEntry.sharpness ?? entry.sharpness,
     scriptSource: scriptEntry.sourceFile,
+    scriptProperties: scriptEntry.rawProperties,
   } satisfies GameCatalogEntry
 }
 
@@ -349,6 +353,7 @@ async function readTelemetryCatalog(profileId: string): Promise<GameCatalogEntry
         knockback: null,
         sharpness: null,
         scriptSource: null,
+        scriptProperties: null,
       })
     }
   }

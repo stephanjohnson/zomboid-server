@@ -1,6 +1,6 @@
 import { PrismaClient, UserRole } from '@prisma/client'
 
-import { hashPassword } from '../server/utils/auth'
+import { hashPassword } from '../server/lib/password'
 import { toServerSlug } from '../server/utils/setup'
 import { defaultActionRules, defaultTelemetryListeners } from '../server/utils/telemetry-config'
 

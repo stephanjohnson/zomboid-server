@@ -122,7 +122,7 @@ async function handleSubmit() {
     })
 
     toast.success('Bundle updated.')
-    await router.push('/admin/store?tab=bundles')
+    await router.push('/admin/store/bundles')
   }
   catch (e: unknown) {
     error.value = (e as { data?: { message?: string } })?.data?.message || 'Failed to update bundle.'
@@ -137,7 +137,7 @@ async function handleSubmit() {
   <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
     <div class="flex items-center gap-4 px-4 lg:px-6">
       <Button variant="ghost" size="sm" as-child>
-        <NuxtLink to="/admin/store?tab=bundles">
+        <NuxtLink to="/admin/store/bundles">
           <ArrowLeft class="size-4" />
           Back
         </NuxtLink>

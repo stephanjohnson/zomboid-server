@@ -113,11 +113,6 @@ function addCurrentVariantToCart() {
     </Button>
 
     <section class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-    </section>
-  </div>
-</template>
-
-    <section class="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
       <Card>
         <CardHeader class="space-y-4">
           <div

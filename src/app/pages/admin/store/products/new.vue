@@ -36,6 +36,33 @@ interface CatalogItemEnrichment {
   importPayload: CatalogImportPayload
 }
 
+interface MultiImportAnalysis {
+  productName: string
+  suggestedOptionGroups: Array<{
+    name: string
+    slug: string
+    displayType: 'TEXT' | 'COLOR'
+    values: Array<{ label: string, slug: string, colorHex: string, sourceFullTypes: string[] }>
+  }>
+  suggestedVariants: Array<{
+    name: string
+    itemCode: string
+    gameName: string
+    gameCategory: string | null
+    weight: number | null
+    imageUrl: string | null
+    isDefault: boolean
+    selections: Record<string, string>
+    metadata: Record<string, unknown>
+  }>
+  related: Array<{ fullType: string, name: string, displayCategory: string | null }>
+}
+
+interface MultiImportResponse {
+  enrichments: CatalogItemEnrichment[]
+  analysis: MultiImportAnalysis
+}
+
 interface AdminStoreBootstrap {
   profile: { id: string, name: string, servername: string } | null
   catalog: { source: string, total: number }
@@ -211,7 +238,20 @@ function removeVariant(index: number) {
 }
 
 // Catalog import pre-fill
+const importRelated = ref<MultiImportAnalysis['related']>([])
+
 async function applyImportFromQuery() {
+  // Multi-import: ?importFullTypes=Base.Item1,Base.Item2
+  const importFullTypes = route.query.importFullTypes as string | undefined
+  if (importFullTypes) {
+    const fullTypes = importFullTypes.split(',').map(s => s.trim()).filter(Boolean)
+    if (fullTypes.length > 0) {
+      await applyMultiImport(fullTypes)
+      return
+    }
+  }
+
+  // Single import: ?importFullType=Base.SomeItem
   const fullType = route.query.importFullType as string | undefined
   if (!fullType) return
 
@@ -246,6 +286,76 @@ async function applyImportFromQuery() {
   }
   catch {
     error.value = 'Failed to load import data. You can still fill in the form manually.'
+  }
+}
+
+async function applyMultiImport(fullTypes: string[]) {
+  try {
+    const response = await $fetch<MultiImportResponse>('/api/store/admin/catalog/items', {
+      method: 'POST',
+      body: { fullTypes },
+    })
+    const { enrichments, analysis } = response
+
+    // Apply product name
+    if (!form.name.trim()) form.name = analysis.productName
+
+    // Use the first enrichment for product-level copy
+    const primaryEnrichment = enrichments[0]
+    if (primaryEnrichment) {
+      const payload = primaryEnrichment.importPayload
+      if (!form.summary.trim()) form.summary = payload.product.summary
+      if (!form.description.trim()) form.description = payload.product.description
+      if (!form.overview.trim()) form.overview = payload.product.overview
+      if (!form.featureBulletsText.trim() && payload.product.featureBullets.length) {
+        form.featureBulletsText = payload.product.featureBullets.join('\n')
+      }
+      if (!form.specsText.trim() && payload.product.specs.length) {
+        form.specsText = formatSpecsText(payload.product.specs)
+      }
+    }
+
+    // Apply suggested option groups
+    if (analysis.suggestedOptionGroups.length > 0) {
+      form.optionGroups = analysis.suggestedOptionGroups.map(group => ({
+        name: group.name,
+        slug: group.slug,
+        displayType: group.displayType,
+        values: group.values.map(v => ({
+          label: v.label,
+          slug: v.slug,
+          colorHex: v.colorHex || '',
+        })),
+      }))
+    }
+
+    // Apply suggested variants
+    if (analysis.suggestedVariants.length > 0) {
+      form.variants = analysis.suggestedVariants.map(v => ({
+        name: v.name,
+        sku: '',
+        itemCode: v.itemCode,
+        gameName: v.gameName,
+        gameCategory: v.gameCategory || '',
+        price: 0,
+        compareAtPrice: undefined as number | undefined,
+        quantity: 1,
+        stock: undefined as number | undefined,
+        weight: v.weight ?? undefined as number | undefined,
+        badge: '',
+        imageUrl: v.imageUrl || '',
+        metadata: v.metadata || null,
+        isDefault: v.isDefault,
+        isActive: true,
+        selections: v.selections,
+      }))
+    }
+
+    // Store related items for UI display
+    importRelated.value = analysis.related.slice(0, 10)
+  }
+  catch {
+    error.value = 'Failed to analyze selected items. You can still fill in the form manually.'
   }
 }
 
@@ -805,6 +915,28 @@ async function handleSubmit() {
           </Card>
         </div>
       </section>
+
+      <!-- Related items (from multi-import analysis) -->
+      <Alert v-if="importRelated.length > 0">
+        <AlertDescription>
+          <p class="mb-2 font-medium">
+            Related items found in the catalog that you may want to include:
+          </p>
+          <ul class="space-y-1">
+            <li
+              v-for="item in importRelated"
+              :key="item.fullType"
+              class="text-xs"
+            >
+              <code class="rounded bg-muted px-1 py-0.5">{{ item.fullType }}</code>
+              <span class="ml-1 text-muted-foreground">{{ item.displayCategory || '' }}</span>
+            </li>
+          </ul>
+          <p class="mt-2 text-xs text-muted-foreground">
+            Go back to the catalog import tab to include these in a new selection if needed.
+          </p>
+        </AlertDescription>
+      </Alert>
 
       <!-- Error + Submit -->
       <Alert v-if="error" variant="destructive">
