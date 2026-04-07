@@ -7,7 +7,9 @@ print("[ZomboidManager] Initializing configurable telemetry bridge...")
 local snapshotTickCounter = 0
 local inventoryTickCounter = 0
 local gameStateTickCounter = 0
+local runtimeHandshakeTickCounter = 0
 local pendingEvents = {}
+local runtimeHandshakePending = false
 
 local function getSnapshotListener()
     return ZM_Utils.getListenerConfig("pz.player_snapshot")
@@ -144,6 +146,15 @@ local function onEveryOneMinute()
     snapshotTickCounter = snapshotTickCounter + 1
     inventoryTickCounter = inventoryTickCounter + 1
     gameStateTickCounter = gameStateTickCounter + 1
+    runtimeHandshakeTickCounter = runtimeHandshakeTickCounter + 1
+
+    if runtimeHandshakePending or runtimeHandshakeTickCounter >= 5 then
+        if ZM_Utils.postRuntimeHandshake(runtimeHandshakePending and "retry" or "heartbeat") then
+            runtimeHandshakePending = false
+            runtimeHandshakeTickCounter = 0
+            print("[ZomboidManager] Uploaded runtime mod handshake")
+        end
+    end
 
     local snapshotListenerEnabled = ZM_Utils.isListenerEnabled("pz.player_snapshot")
     local pvpEnabled = ZM_Utils.isListenerEnabled("pz.pvp_kill_tracker")
@@ -174,6 +185,11 @@ end
 local function onServerStarted()
     ZM_Utils.fetchRuntimeConfig(true)
     ZM_PvpTracker.init()
+    runtimeHandshakePending = not ZM_Utils.postRuntimeHandshake("server_started")
+    runtimeHandshakeTickCounter = 0
+    if not runtimeHandshakePending then
+        print("[ZomboidManager] Uploaded initial runtime mod handshake")
+    end
     local ok, count = pcall(ZM_ItemCatalog.export)
     if ok then
         print("[ZomboidManager] Exported item catalog with " .. tostring(count) .. " entries")

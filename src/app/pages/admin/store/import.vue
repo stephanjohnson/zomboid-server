@@ -40,28 +40,7 @@ const { data: bootstrap } = await useFetch<AdminStoreBootstrap>(
   <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
     <div class="px-4 lg:px-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <nav class="flex gap-2">
-          <Button variant="outline" size="sm" as-child>
-            <NuxtLink to="/admin/store">
-              Products
-            </NuxtLink>
-          </Button>
-          <Button variant="outline" size="sm" as-child>
-            <NuxtLink to="/admin/store/bundles">
-              Bundles
-            </NuxtLink>
-          </Button>
-          <Button variant="outline" size="sm" as-child>
-            <NuxtLink to="/admin/store/categories">
-              Categories
-            </NuxtLink>
-          </Button>
-          <Button variant="default" size="sm" as-child>
-            <NuxtLink to="/admin/store/import">
-              Import
-            </NuxtLink>
-          </Button>
-        </nav>
+        <StoreAdminSectionTabs />
 
         <Button size="sm" as-child>
           <NuxtLink to="/admin/store/products/new">

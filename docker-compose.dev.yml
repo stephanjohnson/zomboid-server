@@ -14,7 +14,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      ZM_API_BASE_URL: ${MOD_API_BASE_URL:-http://host.docker.internal:3000/api/mod}
+      ZM_API_BASE_URL: ${MOD_API_BASE_URL:-http://host.docker.internal:8000/api/mod}
 
   db:
     ports:

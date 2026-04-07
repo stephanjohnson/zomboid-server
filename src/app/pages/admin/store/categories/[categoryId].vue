@@ -79,7 +79,7 @@ async function handleSubmit() {
   <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
     <div class="flex items-center gap-4 px-4 lg:px-6">
       <Button variant="ghost" size="sm" as-child>
-        <NuxtLink to="/admin/store">
+        <NuxtLink to="/admin/store/categories">
           <ArrowLeft class="size-4" />
           Back
         </NuxtLink>

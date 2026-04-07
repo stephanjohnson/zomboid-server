@@ -7,6 +7,16 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 const ZOMBOID_MANAGER_MOD_ID = 'ZomboidManager'
 const ZOMBOID_MANAGER_WORKSHOP_ID = '3685323705'
 
+interface RuntimeProfileModEntry {
+  workshopId: string
+  modName: string
+  isEnabled?: boolean | null
+}
+
+type RuntimeProfile = ServerProfile & {
+  mods?: RuntimeProfileModEntry[]
+}
+
 const DEFAULT_SERVER_INI_SETTINGS: Record<string, string> = {
   ResetID: '0',
   Map: 'Muldraugh, KY',
@@ -55,6 +65,61 @@ function appendSemicolonValue(listValue: string | undefined, entry: string): str
   }
 
   return entries.join(';')
+}
+
+function appendEntries(listValue: string | undefined, entries: string[]): string {
+  let nextValue = listValue
+
+  for (const entry of entries) {
+    nextValue = appendSemicolonValue(nextValue, entry)
+  }
+
+  return nextValue ?? ''
+}
+
+function splitSemicolonValue(listValue: string | undefined): string[] {
+  return (listValue ?? '')
+    .split(';')
+    .map(value => value.trim())
+    .filter(Boolean)
+}
+
+function buildProfileModSettings(profile: {
+  serverIniOverrides?: unknown
+  mods?: RuntimeProfileModEntry[]
+}): {
+  modIds: string[]
+  workshopIds: string[]
+} {
+  const serverIniOverrides = asStringRecord(profile.serverIniOverrides)
+  const modIds = splitSemicolonValue(serverIniOverrides.Mods)
+  const workshopIds = splitSemicolonValue(serverIniOverrides.WorkshopItems)
+
+  for (const mod of profile.mods ?? []) {
+    if (mod.isEnabled === false) {
+      continue
+    }
+
+    for (const modId of splitSemicolonValue(mod.modName)) {
+      if (!modIds.includes(modId)) {
+        modIds.push(modId)
+      }
+    }
+
+    if (!workshopIds.includes(mod.workshopId)) {
+      workshopIds.push(mod.workshopId)
+    }
+  }
+
+  if (!modIds.includes(ZOMBOID_MANAGER_MOD_ID)) {
+    modIds.push(ZOMBOID_MANAGER_MOD_ID)
+  }
+
+  if (!workshopIds.includes(ZOMBOID_MANAGER_WORKSHOP_ID)) {
+    workshopIds.push(ZOMBOID_MANAGER_WORKSHOP_ID)
+  }
+
+  return { modIds, workshopIds }
 }
 
 function serializeServerIni(data: Record<string, string>): string {
@@ -118,6 +183,61 @@ function getGameServerNetworkAlias(): string {
   return process.env.GAME_SERVER_NETWORK_ALIAS || 'game-server'
 }
 
+function inferComposeProjectName(): string {
+  const configuredProjectName = process.env.GAME_SERVER_COMPOSE_PROJECT_NAME || process.env.COMPOSE_PROJECT_NAME
+
+  if (configuredProjectName) {
+    return configuredProjectName
+  }
+
+  const networkName = getGameServerNetworkName()
+  const separatorIndex = networkName.lastIndexOf('_')
+
+  if (separatorIndex > 0) {
+    return networkName.slice(0, separatorIndex)
+  }
+
+  return 'zomboid-server'
+}
+
+export async function getComposeOwnedContainerLabels(docker: Dockerode, serviceName: string): Promise<Record<string, string>> {
+  const labels: Record<string, string> = {
+    'com.docker.compose.project': inferComposeProjectName(),
+    'com.docker.compose.service': serviceName,
+    'com.docker.compose.oneoff': 'False',
+    'com.docker.compose.container-number': '1',
+  }
+
+  const currentContainerId = process.env.HOSTNAME
+
+  if (!currentContainerId) {
+    return labels
+  }
+
+  try {
+    const info = await docker.getContainer(currentContainerId).inspect()
+    const currentLabels = info.Config?.Labels ?? {}
+
+    for (const key of [
+      'com.docker.compose.project',
+      'com.docker.compose.project.config_files',
+      'com.docker.compose.project.working_dir',
+      'com.docker.compose.version',
+    ]) {
+      const value = currentLabels[key]
+
+      if (value) {
+        labels[key] = value
+      }
+    }
+  }
+  catch {
+    // Fall back to inferred labels when the worker runs outside Compose.
+  }
+
+  return labels
+}
+
 function createPortBindings(profile: ServerProfile): NonNullable<Dockerode.ContainerCreateOptions['HostConfig']>['PortBindings'] {
   return {
     [`${profile.gamePort}/udp`]: [{ HostPort: String(profile.gamePort) }],
@@ -126,7 +246,7 @@ function createPortBindings(profile: ServerProfile): NonNullable<Dockerode.Conta
   }
 }
 
-export function buildContainerEnv(profile: ServerProfile, options: {
+export function buildContainerEnv(profile: RuntimeProfile, options: {
   branch?: string
   modApiBaseUrl: string
   rconPassword?: string
@@ -134,6 +254,10 @@ export function buildContainerEnv(profile: ServerProfile, options: {
 }): string[] {
   const rconPassword = profile.rconPassword || options.rconPassword || ''
   const branch = options.branch ?? profile.steamBuild || 'public'
+  const modSettings = buildProfileModSettings({
+    serverIniOverrides: profile.serverIniOverrides,
+    mods: profile.mods,
+  })
   const env = [
     `SERVERNAME=${profile.servername}`,
     `PZ_GAME_PORT=${profile.gamePort}`,
@@ -159,16 +283,20 @@ export function buildContainerEnv(profile: ServerProfile, options: {
     `PUBLIC_SERVER=true`,
     `PAUSE_ON_EMPTY=true`,
     `STEAM_VAC=true`,
-    `MOD_NAMES=ZomboidManager`,
-    `MOD_WORKSHOP_IDS=3685323705`,
+    `MOD_NAMES=${modSettings.modIds.join(';')}`,
+    `MOD_WORKSHOP_IDS=${modSettings.workshopIds.join(';')}`,
   ]
 
   const iniOverrides = asStringRecord(profile.serverIniOverrides)
   if (Object.keys(iniOverrides).length > 0) {
     const overrides = Object.entries(iniOverrides)
+      .filter(([key]) => key !== 'Mods' && key !== 'WorkshopItems')
       .map(([key, value]) => `${key}=${value}`)
       .join('\n')
-    env.push(`PZ_INI_OVERRIDES=${overrides}`)
+
+    if (overrides.length > 0) {
+      env.push(`PZ_INI_OVERRIDES=${overrides}`)
+    }
   }
 
   if (options.forceUpdate) {
@@ -178,12 +306,13 @@ export function buildContainerEnv(profile: ServerProfile, options: {
   return env
 }
 
-export async function prepareGameServerRuntimeFiles(profile: ServerProfile, rconPassword: string): Promise<void> {
+export async function prepareGameServerRuntimeFiles(profile: RuntimeProfile, rconPassword: string): Promise<void> {
   const serverPath = join(getPzDataPath(), 'Server')
   const serverIniPath = join(serverPath, `${profile.servername}.ini`)
   const sandboxPath = join(serverPath, `${profile.servername}_SandboxVars.lua`)
   const serverIniOverrides = asStringRecord(profile.serverIniOverrides)
   const sandboxVarsOverrides = asUnknownRecord(profile.sandboxVarsOverrides)
+  const modSettings = buildProfileModSettings(profile)
   const serverIni = {
     ...DEFAULT_SERVER_INI_SETTINGS,
     ...serverIniOverrides,
@@ -197,8 +326,8 @@ export async function prepareGameServerRuntimeFiles(profile: ServerProfile, rcon
     DoLuaChecksum: 'false',
   }
 
-  serverIni.Mods = appendSemicolonValue(serverIni.Mods, ZOMBOID_MANAGER_MOD_ID)
-  serverIni.WorkshopItems = appendSemicolonValue(serverIni.WorkshopItems, ZOMBOID_MANAGER_WORKSHOP_ID)
+  serverIni.Mods = appendEntries(serverIni.Mods, modSettings.modIds)
+  serverIni.WorkshopItems = appendEntries(serverIni.WorkshopItems, modSettings.workshopIds)
 
   await mkdir(dirname(serverIniPath), { recursive: true })
   await writeFile(serverIniPath, serializeServerIni(serverIni), 'utf-8')
@@ -211,10 +340,11 @@ export async function prepareGameServerRuntimeFiles(profile: ServerProfile, rcon
   await writeFile(sandboxPath, serializeSandboxVars(sandboxVarsOverrides), 'utf-8')
 }
 
-export function createContainerOptions(profile: ServerProfile, options: {
+export function createContainerOptions(profile: RuntimeProfile, options: {
   containerName: string
   image: string
   env: string[]
+  labels?: Record<string, string>
 }): Dockerode.ContainerCreateOptions {
   const networkName = getGameServerNetworkName()
   const networkAlias = getGameServerNetworkAlias()
@@ -249,6 +379,7 @@ export function createContainerOptions(profile: ServerProfile, options: {
     Image: options.image,
     Entrypoint: ['/bin/bash', '/home/steam/entrypoint.sh'],
     Env: options.env,
+    Labels: options.labels,
     NetworkingConfig: {
       EndpointsConfig: {
         [networkName]: {

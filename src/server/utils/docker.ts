@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
-import { prepareGameServerRuntimeFiles } from './game-server-runtime'
+import { buildProfileModSettings, prepareGameServerRuntimeFiles, stripManagedModOverrides } from './game-server-runtime'
 import {
   getGameServerConfigureScriptPath,
   getGameServerDataMountSource,
@@ -32,6 +32,11 @@ export interface GameServerProfileRuntime {
   serverIniOverrides?: Record<string, string>
   sandboxVarsOverrides?: Record<string, unknown>
   forceUpdate?: boolean
+  mods?: Array<{
+    workshopId: string
+    modName: string
+    isEnabled?: boolean | null
+  }>
 }
 
 interface GameContainerStatus {
@@ -50,6 +55,63 @@ function getGameServerNetworkName(): string {
 function getGameServerNetworkAlias(): string {
   const config = useRuntimeConfig()
   return config.gameServerNetworkAlias || process.env.NUXT_GAME_SERVER_NETWORK_ALIAS || process.env.GAME_SERVER_NETWORK_ALIAS || 'game-server'
+}
+
+function inferComposeProjectName(): string {
+  const configuredProjectName = process.env.NUXT_GAME_SERVER_COMPOSE_PROJECT_NAME
+    || process.env.GAME_SERVER_COMPOSE_PROJECT_NAME
+    || process.env.COMPOSE_PROJECT_NAME
+
+  if (configuredProjectName) {
+    return configuredProjectName
+  }
+
+  const networkName = getGameServerNetworkName()
+  const separatorIndex = networkName.lastIndexOf('_')
+
+  if (separatorIndex > 0) {
+    return networkName.slice(0, separatorIndex)
+  }
+
+  return 'zomboid-server'
+}
+
+async function getComposeLabels(client: Dockerode, serviceName: string): Promise<Record<string, string>> {
+  const labels: Record<string, string> = {
+    'com.docker.compose.project': inferComposeProjectName(),
+    'com.docker.compose.service': serviceName,
+    'com.docker.compose.oneoff': 'False',
+    'com.docker.compose.container-number': '1',
+  }
+
+  const currentContainerId = process.env.HOSTNAME
+
+  if (!currentContainerId) {
+    return labels
+  }
+
+  try {
+    const info = await client.getContainer(currentContainerId).inspect()
+    const currentLabels = info.Config?.Labels ?? {}
+
+    for (const key of [
+      'com.docker.compose.project',
+      'com.docker.compose.project.config_files',
+      'com.docker.compose.project.working_dir',
+      'com.docker.compose.version',
+    ]) {
+      const value = currentLabels[key]
+
+      if (value) {
+        labels[key] = value
+      }
+    }
+  }
+  catch {
+    // Fall back to the inferred project labels when running outside Compose.
+  }
+
+  return labels
 }
 
 export function getDockerClient(): Dockerode {
@@ -82,6 +144,7 @@ function createPortBindings(profile: GameServerProfileRuntime): NonNullable<Dock
 function createEnv(profile: GameServerProfileRuntime): string[] {
   const config = useRuntimeConfig()
   const rconPassword = profile.rconPassword || config.pzRconPassword
+  const modSettings = buildProfileModSettings(profile)
 
   const env = [
     `SERVERNAME=${profile.servername}`,
@@ -108,16 +171,19 @@ function createEnv(profile: GameServerProfileRuntime): string[] {
     `PUBLIC_SERVER=true`,
     `PAUSE_ON_EMPTY=true`,
     `STEAM_VAC=true`,
-    `MOD_NAMES=ZomboidManager`,
-    `MOD_WORKSHOP_IDS=3685323705`,
+    `MOD_NAMES=${modSettings.modIds.join(';')}`,
+    `MOD_WORKSHOP_IDS=${modSettings.workshopIds.join(';')}`,
   ]
 
   // Serialize INI overrides as newline-separated key=value pairs
   if (profile.serverIniOverrides && Object.keys(profile.serverIniOverrides).length > 0) {
-    const overrides = Object.entries(profile.serverIniOverrides)
+    const overrides = Object.entries(stripManagedModOverrides(profile.serverIniOverrides))
       .map(([k, v]) => `${k}=${v}`)
       .join('\n')
-    env.push(`PZ_INI_OVERRIDES=${overrides}`)
+
+    if (overrides.length > 0) {
+      env.push(`PZ_INI_OVERRIDES=${overrides}`)
+    }
   }
 
   if (profile.forceUpdate) {
@@ -158,11 +224,13 @@ async function containerNeedsReconciliation(profile: GameServerProfileRuntime): 
   const info = await container.inspect()
   const currentEnv = new Set(info.Config?.Env ?? [])
   const currentBinds = new Set(info.HostConfig?.Binds ?? [])
+  const currentLabels = info.Config?.Labels ?? {}
   const expectedEnv = createEnv(profile)
   const expectedBinds = createExpectedBinds()
   const networkName = getGameServerNetworkName()
   const networkAlias = getGameServerNetworkAlias()
   const attachedNetwork = info.NetworkSettings?.Networks?.[networkName]
+  const expectedLabels = await getComposeLabels(getDockerClient(), 'game-server')
 
   if (info.Config?.Image !== config.gameServerImageName) {
     return true
@@ -180,6 +248,12 @@ async function containerNeedsReconciliation(profile: GameServerProfileRuntime): 
     }
   }
 
+  for (const [key, value] of Object.entries(expectedLabels)) {
+    if (currentLabels[key] !== value) {
+      return true
+    }
+  }
+
   if (!attachedNetwork || !attachedNetwork.Aliases?.includes(networkAlias)) {
     return true
   }
@@ -192,6 +266,7 @@ async function createGameContainer(profile: GameServerProfileRuntime): Promise<D
   const client = getDockerClient()
   const networkName = getGameServerNetworkName()
   const networkAlias = getGameServerNetworkAlias()
+  const composeLabels = await getComposeLabels(client, 'game-server')
   const pzDataPath = getPzDataPath()
   const luaBridgePath = getLuaBridgePath()
   const pzServerPath = getPzServerPath()
@@ -212,6 +287,7 @@ async function createGameContainer(profile: GameServerProfileRuntime): Promise<D
       Image: config.gameServerImageName,
       Entrypoint: ['/bin/bash', '/home/steam/entrypoint.sh'],
       Env: createEnv(profile),
+      Labels: composeLabels,
       NetworkingConfig: {
         EndpointsConfig: {
           [networkName]: {

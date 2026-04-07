@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   const path = event.path
 
   // Public routes that don't require auth
-  const publicPaths = ['/api/auth/login', '/api/health', '/api/onboarding/status', '/api/onboarding/complete', '/api/mod/telemetry', '/api/mod/config']
+  const publicPaths = ['/api/auth/login', '/api/health', '/api/onboarding/status', '/api/onboarding/complete', '/api/mod/telemetry', '/api/mod/config', '/api/mod/runtime']
   if (publicPaths.some(p => path.startsWith(p))) return
 
   // Only protect /api/ routes (skip the internal session endpoint)

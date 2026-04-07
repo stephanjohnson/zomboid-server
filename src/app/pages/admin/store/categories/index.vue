@@ -8,22 +8,29 @@ import {
   Trash2,
 } from 'lucide-vue-next'
 
-const { data: categories, refresh } = await useFetch<Array<StoreCategorySummary & { sortOrder: number, isActive: boolean }>>(
+type StoreCategoryListItem = StoreCategorySummary & { sortOrder: number, isActive: boolean }
+
+interface CategoryBootstrapResponse {
+  categories: StoreCategoryListItem[]
+}
+
+const { data: bootstrap, refresh } = await useFetch<CategoryBootstrapResponse>(
   '/api/store/admin/bootstrap',
   {
-    default: () => [] as Array<StoreCategorySummary & { sortOrder: number, isActive: boolean }>,
-    transform: (data: { categories: Array<StoreCategorySummary & { sortOrder: number, isActive: boolean }> }) => data.categories,
+    default: () => ({ categories: [] }),
   },
 )
+
+const categories = computed(() => bootstrap.value.categories)
 
 const categorySearch = ref('')
 
 const filteredCategories = computed(() => {
   const query = categorySearch.value.trim().toLowerCase()
   if (!query) return categories.value
-  return categories.value.filter(c =>
-    c.name.toLowerCase().includes(query)
-    || c.slug.toLowerCase().includes(query),
+  return categories.value.filter(category =>
+    category.name.toLowerCase().includes(query)
+    || category.slug.toLowerCase().includes(query),
   )
 })
 
@@ -43,35 +50,23 @@ async function deleteCategory(categoryId: string) {
   <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
     <div class="px-4 lg:px-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <nav class="flex gap-2">
-          <Button variant="outline" size="sm" as-child>
-            <NuxtLink to="/admin/store">
-              Products
-            </NuxtLink>
-          </Button>
-          <Button variant="outline" size="sm" as-child>
-            <NuxtLink to="/admin/store/bundles">
-              Bundles
-            </NuxtLink>
-          </Button>
-          <Button variant="default" size="sm" as-child>
-            <NuxtLink to="/admin/store/categories">
-              Categories
-            </NuxtLink>
-          </Button>
-          <Button variant="outline" size="sm" as-child>
-            <NuxtLink to="/admin/store/import">
-              Import
-            </NuxtLink>
-          </Button>
-        </nav>
+        <StoreAdminSectionTabs />
 
-        <Button size="sm" as-child>
-          <NuxtLink to="/admin/store/categories/new">
-            <Plus class="size-4" />
-            Add Category
-          </NuxtLink>
-        </Button>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <Button variant="outline" size="sm" as-child>
+            <NuxtLink to="/admin/store/categories/new?mode=import">
+              <Tag class="size-4" />
+              Import Game Category
+            </NuxtLink>
+          </Button>
+
+          <Button size="sm" as-child>
+            <NuxtLink to="/admin/store/categories/new">
+              <Plus class="size-4" />
+              Add Custom Category
+            </NuxtLink>
+          </Button>
+        </div>
       </div>
     </div>
 
@@ -133,14 +128,22 @@ async function deleteCategory(categoryId: string) {
               {{ categorySearch ? 'No categories match that search.' : 'No categories yet.' }}
             </p>
             <p class="mt-1 text-xs text-muted-foreground">
-              Create categories to organize the storefront.
+              Create your own categories or import them from the game catalog.
             </p>
-            <Button size="sm" class="mt-4" as-child>
-              <NuxtLink to="/admin/store/categories/new">
-                <Plus class="size-4" />
-                Add Category
-              </NuxtLink>
-            </Button>
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+              <Button size="sm" as-child>
+                <NuxtLink to="/admin/store/categories/new">
+                  <Plus class="size-4" />
+                  Add Custom Category
+                </NuxtLink>
+              </Button>
+              <Button size="sm" variant="outline" as-child>
+                <NuxtLink to="/admin/store/categories/new?mode=import">
+                  <Tag class="size-4" />
+                  Import Game Category
+                </NuxtLink>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -7,6 +7,12 @@ import { getPzDataPath } from './runtime-paths'
 const ZOMBOID_MANAGER_MOD_ID = 'ZomboidManager'
 const ZOMBOID_MANAGER_WORKSHOP_ID = '3685323705'
 
+interface RuntimeProfileModEntry {
+  workshopId: string
+  modName: string
+  isEnabled?: boolean | null
+}
+
 const DEFAULT_SERVER_INI_SETTINGS: Record<string, string> = {
   ResetID: '0',
   Map: 'Muldraugh, KY',
@@ -33,6 +39,7 @@ export interface GameServerRuntimeConfigSource {
   pvp: boolean
   serverIniOverrides?: Record<string, string>
   sandboxVarsOverrides?: Record<string, unknown>
+  mods?: RuntimeProfileModEntry[]
 }
 
 function appendSemicolonValue(listValue: string | undefined, entry: string): string {
@@ -48,10 +55,75 @@ function appendSemicolonValue(listValue: string | undefined, entry: string): str
   return entries.join(';')
 }
 
+function appendEntries(listValue: string | undefined, entries: string[]): string {
+  let nextValue = listValue
+
+  for (const entry of entries) {
+    nextValue = appendSemicolonValue(nextValue, entry)
+  }
+
+  return nextValue ?? ''
+}
+
+function splitSemicolonValue(listValue: string | undefined): string[] {
+  return (listValue ?? '')
+    .split(';')
+    .map(value => value.trim())
+    .filter(Boolean)
+}
+
+export function stripManagedModOverrides(overrides: Record<string, string> | undefined): Record<string, string> {
+  if (!overrides) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(overrides).filter(([key]) => key !== 'Mods' && key !== 'WorkshopItems'),
+  )
+}
+
+export function buildProfileModSettings(profile: {
+  serverIniOverrides?: Record<string, string>
+  mods?: RuntimeProfileModEntry[]
+}): {
+  modIds: string[]
+  workshopIds: string[]
+} {
+  const modIds = splitSemicolonValue(profile.serverIniOverrides?.Mods)
+  const workshopIds = splitSemicolonValue(profile.serverIniOverrides?.WorkshopItems)
+
+  for (const mod of profile.mods ?? []) {
+    if (mod.isEnabled === false) {
+      continue
+    }
+
+    for (const modId of splitSemicolonValue(mod.modName)) {
+      if (!modIds.includes(modId)) {
+        modIds.push(modId)
+      }
+    }
+
+    if (!workshopIds.includes(mod.workshopId)) {
+      workshopIds.push(mod.workshopId)
+    }
+  }
+
+  if (!modIds.includes(ZOMBOID_MANAGER_MOD_ID)) {
+    modIds.push(ZOMBOID_MANAGER_MOD_ID)
+  }
+
+  if (!workshopIds.includes(ZOMBOID_MANAGER_WORKSHOP_ID)) {
+    workshopIds.push(ZOMBOID_MANAGER_WORKSHOP_ID)
+  }
+
+  return { modIds, workshopIds }
+}
+
 export function buildServerIniSettings(
   profile: GameServerRuntimeConfigSource,
   rconPassword: string,
 ): Record<string, string> {
+  const modSettings = buildProfileModSettings(profile)
   const settings: Record<string, string> = {
     ...DEFAULT_SERVER_INI_SETTINGS,
     ...(profile.serverIniOverrides ?? {}),
@@ -65,8 +137,8 @@ export function buildServerIniSettings(
     DoLuaChecksum: 'false',
   }
 
-  settings.Mods = appendSemicolonValue(settings.Mods, ZOMBOID_MANAGER_MOD_ID)
-  settings.WorkshopItems = appendSemicolonValue(settings.WorkshopItems, ZOMBOID_MANAGER_WORKSHOP_ID)
+  settings.Mods = appendEntries(settings.Mods, modSettings.modIds)
+  settings.WorkshopItems = appendEntries(settings.WorkshopItems, modSettings.workshopIds)
 
   return settings
 }

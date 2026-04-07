@@ -81,6 +81,7 @@ model ServerProfile {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   mods               Mod[]
+  modRuntimeReports  ModRuntimeReport[]
   backups            Backup[]
   jobs               Job[]
   players            ServerPlayer[]
@@ -126,6 +127,7 @@ model Mod {
   workshopId  String  @map("workshop_id")
   modName     String  @map("mod_name")
   displayName String? @map("display_name")
+  previewUrl  String? @map("preview_url")
   order       Int     @default(0)
   isEnabled   Boolean @default(true) @map("is_enabled")
 
@@ -136,6 +138,21 @@ model Mod {
 
   @@unique([profileId, workshopId])
   @@map("mods")
+}
+
+model ModRuntimeReport {
+  id                String   @id @default(cuid())
+  profileId         String   @map("profile_id")
+  serverName        String   @map("server_name")
+  reason            String?
+  activeModIds      Json     @map("active_mod_ids")
+  activeWorkshopIds Json?    @map("active_workshop_ids")
+  reportedAt        DateTime @default(now()) @map("reported_at")
+
+  profile ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, reportedAt])
+  @@map("mod_runtime_reports")
 }
 
 // =============================================================================

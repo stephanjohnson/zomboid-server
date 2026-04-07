@@ -26,7 +26,7 @@ const contentWidthClass = computed(() => {
         <img
           src="/sidebar.jpg"
           alt="Project Zomboid"
-          class="absolute inset-0 h-full w-full object-cover"
+          class="sidebar-image absolute inset-0 h-full w-full object-cover"
         >
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <div class="absolute inset-0 flex items-end justify-end p-8">
@@ -43,8 +43,24 @@ const contentWidthClass = computed(() => {
 </template>
 
 <style scoped>
+.sidebar-image {
+  transform-origin: center center;
+  animation: sidebar-image-zoom 30s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
 .floating-logo {
   animation: float 6s ease-in-out infinite;
+}
+
+@keyframes sidebar-image-zoom {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.06);
+  }
 }
 
 @keyframes float {
@@ -59,6 +75,14 @@ const contentWidthClass = computed(() => {
   }
   75% {
     transform: translateY(-14px) rotate(0.5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-image,
+  .floating-logo {
+    animation: none;
+    transform: none;
   }
 }
 </style>

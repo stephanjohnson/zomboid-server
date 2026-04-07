@@ -57,7 +57,7 @@ dev-infra-down:
 
 dev: dev-infra
 	cd src && npm run db:migrate && npm run db:generate && \
-	( while ! curl -s -o /dev/null http://localhost:3000; do sleep 1; done && xdg-open http://localhost:3000 & ) && \
+	( while ! curl -s -o /dev/null http://localhost:8000; do sleep 1; done && xdg-open http://localhost:8000 & ) && \
 	npm run dev
 
 install:
@@ -99,6 +99,12 @@ nuke:
 		echo "Cancelled."; \
 		exit 1; \
 	fi
+	@if [ ! -f .env ] && [ -f .env.example ]; then \
+		cp .env.example .env; \
+	fi
+	@GAME_SERVER_CONTAINER=$$(sed -n 's/^GAME_SERVER_CONTAINER_NAME=//p' .env 2>/dev/null | tail -n 1); \
+	GAME_SERVER_CONTAINER=$${GAME_SERVER_CONTAINER:-pzm-game-server}; \
+	docker rm -f "$$GAME_SERVER_CONTAINER" 2>/dev/null || true
 	$(DEV_COMPOSE) down -v --remove-orphans 2>/dev/null || true
 	$(COMPOSE) down -v --remove-orphans
 	@for vol in $(VOLUMES); do \

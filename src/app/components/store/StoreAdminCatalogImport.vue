@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { StoreCategorySummary, StoreProductDetail, StoreBundleSummary } from '@/lib/store'
-import { Search } from 'lucide-vue-next'
+import { Check, Minus, Search } from 'lucide-vue-next'
+import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 
 interface CatalogSearchResult {
   fullType: string
@@ -66,6 +67,8 @@ interface CatalogItemEnrichment {
   importPayload: CatalogImportPayload
 }
 
+type CatalogCheckboxState = boolean | 'indeterminate' | null | undefined
+
 const props = defineProps<{
   bootstrap: {
     profile: { id: string, name: string, servername: string } | null
@@ -111,6 +114,14 @@ const { data: catalogSearch, refresh: refreshCatalogSearch, pending: catalogPend
 
 const hasCatalogSearchRun = ref(false)
 
+function resetCatalogSearch() {
+  clearCatalogSearchTimer()
+  hasCatalogSearchRun.value = false
+  catalogSearchError.value = ''
+  catalogSearch.value = { ...catalogDefault, items: [] }
+  selectedFullTypes.value = []
+}
+
 function clearCatalogSearchTimer() {
   if (!catalogSearchTimer) return
   clearTimeout(catalogSearchTimer)
@@ -125,6 +136,12 @@ function queueCatalogSearch(delay = 180) {
 }
 
 async function searchCatalog() {
+  const query = catalogQuery.value.trim()
+  if (!query) {
+    resetCatalogSearch()
+    return
+  }
+
   clearCatalogSearchTimer()
   hasCatalogSearchRun.value = true
   catalogSearchError.value = ''
@@ -133,10 +150,26 @@ async function searchCatalog() {
     await refreshCatalogSearch()
   }
   catch (error) {
+    if (catalogQuery.value.trim() !== query) {
+      if (!catalogQuery.value.trim()) {
+        resetCatalogSearch()
+      }
+
+      return
+    }
+
     catalogSearchError.value = error instanceof Error
       ? error.message
       : 'Failed to search the game catalog.'
     catalogSearch.value = { ...catalogDefault, items: [] }
+    return
+  }
+
+  if (catalogQuery.value.trim() !== query) {
+    if (!catalogQuery.value.trim()) {
+      resetCatalogSearch()
+    }
+
     return
   }
 
@@ -148,13 +181,13 @@ async function searchCatalog() {
 
 watch(() => catalogQuery.value.trim(), (query, previousQuery) => {
   if (query === previousQuery) return
-  queueCatalogSearch(query.length > 0 ? 180 : 0)
-})
 
-onMounted(() => {
-  if (!hasCatalogSearchRun.value) {
-    queueCatalogSearch(0)
+  if (!query.length) {
+    resetCatalogSearch()
+    return
   }
+
+  queueCatalogSearch(180)
 })
 
 onBeforeUnmount(() => {
@@ -187,37 +220,97 @@ async function importCatalogItem(fullType: string) {
   }
 }
 
-function toggleSelection(fullType: string) {
-  const idx = selectedFullTypes.value.indexOf(fullType)
-  if (idx >= 0) {
-    selectedFullTypes.value.splice(idx, 1)
-  }
-  else {
-    selectedFullTypes.value.push(fullType)
-  }
+function isItemSelected(fullType: string) {
+  return selectedFullTypes.value.includes(fullType)
 }
 
-function toggleSelectAll() {
-  const items = catalogSearch.value.items
-  const allSelected = items.length > 0 && items.every(i => selectedFullTypes.value.includes(i.fullType))
-  if (allSelected) {
-    selectedFullTypes.value = selectedFullTypes.value.filter(
-      ft => !items.some(i => i.fullType === ft),
-    )
-  }
-  else {
-    const existing = new Set(selectedFullTypes.value)
-    for (const item of items) {
-      if (!existing.has(item.fullType)) {
-        selectedFullTypes.value.push(item.fullType)
-      }
+function setItemSelection(fullType: string, checked: CatalogCheckboxState) {
+  if (checked === true) {
+    if (isItemSelected(fullType)) {
+      return
     }
+
+    selectedFullTypes.value = [...selectedFullTypes.value, fullType]
+    return
   }
+
+  selectedFullTypes.value = selectedFullTypes.value.filter(value => value !== fullType)
+}
+
+function toggleSelection(fullType: string) {
+  setItemSelection(fullType, !isItemSelected(fullType))
+}
+
+function handleItemRowClick(event: MouseEvent, fullType: string) {
+  const target = event.target
+  if (target instanceof Element && target.closest('button, a, input, label, [data-catalog-checkbox]')) {
+    return
+  }
+
+  toggleSelection(fullType)
+}
+
+function setAllVisibleSelection(checked: CatalogCheckboxState) {
+  const visibleFullTypes = catalogSearch.value.items.map(item => item.fullType)
+  if (!visibleFullTypes.length) {
+    return
+  }
+
+  if (checked === true) {
+    const next = new Set(selectedFullTypes.value)
+    for (const fullType of visibleFullTypes) {
+      next.add(fullType)
+    }
+
+    selectedFullTypes.value = [...next]
+    return
+  }
+
+  const visibleFullTypesSet = new Set(visibleFullTypes)
+  selectedFullTypes.value = selectedFullTypes.value.filter(fullType => !visibleFullTypesSet.has(fullType))
 }
 
 const allVisibleSelected = computed(() => {
   const items = catalogSearch.value.items
-  return items.length > 0 && items.every(i => selectedFullTypes.value.includes(i.fullType))
+  return items.length > 0 && items.every(item => isItemSelected(item.fullType))
+})
+
+const selectedVisibleCount = computed(() => {
+  return catalogSearch.value.items.reduce((count, item) => {
+    return count + (isItemSelected(item.fullType) ? 1 : 0)
+  }, 0)
+})
+
+const selectAllCheckedState = computed<boolean | 'indeterminate'>(() => {
+  if (!catalogSearch.value.items.length || selectedVisibleCount.value === 0) {
+    return false
+  }
+
+  return allVisibleSelected.value ? true : 'indeterminate'
+})
+
+const hasCatalogSelection = computed(() => selectedFullTypes.value.length > 0)
+
+const isCatalogLoading = computed(() => hasCatalogSearchRun.value && catalogPending.value)
+
+const catalogStatusMessage = computed(() => {
+  if (!hasCatalogSearchRun.value) {
+    return 'Search by item code or display name to load catalog items.'
+  }
+
+  if (isCatalogLoading.value) {
+    return 'Searching…'
+  }
+
+  if (catalogSearchError.value) {
+    return catalogSearchError.value
+  }
+
+  return `${catalogSearch.value.total} matches from ${catalogSearch.value.source}`
+})
+
+const isInitialCatalogState = computed(() => {
+  return !hasCatalogSearchRun.value && !catalogSearchError.value
 })
 
 async function importSelectedItems() {
@@ -286,21 +379,27 @@ async function importSelectedItems() {
           <CardContent class="p-0">
             <div class="flex items-center justify-between border-b px-4 py-3">
               <div class="flex items-center gap-3">
-                <Checkbox
+                <CheckboxRoot
                   v-if="catalogSearch.items.length"
-                  :checked="allVisibleSelected"
+                  data-catalog-checkbox
+                  :model-value="selectAllCheckedState"
                   aria-label="Select all visible items"
-                  @update:checked="toggleSelectAll()"
-                />
+                  class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
+                  @click.stop
+                  @update:model-value="setAllVisibleSelection($event)"
+                >
+                  <CheckboxIndicator class="grid place-content-center text-current">
+                    <Minus v-if="selectAllCheckedState === 'indeterminate'" class="h-4 w-4" />
+                    <Check v-else class="h-4 w-4" />
+                  </CheckboxIndicator>
+                </CheckboxRoot>
                 <p class="text-sm text-muted-foreground">
-                  <span v-if="catalogPending">Searching…</span>
-                  <span v-else-if="catalogSearchError">{{ catalogSearchError }}</span>
-                  <span v-else>{{ catalogSearch.total }} matches from {{ catalogSearch.source }}</span>
+                  <span :class="catalogSearchError ? 'text-destructive' : undefined">{{ catalogStatusMessage }}</span>
                 </p>
               </div>
               <div class="flex items-center gap-2">
                 <Button
-                  v-if="selectedFullTypes.length > 0"
+                  v-if="hasCatalogSelection"
                   size="sm"
                   :disabled="multiImporting"
                   @click="importSelectedItems"
@@ -313,7 +412,7 @@ async function importSelectedItems() {
               </div>
             </div>
 
-            <div v-if="catalogPending" class="flex flex-col items-center justify-center py-12 text-center">
+            <div v-if="isCatalogLoading" class="flex flex-col items-center justify-center py-12 text-center">
               <p class="text-sm text-muted-foreground">
                 Searching catalog…
               </p>
@@ -325,20 +424,32 @@ async function importSelectedItems() {
               </p>
             </div>
 
+            <div v-else-if="isInitialCatalogState" class="flex flex-col items-center justify-center py-12 text-center">
+              <p class="text-sm text-muted-foreground">
+                Search by item code or display name to load catalog items.
+              </p>
+            </div>
+
             <ul v-else-if="catalogSearch.items.length" role="list" class="divide-y divide-border">
               <li
                 v-for="item in catalogSearch.items"
                 :key="item.fullType"
                 class="flex cursor-pointer items-center justify-between gap-x-4 px-4 py-4 transition-colors hover:bg-muted/50 lg:px-6"
-                @click="toggleSelection(item.fullType)"
+                @click="handleItemRowClick($event, item.fullType)"
               >
                 <div class="flex min-w-0 items-center gap-x-4">
-                  <Checkbox
-                    :checked="selectedFullTypes.includes(item.fullType)"
+                  <CheckboxRoot
+                    data-catalog-checkbox
+                    :model-value="isItemSelected(item.fullType)"
                     :aria-label="`Select ${item.name}`"
+                    class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                     @click.stop
-                    @update:checked="toggleSelection(item.fullType)"
-                  />
+                    @update:model-value="setItemSelection(item.fullType, $event)"
+                  >
+                    <CheckboxIndicator class="grid place-content-center text-current">
+                      <Check class="h-4 w-4" />
+                    </CheckboxIndicator>
+                  </CheckboxRoot>
                   <div class="flex size-10 flex-none items-center justify-center overflow-hidden rounded-lg border bg-muted">
                     <img
                       v-if="item.iconUrl"

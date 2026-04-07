@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import { Separator } from '@/components/ui/separator'
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from '@/components/ui/sidebar'
+import 'vue-sonner/style.css'
 import { Toaster } from '@/components/ui/sonner'
 
 const route = useRoute()

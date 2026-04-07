@@ -17,8 +17,14 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig()
 
     const profile = body.profileId
-      ? await prisma.serverProfile.findUnique({ where: { id: body.profileId } })
-      : await prisma.serverProfile.findFirst({ where: { isActive: true } })
+      ? await prisma.serverProfile.findUnique({
+          where: { id: body.profileId },
+          include: { mods: { where: { isEnabled: true }, orderBy: { order: 'asc' } } },
+        })
+      : await prisma.serverProfile.findFirst({
+          where: { isActive: true },
+          include: { mods: { where: { isEnabled: true }, orderBy: { order: 'asc' } } },
+        })
 
     if (!profile) {
       throw createError({ statusCode: 409, message: 'No server profile found to start' })
@@ -36,6 +42,7 @@ export default defineEventHandler(async (event) => {
       pvp: profile.pvp,
       serverIniOverrides: getProfileServerIniOverrides(profile),
       sandboxVarsOverrides: getProfileSandboxVarsOverrides(profile),
+      mods: profile.mods,
     })
 
     await prisma.auditLog.create({

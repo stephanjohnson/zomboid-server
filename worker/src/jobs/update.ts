@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client'
 import Dockerode from 'dockerode'
 import pino from 'pino'
-import { buildContainerEnv, createContainerOptions, prepareGameServerRuntimeFiles } from './game-server.js'
+import { buildContainerEnv, createContainerOptions, getComposeOwnedContainerLabels, prepareGameServerRuntimeFiles } from './game-server.js'
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
 
@@ -23,8 +23,14 @@ export async function handleUpdateJob(
 
   // Read the profile from database
   const profile = profileId
-    ? await prisma.serverProfile.findUnique({ where: { id: profileId } })
-    : await prisma.serverProfile.findFirst({ where: { isActive: true } })
+    ? await prisma.serverProfile.findUnique({
+        where: { id: profileId },
+        include: { mods: { where: { isEnabled: true }, orderBy: { order: 'asc' } } },
+      })
+    : await prisma.serverProfile.findFirst({
+        where: { isActive: true },
+        include: { mods: { where: { isEnabled: true }, orderBy: { order: 'asc' } } },
+      })
 
   if (!profile) {
     throw new Error('No server profile found for update job')
@@ -54,6 +60,7 @@ export async function handleUpdateJob(
   const modApiBaseUrl = process.env.MOD_API_BASE_URL || 'http://nitro-app:3000/api/mod'
   const rconPassword = profile.rconPassword || process.env.PZ_RCON_PASSWORD || ''
   const gameServerImage = process.env.GAME_SERVER_IMAGE || 'renegademaster/zomboid-dedicated-server:latest'
+  const labels = await getComposeOwnedContainerLabels(docker, 'game-server')
   await prepareGameServerRuntimeFiles(profile, rconPassword)
 
   // Recreate container with force update flag
@@ -66,6 +73,7 @@ export async function handleUpdateJob(
       rconPassword,
       forceUpdate: true,
     }),
+    labels,
   }))
 
   await container.start()

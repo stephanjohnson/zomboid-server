@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client'
 import Dockerode from 'dockerode'
 import { Rcon } from 'rcon-client'
 import pino from 'pino'
-import { buildContainerEnv, createContainerOptions, prepareGameServerRuntimeFiles } from './game-server.js'
+import { buildContainerEnv, createContainerOptions, getComposeOwnedContainerLabels, prepareGameServerRuntimeFiles } from './game-server.js'
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
 
@@ -56,7 +56,10 @@ export async function handleRestartJob(
   }
 
   // Read profile from DB and reconcile (recreate container with latest config)
-  const profile = await prisma.serverProfile.findFirst({ where: { isActive: true } })
+  const profile = await prisma.serverProfile.findFirst({
+    where: { isActive: true },
+    include: { mods: { where: { isEnabled: true }, orderBy: { order: 'asc' } } },
+  })
 
   if (!profile) {
     throw new Error('No active server profile for restart')
@@ -84,6 +87,7 @@ export async function handleRestartJob(
   const modApiBaseUrl = process.env.MOD_API_BASE_URL || 'http://nitro-app:3000/api/mod'
   const rconPassword = profile.rconPassword || process.env.PZ_RCON_PASSWORD || ''
   const gameServerImage = process.env.GAME_SERVER_IMAGE || 'renegademaster/zomboid-dedicated-server:latest'
+  const labels = await getComposeOwnedContainerLabels(docker, 'game-server')
   await prepareGameServerRuntimeFiles(profile, rconPassword)
 
   const container = await docker.createContainer(createContainerOptions(profile, {
@@ -93,6 +97,7 @@ export async function handleRestartJob(
       modApiBaseUrl,
       rconPassword,
     }),
+    labels,
   }))
 
   await container.start()

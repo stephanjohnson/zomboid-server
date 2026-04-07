@@ -5,6 +5,7 @@ ZM_Utils = {}
 local API_BASE_URL = os.getenv("ZM_API_BASE_URL") or "http://nitro-app:3000/api/mod"
 local API_TELEMETRY_URL = API_BASE_URL .. "/telemetry"
 local API_CONFIG_URL = API_BASE_URL .. "/config"
+local API_RUNTIME_URL = API_BASE_URL .. "/runtime"
 local TEMP_UPLOAD_PATH = "/home/steam/Zomboid/Lua/bridge_payload.json"
 local TEMP_CONFIG_PATH = "/home/steam/Zomboid/Lua/bridge_config.json"
 
@@ -240,18 +241,55 @@ function ZM_Utils.collectGameState()
     }
 end
 
-function ZM_Utils.postTelemetry(payload)
-    payload.serverName = payload.serverName or getServerName()
+function ZM_Utils.collectActivatedMods()
+    local modIds = {}
+    local workshopIds = {}
+    local activeModIDs = safeCall(getActivatedMods, nil)
 
+    if not activeModIDs then
+        return {
+            activeModIds = modIds,
+            activeWorkshopIds = workshopIds,
+        }
+    end
+
+    for index = 0, activeModIDs:size() - 1 do
+        local modId = activeModIDs:get(index)
+        if modId and tostring(modId) ~= "" then
+            table.insert(modIds, tostring(modId))
+
+            local modInfo = safeCall(function()
+                return getModInfoByID(modId)
+            end, nil)
+
+            if modInfo and modInfo.getWorkshopID then
+                local workshopId = safeCall(function()
+                    return modInfo:getWorkshopID()
+                end, nil)
+
+                if workshopId and tostring(workshopId) ~= "" then
+                    table.insert(workshopIds, tostring(workshopId))
+                end
+            end
+        end
+    end
+
+    return {
+        activeModIds = modIds,
+        activeWorkshopIds = workshopIds,
+    }
+end
+
+local function postJsonPayload(payload, url, tempPath)
     local ok, json = pcall(ZM_JSON.encode, payload)
     if not ok then
-        print("[ZomboidManager] Failed to encode telemetry payload: " .. tostring(json))
+        print("[ZomboidManager] Failed to encode JSON payload: " .. tostring(json))
         return false
     end
 
-    local file = io.open(TEMP_UPLOAD_PATH, "w")
+    local file = io.open(tempPath, "w")
     if not file then
-        print("[ZomboidManager] Failed to open telemetry upload temp file")
+        print("[ZomboidManager] Failed to open temporary upload file: " .. tostring(tempPath))
         return false
     end
 
@@ -260,18 +298,42 @@ function ZM_Utils.postTelemetry(payload)
 
     local command = string.format(
         "curl -fsS -m 10 -X POST -H \"Content-Type: application/json\" --data-binary @%s %s >/dev/null 2>&1",
-        TEMP_UPLOAD_PATH,
-        API_TELEMETRY_URL
+        tempPath,
+        url
     )
 
     local result = os.execute(command)
-    os.remove(TEMP_UPLOAD_PATH)
+    os.remove(tempPath)
 
-    if result == true or result == 0 then
+    return result == true or result == 0
+end
+
+function ZM_Utils.postTelemetry(payload)
+    payload.serverName = payload.serverName or getServerName()
+
+    if postJsonPayload(payload, API_TELEMETRY_URL, TEMP_UPLOAD_PATH) then
         return true
     end
 
     print("[ZomboidManager] Telemetry upload failed")
+    return false
+end
+
+function ZM_Utils.postRuntimeHandshake(reason)
+    local runtimeState = ZM_Utils.collectActivatedMods()
+    local payload = {
+        serverName = getServerName(),
+        reportedAt = ZM_Utils.getTimestamp(),
+        reason = reason or "heartbeat",
+        activeModIds = runtimeState.activeModIds,
+        activeWorkshopIds = runtimeState.activeWorkshopIds,
+    }
+
+    if postJsonPayload(payload, API_RUNTIME_URL, TEMP_UPLOAD_PATH) then
+        return true
+    end
+
+    print("[ZomboidManager] Runtime handshake upload failed")
     return false
 end
 

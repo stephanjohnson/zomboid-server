@@ -3,6 +3,8 @@ const readRuntimeEnv = (name: string, fallback: string) => process.env[`NUXT_${n
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
 
+  devServer: { port: 8000 },
+
   devtools: { enabled: true },
 
   modules: [
