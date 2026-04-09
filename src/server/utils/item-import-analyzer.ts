@@ -33,6 +33,13 @@ export interface MultiImportAnalysis {
   related: GameCatalogEntry[]
 }
 
+interface VariantCandidate {
+  label: string
+  slug: string
+  representative: GameCatalogEntry
+  items: GameCatalogEntry[]
+}
+
 function slugify(value: string): string {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
@@ -101,50 +108,32 @@ function detectPairs(items: GameCatalogEntry[]): Map<string, GameCatalogEntry[]>
  */
 function extractStyleSuffix(item: GameCatalogEntry, baseName: string): string {
   const rawName = item.fullType.split('.').pop() || item.fullType
-  const baseSlug = slugify(baseName)
+  const baseTokens = humanizeToken(baseName)
+    .split(/\s+/)
+    .map(token => slugify(token))
+    .filter(Boolean)
 
-  // Remove the base from the raw name, then remove side indicators
-  let suffix = rawName
-  const basePattern = baseName.replace(/\s+/g, '_')
-  if (suffix.startsWith(basePattern)) {
-    suffix = suffix.slice(basePattern.length)
+  const remainingTokens = humanizeToken(rawName)
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(token => !/^(Left|Right|L|R)$/i.test(token))
+
+  let prefixLength = 0
+  while (
+    prefixLength < baseTokens.length
+    && prefixLength < remainingTokens.length
+    && slugify(remainingTokens[prefixLength] || '') === baseTokens[prefixLength]
+  ) {
+    prefixLength += 1
   }
 
-  suffix = suffix
-    .replace(/^_+/, '')
-    .replace(/_(Left|Right|L|R)(?=_|$)/gi, '')
-    .replace(/__+/g, '_')
-    .replace(/^_+|_+$/g, '')
+  const suffix = remainingTokens.slice(prefixLength).join(' ').trim()
 
-  if (!suffix || slugify(humanizeToken(suffix)) === baseSlug) {
+  if (!suffix) {
     return 'Standard'
   }
 
-  return humanizeToken(suffix)
-}
-
-/**
- * Extract color variants from IconsForTexture property stored in scriptProperties.
- */
-function extractColorVariants(item: GameCatalogEntry): string[] {
-  const iconsForTexture = item.scriptProperties?.IconsForTexture
-
-  if (!iconsForTexture) return []
-
-  return iconsForTexture
-    .split(';')
-    .map(icon => icon.trim())
-    .filter(Boolean)
-    .map((icon) => {
-      // Strip common prefixes to get the color name
-      // e.g. "KneePad_BlackWhite" → "Black White", "KneePad_Green" → "Green"
-      const parts = icon.split('_')
-      // Remove parts that look like the item base name
-      const colorParts = parts.filter((p, i) => i > 0 || !/^[A-Z][a-z]/.test(p))
-      return colorParts.length > 0
-        ? humanizeToken(colorParts.join('_'))
-        : humanizeToken(icon)
-    })
+  return suffix
 }
 
 /**
@@ -171,6 +160,42 @@ function findRelatedItems(
     // The item name must start with the base tokens
     return baseTokens.every(token => rawSlug.includes(token) || nameSlug.includes(token))
   })
+}
+
+function buildVariantCandidates(selectedItems: GameCatalogEntry[], productName: string) {
+  const pairs = detectPairs(selectedItems)
+  const styleMap = new Map<string, { items: GameCatalogEntry[], representative: GameCatalogEntry }>()
+
+  for (const [_pairKey, pairItems] of pairs) {
+    const representative = pairItems[0]!
+    const style = extractStyleSuffix(representative, productName)
+    const existing = styleMap.get(style)
+
+    if (existing) {
+      existing.items.push(...pairItems)
+      continue
+    }
+
+    styleMap.set(style, { items: [...pairItems], representative })
+  }
+
+  const variants = (styleMap.size > 0
+    ? [...styleMap.entries()].map(([style, group]) => ({
+        label: style,
+        slug: slugify(style),
+        representative: group.representative,
+        items: group.items,
+      }))
+    : [{
+        label: 'Standard',
+        slug: 'standard',
+        representative: selectedItems[0]!,
+        items: selectedItems,
+      }])
+
+  const imageBackedVariants = variants.filter(variant => Boolean(variant.representative.iconUrl))
+
+  return imageBackedVariants.length > 0 ? imageBackedVariants : variants
 }
 
 export function analyzeMultiImport(
@@ -207,117 +232,45 @@ export function analyzeMultiImport(
   }
 
   const productName = findCommonBaseName(selectedItems)
-  const pairs = detectPairs(selectedItems)
   const selectedFullTypes = new Set(selectedItems.map(i => i.fullType))
-
-  // Determine styles from pair groups
-  const styleMap = new Map<string, { items: GameCatalogEntry[], representative: GameCatalogEntry }>()
-  for (const [_pairKey, pairItems] of pairs) {
-    const rep = pairItems[0]!
-    const style = extractStyleSuffix(rep, productName)
-    const existing = styleMap.get(style)
-    if (existing) {
-      existing.items.push(...pairItems)
-    }
-    else {
-      styleMap.set(style, { items: [...pairItems], representative: rep })
-    }
-  }
-
-  // Collect color variants from all items
-  const allColors = new Set<string>()
-  for (const item of selectedItems) {
-    for (const color of extractColorVariants(item)) {
-      allColors.add(color)
-    }
-  }
+  const variantCandidates = buildVariantCandidates(selectedItems, productName)
+  const usesVariantOptions = variantCandidates.length > 1
 
   // Build option groups
   const optionGroups: AnalyzedOptionGroup[] = []
 
-  // Style option group (only if more than one style)
-  if (styleMap.size > 1) {
-    const styleValues: AnalyzedOptionValue[] = []
-    for (const [style, { items }] of styleMap) {
-      styleValues.push({
-        label: style,
-        slug: slugify(style),
-        colorHex: '',
-        sourceFullTypes: items.map(i => i.fullType),
-      })
-    }
+  if (usesVariantOptions) {
     optionGroups.push({
       name: 'Style',
       slug: 'style',
       displayType: 'TEXT',
-      values: styleValues,
+      values: variantCandidates.map((variant) => ({
+        label: variant.label,
+        slug: variant.slug,
+        colorHex: '',
+        sourceFullTypes: variant.items.map(item => item.fullType),
+      })),
     })
   }
 
-  // Color option group (if any colors detected)
-  if (allColors.size > 1) {
-    const colorValues: AnalyzedOptionValue[] = [...allColors].map(color => ({
-      label: color,
-      slug: slugify(color),
-      colorHex: '',
-      sourceFullTypes: [],
-    }))
-    optionGroups.push({
-      name: 'Color',
-      slug: 'color',
-      displayType: 'COLOR',
-      values: colorValues,
-    })
-  }
+  const variants: AnalyzedVariant[] = variantCandidates.map((variant, index) => {
+    const selections: Record<string, string> = usesVariantOptions
+      ? { style: variant.slug }
+      : {}
 
-  // Build variants — one per style×color combination (or just per style if no colors)
-  const variants: AnalyzedVariant[] = []
-  let isFirst = true
-
-  const styles = styleMap.size > 0 ? [...styleMap.entries()] : [['Standard', { items: selectedItems, representative: selectedItems[0]! }] as const]
-
-  for (const [style, { representative }] of styles) {
-    if (allColors.size > 1) {
-      for (const color of allColors) {
-        const variantName = `${style} — ${color}`
-        const selections: Record<string, string> = {}
-        if (styleMap.size > 1) selections.style = slugify(style)
-        selections.color = slugify(color)
-
-        variants.push({
-          name: variantName,
-          itemCode: representative.fullType,
-          gameName: representative.name,
-          gameCategory: representative.displayCategory || representative.category,
-          weight: representative.weight,
-          imageUrl: representative.iconUrl,
-          isDefault: isFirst,
-          selections,
-          metadata: { sourceFullTypes: styleMap.get(style)?.items.map(i => i.fullType) || [] },
-        })
-        isFirst = false
-      }
+    return {
+      name: usesVariantOptions ? variant.label : variant.representative.name,
+      itemCode: variant.representative.fullType,
+      gameName: variant.representative.name,
+      gameCategory: variant.representative.displayCategory || variant.representative.category,
+      weight: variant.representative.weight,
+      imageUrl: variant.representative.iconUrl,
+      isDefault: index === 0,
+      selections,
+      metadata: { sourceFullTypes: variant.items.map(item => item.fullType) },
     }
-    else {
-      const selections: Record<string, string> = {}
-      if (styleMap.size > 1) selections.style = slugify(style)
+  })
 
-      variants.push({
-        name: style === 'Standard' && styleMap.size <= 1 ? representative.name : style,
-        itemCode: representative.fullType,
-        gameName: representative.name,
-        gameCategory: representative.displayCategory || representative.category,
-        weight: representative.weight,
-        imageUrl: representative.iconUrl,
-        isDefault: isFirst,
-        selections,
-        metadata: { sourceFullTypes: styleMap.get(style)?.items.map(i => i.fullType) || [] },
-      })
-      isFirst = false
-    }
-  }
-
-  // Find related items the user might have missed
   const related = findRelatedItems(selectedFullTypes, productName, allCatalogItems)
 
   return {

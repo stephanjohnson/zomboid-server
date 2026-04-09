@@ -341,154 +341,134 @@ async function importSelectedItems() {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <Card>
-      <CardHeader>
-        <CardTitle class="text-base font-medium">
-          Game Item Catalog
-        </CardTitle>
-        <CardDescription>
-          Search the Project Zomboid item catalog and import items directly into a new product.
-        </CardDescription>
-      </CardHeader>
-      <CardContent class="space-y-4">
-        <Alert v-if="catalogImportError" variant="destructive">
-          <AlertDescription>{{ catalogImportError }}</AlertDescription>
-        </Alert>
-        <Alert v-else-if="catalogImportNotice">
-          <AlertDescription>{{ catalogImportNotice }}</AlertDescription>
-        </Alert>
+  <Alert v-if="catalogImportError" variant="destructive">
+    <AlertDescription>{{ catalogImportError }}</AlertDescription>
+  </Alert>
+  <Alert v-else-if="catalogImportNotice">
+    <AlertDescription>{{ catalogImportNotice }}</AlertDescription>
+  </Alert>
 
-        <div class="grid gap-2">
-          <Label for="catalog-search">Search items</Label>
-          <div class="relative">
-            <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="catalog-search"
-              v-model="catalogQuery"
-              placeholder="Search by item code or display name…"
-              class="pl-9"
-            />
-          </div>
-          <p class="text-xs text-muted-foreground">
-            Results update as you type. Select an item to import its details into a new product.
+  <div class="relative">
+    <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+    <Input
+      id="catalog-search"
+      v-model="catalogQuery"
+      placeholder="Search by item code or display name…"
+      class="pl-9"
+    />
+  </div>
+
+  <Card>
+    <CardContent class="p-0">
+      <div class="flex items-center justify-between border-b px-4 py-3">
+        <div class="flex items-center gap-3">
+          <CheckboxRoot
+            v-if="catalogSearch.items.length"
+            data-catalog-checkbox
+            :model-value="selectAllCheckedState"
+            aria-label="Select all visible items"
+            class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
+            @click.stop
+            @update:model-value="setAllVisibleSelection($event)"
+          >
+            <CheckboxIndicator class="grid place-content-center text-current">
+              <Minus v-if="selectAllCheckedState === 'indeterminate'" class="h-4 w-4" />
+              <Check v-else class="h-4 w-4" />
+            </CheckboxIndicator>
+          </CheckboxRoot>
+          <p class="text-sm text-muted-foreground">
+            <span :class="catalogSearchError ? 'text-destructive' : undefined">{{ catalogStatusMessage }}</span>
           </p>
         </div>
+        <div class="flex items-center gap-2">
+          <Button
+            v-if="hasCatalogSelection"
+            size="sm"
+            :disabled="multiImporting"
+            @click="importSelectedItems"
+          >
+            {{ multiImporting ? 'Creating…' : `Create product (${selectedFullTypes.length})` }}
+          </Button>
+          <Badge variant="outline" class="text-xs">
+            {{ bootstrap.catalog.total }} total items
+          </Badge>
+        </div>
+      </div>
 
-        <Card>
-          <CardContent class="p-0">
-            <div class="flex items-center justify-between border-b px-4 py-3">
-              <div class="flex items-center gap-3">
-                <CheckboxRoot
-                  v-if="catalogSearch.items.length"
-                  data-catalog-checkbox
-                  :model-value="selectAllCheckedState"
-                  aria-label="Select all visible items"
-                  class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
-                  @click.stop
-                  @update:model-value="setAllVisibleSelection($event)"
-                >
-                  <CheckboxIndicator class="grid place-content-center text-current">
-                    <Minus v-if="selectAllCheckedState === 'indeterminate'" class="h-4 w-4" />
-                    <Check v-else class="h-4 w-4" />
-                  </CheckboxIndicator>
-                </CheckboxRoot>
-                <p class="text-sm text-muted-foreground">
-                  <span :class="catalogSearchError ? 'text-destructive' : undefined">{{ catalogStatusMessage }}</span>
-                </p>
-              </div>
-              <div class="flex items-center gap-2">
-                <Button
-                  v-if="hasCatalogSelection"
-                  size="sm"
-                  :disabled="multiImporting"
-                  @click="importSelectedItems"
-                >
-                  {{ multiImporting ? 'Creating…' : `Create product (${selectedFullTypes.length})` }}
-                </Button>
-                <Badge variant="outline" class="text-xs">
-                  {{ bootstrap.catalog.total }} total items
-                </Badge>
-              </div>
-            </div>
+      <div v-if="isCatalogLoading" class="flex flex-col items-center justify-center py-12 text-center">
+        <p class="text-sm text-muted-foreground">
+          Searching catalog…
+        </p>
+      </div>
 
-            <div v-if="isCatalogLoading" class="flex flex-col items-center justify-center py-12 text-center">
-              <p class="text-sm text-muted-foreground">
-                Searching catalog…
-              </p>
-            </div>
+      <div v-else-if="catalogSearchError" class="flex flex-col items-center justify-center py-12 text-center">
+        <p class="text-sm text-destructive">
+          {{ catalogSearchError }}
+        </p>
+      </div>
 
-            <div v-else-if="catalogSearchError" class="flex flex-col items-center justify-center py-12 text-center">
-              <p class="text-sm text-destructive">
-                {{ catalogSearchError }}
-              </p>
-            </div>
+      <div v-else-if="isInitialCatalogState" class="flex flex-col items-center justify-center py-12 text-center">
+        <p class="text-sm text-muted-foreground">
+          Search by item code or display name to load catalog items.
+        </p>
+      </div>
 
-            <div v-else-if="isInitialCatalogState" class="flex flex-col items-center justify-center py-12 text-center">
-              <p class="text-sm text-muted-foreground">
-                Search by item code or display name to load catalog items.
-              </p>
-            </div>
-
-            <ul v-else-if="catalogSearch.items.length" role="list" class="divide-y divide-border">
-              <li
-                v-for="item in catalogSearch.items"
-                :key="item.fullType"
-                class="flex cursor-pointer items-center justify-between gap-x-4 px-4 py-4 transition-colors hover:bg-muted/50 lg:px-6"
-                @click="handleItemRowClick($event, item.fullType)"
+      <ul v-else-if="catalogSearch.items.length" role="list" class="divide-y divide-border">
+        <li
+          v-for="item in catalogSearch.items"
+          :key="item.fullType"
+          class="flex cursor-pointer items-center justify-between gap-x-4 px-4 py-4 transition-colors hover:bg-muted/50 lg:px-6"
+          @click="handleItemRowClick($event, item.fullType)"
+        >
+          <div class="flex min-w-0 items-center gap-x-4">
+            <CheckboxRoot
+              data-catalog-checkbox
+              :model-value="isItemSelected(item.fullType)"
+              :aria-label="`Select ${item.name}`"
+              class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+              @click.stop
+              @update:model-value="setItemSelection(item.fullType, $event)"
+            >
+              <CheckboxIndicator class="grid place-content-center text-current">
+                <Check class="h-4 w-4" />
+              </CheckboxIndicator>
+            </CheckboxRoot>
+            <div class="flex size-10 flex-none items-center justify-center overflow-hidden rounded-lg border bg-muted">
+              <img
+                v-if="item.iconUrl"
+                :src="item.iconUrl"
+                :alt="item.name"
+                class="size-full object-contain"
               >
-                <div class="flex min-w-0 items-center gap-x-4">
-                  <CheckboxRoot
-                    data-catalog-checkbox
-                    :model-value="isItemSelected(item.fullType)"
-                    :aria-label="`Select ${item.name}`"
-                    class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                    @click.stop
-                    @update:model-value="setItemSelection(item.fullType, $event)"
-                  >
-                    <CheckboxIndicator class="grid place-content-center text-current">
-                      <Check class="h-4 w-4" />
-                    </CheckboxIndicator>
-                  </CheckboxRoot>
-                  <div class="flex size-10 flex-none items-center justify-center overflow-hidden rounded-lg border bg-muted">
-                    <img
-                      v-if="item.iconUrl"
-                      :src="item.iconUrl"
-                      :alt="item.name"
-                      class="size-full object-contain"
-                    >
-                    <span v-else class="text-xs text-muted-foreground">—</span>
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-sm font-semibold">
-                      {{ item.name }}
-                    </p>
-                    <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <code class="rounded bg-muted px-1.5 py-0.5 text-xs">{{ item.fullType }}</code>
-                      <span class="text-xs text-muted-foreground">{{ item.displayCategory || item.category || 'Unknown' }}</span>
-                      <span v-if="typeof item.weight === 'number'" class="text-xs text-muted-foreground">{{ item.weight }} enc.</span>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  :disabled="catalogImportingFullType === item.fullType"
-                  @click.stop="importCatalogItem(item.fullType)"
-                >
-                  {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import' }}
-                </Button>
-              </li>
-            </ul>
-
-            <div v-else class="flex flex-col items-center justify-center py-12 text-center">
-              <p class="text-sm text-muted-foreground">
-                No items matched that search.
-              </p>
+              <span v-else class="text-xs text-muted-foreground">—</span>
             </div>
-          </CardContent>
-        </Card>
-      </CardContent>
-    </Card>
-  </div>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold">
+                {{ item.name }}
+              </p>
+              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <code class="rounded bg-muted px-1.5 py-0.5 text-xs">{{ item.fullType }}</code>
+                <span class="text-xs text-muted-foreground">{{ item.displayCategory || item.category || 'Unknown' }}</span>
+                <span v-if="typeof item.weight === 'number'" class="text-xs text-muted-foreground">{{ item.weight }} enc.</span>
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            :disabled="catalogImportingFullType === item.fullType"
+            @click.stop="importCatalogItem(item.fullType)"
+          >
+            {{ catalogImportingFullType === item.fullType ? 'Importing…' : 'Import' }}
+          </Button>
+        </li>
+      </ul>
+
+      <div v-else class="flex flex-col items-center justify-center py-12 text-center">
+        <p class="text-sm text-muted-foreground">
+          No items matched that search.
+        </p>
+      </div>
+    </CardContent>
+  </Card>
 </template>

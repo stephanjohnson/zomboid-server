@@ -43,5 +43,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Product not found' })
   }
 
-  return { product }
+  return {
+    product: {
+      ...product,
+      variants: product.variants.map(variant => ({
+        ...variant,
+        weight: variant.weight === null ? null : Number(variant.weight),
+      })),
+    },
+  }
 })

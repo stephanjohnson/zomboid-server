@@ -13,6 +13,17 @@ defineProps<{
     class="group block h-full"
   >
     <Card class="flex h-full flex-col transition-colors group-hover:border-primary/50">
+      <div
+        v-if="product.defaultVariant?.imageUrl"
+        class="overflow-hidden rounded-t-xl border-b bg-muted/20"
+      >
+        <img
+          :src="product.defaultVariant.imageUrl"
+          :alt="product.defaultVariant.gameName || product.defaultVariant.name || product.name"
+          class="h-48 w-full object-contain p-6"
+        >
+      </div>
+
       <CardHeader class="space-y-4">
         <div class="flex flex-wrap gap-2">
           <Badge

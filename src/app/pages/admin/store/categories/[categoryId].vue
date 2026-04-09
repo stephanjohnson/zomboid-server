@@ -110,6 +110,7 @@ async function handleSubmit() {
           <div class="grid gap-2">
             <Label for="category-name">Category name</Label>
             <Input id="category-name" v-model="form.name" required placeholder="Tactical Gear" />
+            <p class="text-xs text-muted-foreground">The display name shown to customers.</p>
           </div>
           <div class="grid gap-2">
             <Label for="category-slug">Slug</Label>
@@ -119,22 +120,27 @@ async function handleSubmit() {
           <div class="grid gap-2 md:col-span-2">
             <Label for="category-description">Description</Label>
             <Textarea id="category-description" v-model="form.description" :rows="2" placeholder="Short description" />
+            <p class="text-xs text-muted-foreground">Brief summary shown in category listings.</p>
           </div>
           <div class="grid gap-2">
             <Label for="category-hero-title">Hero title</Label>
             <Input id="category-hero-title" v-model="form.heroTitle" placeholder="Headline on category page" />
+            <p class="text-xs text-muted-foreground">Headline displayed on the category page.</p>
           </div>
           <div class="grid gap-2">
             <Label for="category-icon">Icon keyword</Label>
             <Input id="category-icon" v-model="form.icon" placeholder="shield, weapon, bag" />
+            <p class="text-xs text-muted-foreground">Lucide icon name for the category.</p>
           </div>
           <div class="grid gap-2 md:col-span-2">
             <Label for="category-hero-desc">Hero description</Label>
             <Textarea id="category-hero-desc" v-model="form.heroDescription" :rows="3" placeholder="Supporting text below the hero title" />
+            <p class="text-xs text-muted-foreground">Supporting text shown below the hero title.</p>
           </div>
           <div class="grid gap-2">
             <Label for="category-accent">Accent color</Label>
             <Input id="category-accent" v-model="form.accentColor" placeholder="#64748b" />
+            <p class="text-xs text-muted-foreground">Hex color for category highlights.</p>
           </div>
           <div class="grid gap-2">
             <Label for="category-sort">Sort order</Label>

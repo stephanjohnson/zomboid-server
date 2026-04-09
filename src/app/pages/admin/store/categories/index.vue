@@ -48,6 +48,8 @@ async function deleteCategory(categoryId: string) {
 
 <template>
   <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+    <StoreAdminStatCards />
+
     <div class="px-4 lg:px-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <StoreAdminSectionTabs />
