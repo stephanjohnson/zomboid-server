@@ -139,10 +139,10 @@ function handleNodeClick(event: { node: GraphNode }) {
 
 <template>
   <Card class="overflow-hidden border-border/70 shadow-sm">
-    <CardContent class="p-0">
+    <CardContent class="h-[720px] w-full p-0">
       <ClientOnly>
         <VueFlow
-          class="telemetry-automation-flow h-[720px] w-full"
+          class="telemetry-automation-flow !h-full !w-full"
           :nodes="flowNodes"
           :edges="flowEdges"
           :connection-mode="ConnectionMode.Strict"

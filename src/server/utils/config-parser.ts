@@ -1,7 +1,78 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+import { expandDotNotationRecord } from '../../shared/config-settings'
 import { getPzDataPath } from './runtime-paths'
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function parseSandboxValue(rawValue: string): unknown {
+  const normalizedValue = rawValue.trim().replace(/,$/, '')
+
+  if (normalizedValue === 'true') {
+    return true
+  }
+
+  if (normalizedValue === 'false') {
+    return false
+  }
+
+  if (/^-?\d+(\.\d+)?$/.test(normalizedValue)) {
+    return Number(normalizedValue)
+  }
+
+  if (normalizedValue.startsWith('"') && normalizedValue.endsWith('"')) {
+    return normalizedValue.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+  }
+
+  return normalizedValue
+}
+
+function formatSandboxValue(value: unknown): string {
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false'
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : '0'
+  }
+
+  const normalizedValue = typeof value === 'string' ? value : String(value ?? '')
+  return `"${normalizedValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function normalizeSandboxTree(data: Record<string, unknown>): Record<string, unknown> {
+  const expandedData = expandDotNotationRecord(data)
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(expandedData)) {
+    result[key] = isPlainObject(value)
+      ? normalizeSandboxTree(value)
+      : value
+  }
+
+  return result
+}
+
+function stringifySandboxTable(data: Record<string, unknown>, indentLevel: number): string[] {
+  const lines: string[] = []
+  const indent = '    '.repeat(indentLevel)
+
+  for (const [key, value] of Object.entries(data)) {
+    if (isPlainObject(value)) {
+      lines.push(`${indent}${key} = {`)
+      lines.push(...stringifySandboxTable(value, indentLevel + 1))
+      lines.push(`${indent}},`)
+      continue
+    }
+
+    lines.push(`${indent}${key} = ${formatSandboxValue(value)},`)
+  }
+
+  return lines
+}
 
 /**
  * Parse a PZ server.ini file into a key-value map.
@@ -54,47 +125,53 @@ export function writeServerIni(servername: string, data: Record<string, string>)
 
 /**
  * Parse SandboxVars.lua into a nested object.
- * Handles the basic `SandboxVars = { key = value }` format.
+ * Handles the common `SandboxVars = { ZombieLore = { Speed = 3 } }` format.
  */
 export function parseSandboxVars(content: string): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   const lines = content.split('\n')
+  const stack: Record<string, unknown>[] = [result]
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('--') || trimmed === 'SandboxVars = {' || trimmed === '}') continue
+    if (!trimmed || trimmed.startsWith('--')) continue
 
-    const match = trimmed.match(/^(\w+)\s*=\s*(.+?),?\s*$/)
-    if (match) {
-      const [, key, rawValue] = match
-      let value: unknown = rawValue
-
-      if (rawValue === 'true') value = true
-      else if (rawValue === 'false') value = false
-      else if (/^\d+(\.\d+)?$/.test(rawValue)) value = Number(rawValue)
-      else if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
-        value = rawValue.slice(1, -1)
+    const openTableMatch = trimmed.match(/^(\w+)\s*=\s*\{$/)
+    if (openTableMatch) {
+      const [, key] = openTableMatch
+      if (key === 'SandboxVars' && stack.length === 1) {
+        continue
       }
 
-      result[key] = value
+      const nextTable: Record<string, unknown> = {}
+      stack[stack.length - 1]![key] = nextTable
+      stack.push(nextTable)
+      continue
+    }
+
+    if (/^\},?$/.test(trimmed)) {
+      if (stack.length > 1) {
+        stack.pop()
+      }
+      continue
+    }
+
+    const match = trimmed.match(/^(\w+)\s*=\s*(.+?),?\s*(--.*)?$/)
+    if (match) {
+      const [, key, rawValue] = match
+      stack[stack.length - 1]![key] = parseSandboxValue(rawValue)
     }
   }
+
   return result
 }
 
 /**
- * Serialize a flat object back to SandboxVars.lua format.
+ * Serialize a nested object back to SandboxVars.lua format.
  */
 export function serializeSandboxVars(data: Record<string, unknown>): string {
   const lines = ['SandboxVars = {']
-  for (const [key, value] of Object.entries(data)) {
-    if (typeof value === 'string') {
-      lines.push(`    ${key} = "${value}",`)
-    }
-    else {
-      lines.push(`    ${key} = ${value},`)
-    }
-  }
+  lines.push(...stringifySandboxTable(normalizeSandboxTree(data), 1))
   lines.push('}')
   return lines.join('\n')
 }

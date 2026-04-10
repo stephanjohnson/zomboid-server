@@ -128,18 +128,85 @@ function serializeServerIni(data: Record<string, string>): string {
     .join('\n')
 }
 
-function serializeSandboxVars(data: Record<string, unknown>): string {
-  const lines = ['SandboxVars = {']
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
 
-  for (const [key, value] of Object.entries(data)) {
-    if (typeof value === 'string') {
-      lines.push(`    ${key} = "${value}",`)
+function expandDotNotationRecord(values: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(values)) {
+    const segments = key.split('.').filter(Boolean)
+    if (segments.length === 0) {
+      continue
     }
-    else {
-      lines.push(`    ${key} = ${value},`)
+
+    let current = result
+
+    for (const [index, segment] of segments.entries()) {
+      if (index === segments.length - 1) {
+        current[segment] = value
+        continue
+      }
+
+      if (!isPlainObject(current[segment])) {
+        current[segment] = {}
+      }
+
+      current = current[segment] as Record<string, unknown>
     }
   }
 
+  return result
+}
+
+function normalizeSandboxTree(data: Record<string, unknown>): Record<string, unknown> {
+  const expandedData = expandDotNotationRecord(data)
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(expandedData)) {
+    result[key] = isPlainObject(value)
+      ? normalizeSandboxTree(value)
+      : value
+  }
+
+  return result
+}
+
+function formatSandboxValue(value: unknown): string {
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false'
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : '0'
+  }
+
+  const normalizedValue = typeof value === 'string' ? value : String(value ?? '')
+  return `"${normalizedValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function stringifySandboxTable(data: Record<string, unknown>, indentLevel: number): string[] {
+  const lines: string[] = []
+  const indent = '    '.repeat(indentLevel)
+
+  for (const [key, value] of Object.entries(data)) {
+    if (isPlainObject(value)) {
+      lines.push(`${indent}${key} = {`)
+      lines.push(...stringifySandboxTable(value, indentLevel + 1))
+      lines.push(`${indent}},`)
+      continue
+    }
+
+    lines.push(`${indent}${key} = ${formatSandboxValue(value)},`)
+  }
+
+  return lines
+}
+
+function serializeSandboxVars(data: Record<string, unknown>): string {
+  const lines = ['SandboxVars = {']
+  lines.push(...stringifySandboxTable(normalizeSandboxTree(data), 1))
   lines.push('}')
   return lines.join('\n')
 }

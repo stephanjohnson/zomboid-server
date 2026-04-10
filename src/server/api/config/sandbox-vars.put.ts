@@ -1,11 +1,12 @@
 import * as v from 'valibot'
 
+import { normalizeSandboxEditorSettings } from '../../utils/config-editor'
 import { getProfileSandboxVarsOverrides } from '../../utils/profile-runtime-config'
 
 const UpdateSandboxSchema = v.object({
   profileId: v.optional(v.string()),
   servername: v.optional(v.string()),
-  vars: v.record(v.string(), v.unknown()),
+  vars: v.record(v.string(), v.string()),
 })
 
 export default defineEventHandler(async (event) => {
@@ -25,14 +26,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'No matching server profile found for sandbox config' })
   }
 
-  const merged = {
-    ...getProfileSandboxVarsOverrides(profile),
-    ...body.vars,
+  let normalizedVars
+
+  try {
+    normalizedVars = normalizeSandboxEditorSettings(body.vars as Record<string, string>, getProfileSandboxVarsOverrides(profile))
+  }
+  catch (error) {
+    throw createError({
+      statusCode: 400,
+      message: error instanceof Error ? error.message : 'Invalid sandbox values',
+    })
   }
 
   await prisma.serverProfile.update({
     where: { id: profile.id },
-    data: { sandboxVarsOverrides: merged },
+    data: {
+      sandboxVarsOverrides: Object.keys(normalizedVars).length > 0
+        ? normalizedVars
+        : null,
+    },
   })
 
   await prisma.auditLog.create({

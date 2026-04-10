@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 
-import { getProfileServerIniOverrides } from '../../utils/profile-runtime-config'
+import { splitServerIniEditorSettings } from '../../utils/config-editor'
 
 const UpdateIniSchema = v.object({
   profileId: v.optional(v.string()),
@@ -25,21 +25,38 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'No matching server profile found for server.ini config' })
   }
 
-  const merged = {
-    ...getProfileServerIniOverrides(profile),
-    ...body.settings,
+  let splitSettings
+
+  try {
+    splitSettings = splitServerIniEditorSettings(body.settings)
+  }
+  catch (error) {
+    throw createError({
+      statusCode: 400,
+      message: error instanceof Error ? error.message : 'Invalid server.ini values',
+    })
   }
 
   await prisma.serverProfile.update({
     where: { id: profile.id },
-    data: { serverIniOverrides: merged },
+    data: {
+      ...splitSettings.profileData,
+      serverIniOverrides: Object.keys(splitSettings.overrideSettings).length > 0
+        ? splitSettings.overrideSettings
+        : null,
+    },
   })
 
   await prisma.auditLog.create({
     data: {
       actorId: user.sub,
       action: 'config.server_ini.update',
-      details: { servername: profile.servername, keys: Object.keys(body.settings) },
+      details: {
+        servername: profile.servername,
+        keys: Object.keys(body.settings),
+        profileKeys: Object.keys(splitSettings.profileData),
+        overrideKeys: Object.keys(splitSettings.overrideSettings),
+      },
     },
   })
 

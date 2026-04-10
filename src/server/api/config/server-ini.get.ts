@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 
-import { getProfileServerIniOverrides } from '../../utils/profile-runtime-config'
+import { buildServerIniEditorSettings } from '../../utils/config-editor'
 
 const QuerySchema = v.object({
   profileId: v.optional(v.string()),
@@ -11,10 +11,10 @@ export default defineEventHandler(async (event) => {
   const { profileId, servername } = await getValidatedQuery(event, v.parser(QuerySchema))
 
   const profile = profileId
-    ? await prisma.serverProfile.findUnique({ where: { id: profileId } })
+    ? await prisma.serverProfile.findUnique({ where: { id: profileId }, include: { mods: true } })
     : servername
-      ? await prisma.serverProfile.findFirst({ where: { servername } })
-      : await prisma.serverProfile.findFirst({ where: { isActive: true } })
+      ? await prisma.serverProfile.findFirst({ where: { servername }, include: { mods: true } })
+      : await prisma.serverProfile.findFirst({ where: { isActive: true }, include: { mods: true } })
 
   if (!profile) {
     throw createError({ statusCode: 404, message: 'No matching server profile found for server.ini config' })
@@ -22,6 +22,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     servername: profile.servername,
-    settings: getProfileServerIniOverrides(profile),
+    settings: buildServerIniEditorSettings(profile),
   }
 })
