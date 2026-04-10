@@ -124,10 +124,10 @@ const pageTitle = computed(() => {
 
 const pageDescription = computed(() => {
   if (editorTarget.value.mode === 'new') {
-    return 'Build a new visual workflow in the fullscreen editor, then save it back into the profile automation config.'
+    return 'Build a new visual workflow with the node library, then save it back into the profile automation config.'
   }
 
-  return 'Edit the selected visual workflow in a fullscreen canvas so node layout and inspector changes have room to breathe.'
+  return 'Edit the selected visual workflow with a draggable node library and a single-column node editor.'
 })
 
 const isNewWorkflow = computed(() => editorTarget.value.mode === 'new')

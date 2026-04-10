@@ -215,6 +215,7 @@ services:
     mem_reservation: ${DOCKER_PROXY_MEM_RESERVATION:-32m}
     environment:
       CONTAINERS: 1
+      IMAGES: 1
       POST: 1
       LOG: 1
     volumes:

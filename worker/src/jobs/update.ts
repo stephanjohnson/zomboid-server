@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client'
 import Dockerode from 'dockerode'
 import pino from 'pino'
-import { buildContainerEnv, createContainerOptions, getComposeOwnedContainerLabels, prepareGameServerRuntimeFiles } from './game-server.js'
+import { buildContainerEnv, createContainerWithImagePull, getComposeOwnedContainerLabels, prepareGameServerRuntimeFiles } from './game-server.js'
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
 
@@ -64,7 +64,7 @@ export async function handleUpdateJob(
   await prepareGameServerRuntimeFiles(profile, rconPassword)
 
   // Recreate container with force update flag
-  const container = await docker.createContainer(createContainerOptions(profile, {
+  const container = await createContainerWithImagePull(docker, profile, {
     containerName,
     image: gameServerImage,
     env: buildContainerEnv(profile, {
@@ -74,7 +74,7 @@ export async function handleUpdateJob(
       forceUpdate: true,
     }),
     labels,
-  }))
+  })
 
   await container.start()
 

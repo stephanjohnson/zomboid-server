@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, markRaw, ref, watch } from 'vue'
 import {
   ConnectionMode,
   Position,
   VueFlow,
+  useVueFlow,
   type Connection,
   type GraphEdge,
   type GraphNode,
@@ -16,7 +17,9 @@ import { MiniMap } from '@vue-flow/minimap'
 import TelemetryAutomationNode from '@/components/telemetry-studio/TelemetryAutomationNode.vue'
 
 import {
+  automationNodeDragMimeType,
   automationNodeTypes,
+  type AutomationNodeCreateRequest,
   type AutomationNodeType,
   type AutomationStudioEdge,
   type AutomationStudioNode,
@@ -34,13 +37,18 @@ const emit = defineEmits<{
   (e: 'update:edges', edges: AutomationStudioEdge[]): void
   (e: 'select-node', nodeId: string): void
   (e: 'clear-selection'): void
-  (e: 'add-node', type: AutomationNodeType): void
+  (e: 'add-node', request: AutomationNodeCreateRequest): void
 }>()
 
 const modelNodes = ref<Array<FlowNode<AutomationStudioNode['data'], object, AutomationNodeType>>>([])
 const modelEdges = ref<GraphEdge[]>([])
+const isDropTarget = ref(false)
+const flowId = 'telemetry-automation-flow'
+
+const { screenToFlowCoordinate } = useVueFlow(flowId)
 
 const canvasHeightClass = computed(() => props.heightClass ?? 'h-[720px]')
+const nodeTypes = Object.fromEntries(automationNodeTypes.map(type => [type, markRaw(TelemetryAutomationNode)]))
 
 function buildFlowNode(node: AutomationStudioNode): FlowNode<AutomationStudioNode['data'], object, AutomationNodeType> {
   return {
@@ -61,7 +69,7 @@ function buildFlowEdge(edge: AutomationStudioEdge): GraphEdge {
 }
 
 function normalizeNodeType(type: string | undefined): AutomationNodeType {
-  return automationNodeTypes.includes(type as AutomationNodeType) ? type as AutomationNodeType : 'trigger'
+  return automationNodeTypes.includes(type as AutomationNodeType) ? type as AutomationNodeType : 'trigger-item-found'
 }
 
 function sanitizeNodes(nodes: GraphNode[]): AutomationStudioNode[] {
@@ -167,15 +175,81 @@ function handleConnect(connection: Connection) {
 function handleNodeClick(event: { node: GraphNode }) {
   emit('select-node', event.node.id)
 }
+
+function canAcceptDraggedNode(dataTransfer: DataTransfer | null | undefined): boolean {
+  if (!dataTransfer) {
+    return false
+  }
+
+  return Array.from(dataTransfer.types).includes(automationNodeDragMimeType)
+    || Array.from(dataTransfer.types).includes('text/plain')
+}
+
+function getDraggedNodeType(dataTransfer: DataTransfer | null | undefined): AutomationNodeType | null {
+  if (!dataTransfer) {
+    return null
+  }
+
+  const rawType = dataTransfer.getData(automationNodeDragMimeType) || dataTransfer.getData('text/plain')
+  return automationNodeTypes.includes(rawType as AutomationNodeType) ? rawType as AutomationNodeType : null
+}
+
+function handleDragOver(event: DragEvent) {
+  if (!canAcceptDraggedNode(event.dataTransfer)) {
+    return
+  }
+
+  event.preventDefault()
+  isDropTarget.value = true
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+function handleDragLeave(event: DragEvent) {
+  const currentTarget = event.currentTarget
+  if (currentTarget instanceof HTMLElement && event.relatedTarget instanceof Node && currentTarget.contains(event.relatedTarget)) {
+    return
+  }
+
+  isDropTarget.value = false
+}
+
+function handleDrop(event: DragEvent) {
+  const type = getDraggedNodeType(event.dataTransfer)
+  isDropTarget.value = false
+
+  if (!type) {
+    return
+  }
+
+  event.preventDefault()
+  emit('add-node', {
+    type,
+    position: screenToFlowCoordinate({ x: event.clientX, y: event.clientY }),
+  })
+}
+
+function handlePaneClick() {
+  isDropTarget.value = false
+  emit('clear-selection')
+}
 </script>
 
 <template>
   <Card class="flex h-full min-h-0 flex-col overflow-hidden border-border/70 shadow-sm">
     <CardContent :class="[canvasHeightClass, 'min-h-0 w-full flex-1 p-0']">
-      <div class="h-full min-h-0 w-full">
+      <div
+        class="relative h-full min-h-0 w-full"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
+      >
         <ClientOnly>
           <VueFlow
+            :id="flowId"
             class="telemetry-automation-flow !h-full !w-full"
+            :node-types="nodeTypes"
             v-model:nodes="modelNodes"
             v-model:edges="modelEdges"
             :connection-mode="ConnectionMode.Strict"
@@ -186,50 +260,34 @@ function handleNodeClick(event: { node: GraphNode }) {
             :snap-to-grid="true"
             :snap-grid="[16, 16]"
             @node-click="handleNodeClick"
-            @pane-click="emit('clear-selection')"
+            @pane-click="handlePaneClick"
             @connect="handleConnect"
           >
             <Background />
             <MiniMap />
             <Controls />
 
-            <template #node-trigger="nodeProps">
-              <TelemetryAutomationNode v-bind="nodeProps" />
-            </template>
-
-            <template #node-condition="nodeProps">
-              <TelemetryAutomationNode v-bind="nodeProps" />
-            </template>
-
-            <template #node-action="nodeProps">
-              <TelemetryAutomationNode v-bind="nodeProps" />
-            </template>
-
             <div class="pointer-events-none absolute inset-x-0 top-4 z-10 flex justify-center px-4">
-              <div class="pointer-events-auto flex w-full max-w-3xl flex-col gap-3 rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-lg backdrop-blur">
-                <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Visual Rule Graph</p>
-                    <p class="text-sm font-medium text-foreground">{{ props.graphName }}</p>
-                  </div>
-                  <div class="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" @click.stop="emit('add-node', 'trigger')">
-                      Add trigger
-                    </Button>
-                    <Button size="sm" variant="outline" @click.stop="emit('add-node', 'condition')">
-                      Add condition
-                    </Button>
-                    <Button size="sm" variant="outline" @click.stop="emit('add-node', 'action')">
-                      Add action
-                    </Button>
-                  </div>
+              <div class="pointer-events-auto w-full max-w-2xl rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-lg backdrop-blur">
+                <div class="space-y-1.5">
+                  <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Visual Rule Graph</p>
+                  <p class="text-sm font-medium text-foreground">{{ props.graphName }}</p>
+                  <p class="text-xs leading-5 text-muted-foreground">
+                    Drag node cards onto the canvas. Condition nodes expose separate true and false handles for branching.
+                  </p>
                 </div>
-                <p class="text-xs leading-5 text-muted-foreground">
-                  Drag from the node handles to connect trigger paths. Condition nodes expose separate true and false branches.
-                </p>
               </div>
             </div>
           </VueFlow>
+
+          <div
+            v-if="isDropTarget"
+            class="pointer-events-none absolute inset-4 z-20 flex items-center justify-center rounded-2xl border border-dashed border-primary/50 bg-primary/5"
+          >
+            <div class="rounded-full border border-primary/20 bg-background/90 px-4 py-2 text-sm font-medium text-foreground shadow-sm">
+              Drop node to add it here
+            </div>
+          </div>
 
           <template #fallback>
             <div :class="[canvasHeightClass, 'flex items-center justify-center bg-muted/20 text-sm text-muted-foreground']">

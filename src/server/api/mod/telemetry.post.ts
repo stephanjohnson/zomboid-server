@@ -11,8 +11,14 @@ import {
   getPreviousPlayerState,
   toWorkflowDefinitionLike,
   toWorkflowRunLike,
+  type ActionRulePlan,
   type TelemetryEventRecord,
 } from '../../utils/mod-telemetry'
+import { buildServerIniEditorMutation } from '../../utils/config-editor'
+import { reconcileGameContainer } from '../../utils/docker'
+import { logger } from '../../utils/logger'
+import { getProfileSandboxVarsOverrides, getProfileServerIniOverrides } from '../../utils/profile-runtime-config'
+import { sendRconCommand } from '../../utils/rcon'
 import { TelemetryEventKeys } from '../../utils/telemetry-config'
 
 const { TriggerSourceKind, WorkflowRunStatus } = prismaClient
@@ -112,6 +118,31 @@ function buildWorkflowRunMap(runs: prismaClient.WorkflowRun[]) {
   return new Map(runs.map(run => [`${run.workflowId}:${run.playerId ?? 'unknown'}`, run]))
 }
 
+interface PendingServerSettingsUpdate {
+  settings: Record<string, string>
+  applyMode: 'persist-only' | 'restart-server'
+  reasons: string[]
+}
+
+function mergePendingServerSettingsUpdate(
+  pending: PendingServerSettingsUpdate | null,
+  serverSettings: NonNullable<ActionRulePlan['serverSettings']>,
+  reason: string,
+): PendingServerSettingsUpdate {
+  return {
+    settings: {
+      ...(pending?.settings ?? {}),
+      ...serverSettings.settings,
+    },
+    applyMode: pending?.applyMode === 'restart-server' || serverSettings.applyMode === 'restart-server'
+      ? 'restart-server'
+      : 'persist-only',
+    reasons: pending?.reasons.includes(reason)
+      ? pending.reasons
+      : [...(pending?.reasons ?? []), reason],
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, v.parser(TelemetryUploadSchema))
   const occurredAt = parseOccurredAt(body.capturedAt)
@@ -158,6 +189,7 @@ export default defineEventHandler(async (event) => {
     const workflowRunMap = buildWorkflowRunMap(activeWorkflowRuns)
     let moneyGrantsCreated = 0
     let xpGrantsCreated = 0
+    let pendingServerSettingsUpdate: PendingServerSettingsUpdate | null = null
 
     for (const player of body.players) {
       seenUsernames.add(player.username)
@@ -563,6 +595,14 @@ export default defineEventHandler(async (event) => {
           continue
         }
 
+        if (plan.serverSettings) {
+          pendingServerSettingsUpdate = mergePendingServerSettingsUpdate(
+            pendingServerSettingsUpdate,
+            plan.serverSettings,
+            plan.reason,
+          )
+        }
+
         if (plan.moneyAmount > 0) {
           const uniqueKey = `${actionRule.id}:${createdEvent.id}:money`
           const existingGrant = await transaction.rewardGrant.findUnique({ where: { uniqueKey } })
@@ -664,6 +704,14 @@ export default defineEventHandler(async (event) => {
           continue
         }
 
+        if (plan.serverSettings) {
+          pendingServerSettingsUpdate = mergePendingServerSettingsUpdate(
+            pendingServerSettingsUpdate,
+            plan.serverSettings,
+            plan.reason,
+          )
+        }
+
         if (plan.moneyAmount > 0) {
           const uniqueKey = `${actionRule.id}:${completedWorkflow.runId}:money`
           const existingGrant = await transaction.rewardGrant.findUnique({ where: { uniqueKey } })
@@ -751,13 +799,37 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    const serverSettingsMutation = pendingServerSettingsUpdate
+      ? buildServerIniEditorMutation(profile, pendingServerSettingsUpdate.settings)
+      : null
+
     await transaction.serverProfile.update({
       where: { id: profile.id },
       data: {
+        ...(serverSettingsMutation
+          ? {
+              ...serverSettingsMutation.profileData,
+              serverIniOverrides: serverSettingsMutation.overrideSettings,
+            }
+          : {}),
         lastTelemetryAt: occurredAt,
         lastGameState: body.gameState ?? undefined,
       },
     })
+
+    if (serverSettingsMutation && pendingServerSettingsUpdate) {
+      await transaction.auditLog.create({
+        data: {
+          action: 'config.server_ini.automation.update',
+          target: profile.id,
+          details: {
+            changedKeys: serverSettingsMutation.changedKeys,
+            applyMode: pendingServerSettingsUpdate.applyMode,
+            reasons: pendingServerSettingsUpdate.reasons,
+          },
+        },
+      })
+    }
 
     return {
       playersProcessed: body.players.length,
@@ -765,8 +837,48 @@ export default defineEventHandler(async (event) => {
       moneyGrantsCreated,
       xpGrantsCreated,
       workflowCompletions: completedWorkflowTriggers.length,
+      serverSettingsChanged: serverSettingsMutation?.changedKeys.length ?? 0,
+      restartRequested: Boolean(serverSettingsMutation && pendingServerSettingsUpdate?.applyMode === 'restart-server'),
     }
   })
+
+  if (result.restartRequested) {
+    try {
+      try {
+        await sendRconCommand('servermsg "Automation updated server settings. Restarting server..."')
+        await sendRconCommand('save')
+      }
+      catch {
+        // RCON may not be available during an automation-driven restart.
+      }
+
+      const config = useRuntimeConfig()
+      const updatedProfile = await prisma.serverProfile.findUnique({
+        where: { id: profile.id },
+        include: { mods: { where: { isEnabled: true }, orderBy: { order: 'asc' } } },
+      })
+
+      if (updatedProfile) {
+        await reconcileGameContainer({
+          servername: updatedProfile.servername,
+          gamePort: updatedProfile.gamePort,
+          directPort: updatedProfile.directPort,
+          rconPort: updatedProfile.rconPort,
+          rconPassword: updatedProfile.rconPassword || config.pzRconPassword,
+          steamBuild: updatedProfile.steamBuild,
+          mapName: updatedProfile.mapName,
+          maxPlayers: updatedProfile.maxPlayers,
+          pvp: updatedProfile.pvp,
+          serverIniOverrides: getProfileServerIniOverrides(updatedProfile),
+          sandboxVarsOverrides: getProfileSandboxVarsOverrides(updatedProfile),
+          mods: updatedProfile.mods,
+        })
+      }
+    }
+    catch (error) {
+      logger.error({ error, profileId: profile.id }, 'Telemetry processed, but automation-driven server setting restart failed')
+    }
+  }
 
   return {
     ok: true,

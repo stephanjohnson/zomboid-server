@@ -65,6 +65,10 @@ export interface ActionRulePlan {
     category?: string
     amount: number
   }>
+  serverSettings?: {
+    settings: Record<string, string>
+    applyMode: 'persist-only' | 'restart-server'
+  }
   reason: string
   metadata?: Record<string, unknown>
 }
@@ -307,6 +311,40 @@ function getRuleMultiplier(config: Record<string, unknown>, quantity: number): n
   return config.multiplyByQuantity === false ? 1 : Math.max(1, quantity)
 }
 
+function normalizeActionRuleServerSettingValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false'
+  }
+
+  return null
+}
+
+function getActionRuleServerSettings(config: Record<string, unknown>): ActionRulePlan['serverSettings'] | undefined {
+  const settings = Object.fromEntries(
+    Object.entries(asRecord(config.serverSettings)).flatMap(([key, value]) => {
+      const normalizedValue = normalizeActionRuleServerSettingValue(value)
+      return normalizedValue == null ? [] : [[key, normalizedValue]]
+    }),
+  )
+
+  if (Object.keys(settings).length === 0) {
+    return undefined
+  }
+
+  return {
+    settings,
+    applyMode: config.serverSettingsApplyMode === 'restart-server' ? 'restart-server' : 'persist-only',
+  }
+}
+
 export function buildRewardGrantCandidate(
   rule: RewardRule,
   event: {
@@ -410,6 +448,7 @@ export function buildActionRulePlan(
   const multiplier = getRuleMultiplier(config, trigger.quantity)
   const moneyAmount = Math.max(0, rule.moneyAmount) * multiplier
   const xpAwards: ActionRulePlan['xpAwards'] = []
+  const serverSettings = getActionRuleServerSettings(config)
 
   if (rule.xpAmount > 0) {
     xpAwards.push({ amount: rule.xpAmount * multiplier })
@@ -422,13 +461,14 @@ export function buildActionRulePlan(
     })
   }
 
-  if (moneyAmount <= 0 && xpAwards.length === 0) {
+  if (moneyAmount <= 0 && xpAwards.length === 0 && !serverSettings) {
     return null
   }
 
   return {
     moneyAmount,
     xpAwards,
+    serverSettings,
     reason: rule.name,
     metadata: trigger.metadata ?? undefined,
   }

@@ -28,6 +28,12 @@ export interface ServerIniProfileUpdate {
   pvp?: boolean
 }
 
+export interface ServerIniEditorMutation {
+  profileData: ServerIniProfileUpdate
+  overrideSettings: Record<string, string> | null
+  changedKeys: string[]
+}
+
 export function buildServerIniEditorSettings(profile: ConfigEditorProfile): Record<string, string> {
   const modSettings = buildProfileModSettings(profile)
 
@@ -117,6 +123,60 @@ export function splitServerIniEditorSettings(settings: Record<string, string>): 
   }
 
   return { profileData, overrideSettings }
+}
+
+function normalizeServerIniPatchValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false'
+  }
+
+  return null
+}
+
+export function buildServerIniEditorMutation(
+  profile: ConfigEditorProfile,
+  patch: Record<string, unknown>,
+): ServerIniEditorMutation | null {
+  const normalizedPatch = Object.fromEntries(
+    Object.entries(patch).flatMap(([key, value]) => {
+      const normalizedValue = normalizeServerIniPatchValue(value)
+      return normalizedValue == null ? [] : [[key, normalizedValue]]
+    }),
+  )
+
+  if (Object.keys(normalizedPatch).length === 0) {
+    return null
+  }
+
+  const currentSettings = buildServerIniEditorSettings(profile)
+  const changedKeys = Object.entries(normalizedPatch)
+    .filter(([key, value]) => currentSettings[key] !== value)
+    .map(([key]) => key)
+
+  if (changedKeys.length === 0) {
+    return null
+  }
+
+  const splitSettings = splitServerIniEditorSettings({
+    ...currentSettings,
+    ...normalizedPatch,
+  })
+
+  return {
+    profileData: splitSettings.profileData,
+    overrideSettings: Object.keys(splitSettings.overrideSettings).length > 0
+      ? splitSettings.overrideSettings
+      : null,
+    changedKeys,
+  }
 }
 
 export function normalizeSandboxEditorSettings(

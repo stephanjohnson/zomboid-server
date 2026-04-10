@@ -5,6 +5,7 @@ import {
   WorkflowRunStatus,
 } from '@prisma/client'
 import type { ActionRule } from '@prisma/client'
+import { describe, expect, it } from 'vitest'
 
 import {
   buildActionRulePlan,
@@ -195,6 +196,42 @@ describe('buildActionRulePlan', () => {
     })
 
     expect(plan).toBeNull()
+  })
+
+  it('builds server setting mutations from action config even without reward amounts', () => {
+    const plan = buildActionRulePlan({
+      ...baseRule,
+      triggerKey: TelemetryEventKeys.ITEM_FOUND,
+      moneyAmount: 0,
+      xpAmount: 0,
+      xpCategoryAmount: 0,
+      config: {
+        serverSettings: {
+          PVP: true,
+          SafetySystem: false,
+        },
+        serverSettingsApplyMode: 'restart-server',
+      },
+    }, {
+      kind: TriggerSourceKind.EVENT,
+      key: TelemetryEventKeys.ITEM_FOUND,
+      quantity: 1,
+      metadata: { itemType: 'Base.Flag' },
+    })
+
+    expect(plan).toEqual({
+      moneyAmount: 0,
+      xpAwards: [],
+      serverSettings: {
+        settings: {
+          PVP: 'true',
+          SafetySystem: 'false',
+        },
+        applyMode: 'restart-server',
+      },
+      reason: 'Combat XP and cash',
+      metadata: { itemType: 'Base.Flag' },
+    })
   })
 })
 

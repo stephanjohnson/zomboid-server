@@ -2,12 +2,12 @@
 import { computed, shallowRef, watch } from 'vue'
 
 import TelemetryAutomationCanvas from '@/components/telemetry-studio/TelemetryAutomationCanvas.vue'
-import TelemetryAutomationInspector from '@/components/telemetry-studio/TelemetryAutomationInspector.vue'
+import TelemetryAutomationSidebar from '@/components/telemetry-studio/TelemetryAutomationSidebar.vue'
 
 import {
-  createAutomationActionNode,
-  createAutomationConditionNode,
-  createAutomationTriggerNode,
+  createAutomationNode,
+  getAutomationNodeKind,
+  type AutomationNodeCreateRequest,
   type AutomationNodeType,
   type AutomationStudioDocument,
   type AutomationStudioEdge,
@@ -107,28 +107,25 @@ function nextNodePosition(type: AutomationNodeType) {
     ? Math.max(...graph.nodes.map(node => node.position.x))
     : 80
 
-  if (type === 'trigger') {
+  if (getAutomationNodeKind(type) === 'trigger') {
     return { x: 80, y: baseY }
   }
 
-  if (type === 'condition') {
+  if (getAutomationNodeKind(type) === 'condition') {
     return { x: Math.max(320, maxX + 220), y: baseY }
   }
 
   return { x: Math.max(560, maxX + 240), y: baseY }
 }
 
-function addNode(type: AutomationNodeType) {
+function addNode(request: AutomationNodeCreateRequest) {
   if (!selectedGraph.value) {
     return
   }
 
-  const position = nextNodePosition(type)
-  const nextNode = type === 'trigger'
-    ? createAutomationTriggerNode({ label: 'New trigger', position })
-    : type === 'condition'
-      ? createAutomationConditionNode({ label: 'New condition', position })
-      : createAutomationActionNode({ label: 'New action', position })
+  const nextNode = createAutomationNode(request.type, {
+    position: request.position ?? nextNodePosition(request.type),
+  })
 
   updateGraph({
     ...selectedGraph.value,
@@ -139,8 +136,19 @@ function addNode(type: AutomationNodeType) {
 </script>
 
 <template>
-  <div class="grid h-full min-h-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
-    <div class="min-h-0 min-w-0">
+  <div class="grid h-full min-h-0 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+    <div class="min-h-0 xl:order-1">
+      <TelemetryAutomationSidebar
+        :graph="selectedGraph"
+        :selected-node="selectedNode"
+        @update-graph="updateGraph"
+        @update-node="updateSelectedNode"
+        @remove-node="removeSelectedNode"
+        @add-node="addNode"
+      />
+    </div>
+
+    <div class="min-h-0 min-w-0 xl:order-2">
       <TelemetryAutomationCanvas
         v-if="selectedGraph"
         :graph-name="selectedGraph.name"
@@ -162,16 +170,6 @@ function addNode(type: AutomationNodeType) {
           </p>
         </CardContent>
       </Card>
-    </div>
-
-    <div class="min-h-0">
-      <TelemetryAutomationInspector
-        :graph="selectedGraph"
-        :selected-node="selectedNode"
-        @update-graph="updateGraph"
-        @update-node="updateSelectedNode"
-        @remove-node="removeSelectedNode"
-      />
     </div>
   </div>
 </template>

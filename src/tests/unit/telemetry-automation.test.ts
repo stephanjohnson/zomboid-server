@@ -9,17 +9,11 @@ import TelemetryAutomationStudio from '../../app/components/telemetry-studio/Tel
 import {
   createAutomationBlueprintGraph,
   createBlankAutomationGraph,
-  createEmptyAutomationStudioDocument,
   normalizeAutomationStudioDocument,
 } from '../../shared/telemetry-automation'
 
 const passthroughStub = defineComponent({
   template: '<div><slot /></div>',
-})
-
-const buttonStub = defineComponent({
-  emits: ['click'],
-  template: '<button type="button" @click="$emit(\'click\', $event)"><slot /></button>',
 })
 
 const canvasStub = defineComponent({
@@ -29,19 +23,25 @@ const canvasStub = defineComponent({
       required: false,
       default: '',
     },
+    nodes: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
   },
-  template: '<div data-test="designer-canvas">{{ graphName }}</div>',
+  template: '<div data-test="designer-canvas">{{ graphName }} :: {{ nodes.length }}</div>',
 })
 
-const inspectorStub = defineComponent({
-  template: '<div data-test="designer-inspector">Inspector</div>',
+const sidebarStub = defineComponent({
+  emits: ['add-node'],
+  template: '<button data-test="add-node" type="button" @click="$emit(\'add-node\', { type: \'' + 'action-assign-cash' + '\' })">Add node</button>',
 })
 
 describe('telemetry automation helpers', () => {
-  it('creates a blank graph scaffold with trigger, condition, and action nodes', () => {
+  it('creates a blank graph scaffold with explicit trigger, condition, and action nodes', () => {
     const graph = createBlankAutomationGraph()
 
-    expect(graph.nodes.map(node => node.type)).toEqual(['trigger', 'condition', 'action'])
+    expect(graph.nodes.map(node => node.type)).toEqual(['trigger-item-found', 'condition', 'action-assign-cash'])
     expect(graph.edges).toHaveLength(2)
     expect(graph.edges[1]).toMatchObject({
       sourceHandle: 'true',
@@ -49,99 +49,105 @@ describe('telemetry automation helpers', () => {
     })
   })
 
-  it('creates a first-pickup blueprint with a flag gate and set-flag action', () => {
+  it('creates a first-pickup blueprint with a flag gate and explicit set-flag action node', () => {
     const graph = createAutomationBlueprintGraph('first-pickup-bonus')
 
     expect(graph.name).toBe('First pickup bonus')
     expect(graph.nodes.some(node => node.type === 'condition' && node.data.checks.some(check => check.source === 'flag'))).toBe(true)
-    expect(graph.nodes.some(node => node.type === 'action' && node.data.actionKind === 'setFlag')).toBe(true)
+    expect(graph.nodes.some(node => node.type === 'action-set-flag')).toBe(true)
   })
 
-  it('normalizes malformed documents into a stable empty shape', () => {
+  it('normalizes legacy generic trigger and action nodes into explicit node types', () => {
     const document = normalizeAutomationStudioDocument({
-      version: 42,
+      version: 1,
       graphs: [
         {
-          name: 'Broken graph',
+          name: 'Legacy graph',
           nodes: [
             {
-              type: 'condition',
-              label: 'Needs defaults',
-              position: { x: 'bad', y: 12 },
+              id: 'legacy-trigger',
+              type: 'trigger',
+              label: 'Old trigger',
+              position: { x: 40, y: 12 },
               data: {
-                combinator: 'invalid',
-                checks: [{ source: 'flag', path: 'reward.once', operator: 'isFalse' }],
+                eventKey: 'pz.zombie.kill',
+                dedupeKey: 'kill.count',
+              },
+            },
+            {
+              id: 'legacy-action',
+              type: 'action',
+              label: 'Old action',
+              position: { x: 320, y: 12 },
+              data: {
+                actionKind: 'setFlag',
+                targetScope: 'player',
+                flagKey: 'reward.legacy',
               },
             },
           ],
           edges: [
             {
-              source: 'missing-source',
-              target: 'missing-target',
+              source: 'legacy-trigger',
+              target: 'legacy-action',
             },
           ],
         },
       ],
     })
 
-    expect(document.version).toBe(1)
-    expect(document.graphs).toHaveLength(1)
-    expect(document.graphs[0]?.name).toBe('Broken graph')
     expect(document.graphs[0]?.nodes[0]).toMatchObject({
-      type: 'condition',
-      position: { x: 360, y: 12 },
+      type: 'trigger-zombie-kill',
       data: {
-        combinator: 'all',
+        dedupeKey: 'kill.count',
       },
     })
-    expect(document.graphs[0]?.edges).toEqual([
-      expect.objectContaining({
-        source: 'missing-source',
-        target: 'missing-target',
-      }),
-    ])
+    expect(document.graphs[0]?.nodes[1]).toMatchObject({
+      type: 'action-set-flag',
+      data: {
+        flagKey: 'reward.legacy',
+      },
+    })
   })
 
-  it('shows the designer after adding a blank rule graph', async () => {
+  it('adds a requested node through the studio shell', async () => {
+    const baseGraph = createBlankAutomationGraph()
+
     const Host = defineComponent({
       components: {
         TelemetryAutomationStudio,
       },
 
       setup() {
-        const document = ref(createEmptyAutomationStudioDocument())
-        return { document }
+        const document = ref({
+          version: 1 as const,
+          graphs: [baseGraph],
+        })
+
+        return { document, graphId: baseGraph.id }
       },
 
-      template: '<TelemetryAutomationStudio v-model="document" profile-name="Test Profile" />',
+      template: `
+        <TelemetryAutomationStudio v-model="document" :graph-id="graphId" />
+        <div data-test="node-types">{{ document.graphs[0].nodes.map(node => node.type).join(',') }}</div>
+      `,
     })
 
     const wrapper = mount(Host, {
       global: {
         stubs: {
-          Badge: passthroughStub,
-          Button: buttonStub,
           Card: passthroughStub,
           CardContent: passthroughStub,
-          CardDescription: passthroughStub,
-          CardHeader: passthroughStub,
-          CardTitle: passthroughStub,
-          Separator: passthroughStub,
           TelemetryAutomationCanvas: canvasStub,
-          TelemetryAutomationInspector: inspectorStub,
+          TelemetryAutomationSidebar: sidebarStub,
         },
       },
     })
 
-    const blankRuleButton = wrapper.findAll('button').find(button => button.text().includes('Blank Rule'))
-
-    expect(blankRuleButton).toBeDefined()
-
-    await blankRuleButton!.trigger('click')
+    await wrapper.get('[data-test="add-node"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('[data-test="designer-canvas"]').exists()).toBe(true)
-    expect(wrapper.find('[data-test="designer-canvas"]').text()).toContain('Blank rule')
-    expect(wrapper.text()).toContain('1 graphs')
+    expect(wrapper.get('[data-test="node-types"]').text()).toContain('action-assign-cash,action-assign-cash')
+    expect(wrapper.get('[data-test="designer-canvas"]').text()).toContain('4')
   })
 })

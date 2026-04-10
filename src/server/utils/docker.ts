@@ -126,6 +126,60 @@ function getGameServerHostResourceConfig(): Pick<NonNullable<Dockerode.Container
   }
 }
 
+function isMissingImageError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.toLowerCase().includes('no such image')
+}
+
+async function pullDockerImage(client: Dockerode, image: string): Promise<void> {
+  const stream = await new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+    client.pull(image, (error, result) => {
+      if (error) {
+        reject(error)
+        return
+      }
+
+      if (!result) {
+        reject(new Error(`Docker pull did not return a stream for ${image}`))
+        return
+      }
+
+      resolve(result)
+    })
+  })
+
+  const modem = (client as Dockerode & {
+    modem?: {
+      followProgress?: (stream: NodeJS.ReadableStream, onFinished: (error?: Error | null) => void) => void
+    }
+  }).modem
+
+  if (!modem?.followProgress) {
+    throw new Error('Docker client does not support image pull progress tracking')
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    modem.followProgress(stream, (error) => {
+      if (error) {
+        reject(error)
+        return
+      }
+
+      resolve()
+    })
+  })
+}
+
+async function ensureGameServerImageAvailable(client: Dockerode, image: string): Promise<void> {
+  try {
+    await pullDockerImage(client, image)
+  }
+  catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to pull game server image ${image}: ${message}`)
+  }
+}
+
 async function getComposeLabels(client: Dockerode, serviceName: string): Promise<Record<string, string>> {
   const labels: Record<string, string> = {
     'com.docker.compose.project': inferComposeProjectName(),
@@ -341,40 +395,41 @@ async function createGameContainer(profile: GameServerProfileRuntime): Promise<D
   await mkdir(pzServerPath, { recursive: true })
   await prepareGameServerRuntimeFiles(profile, profile.rconPassword || config.pzRconPassword)
 
-  try {
-    return await client.createContainer({
-      name: config.gameServerContainerName,
-      Image: config.gameServerImageName,
-      Entrypoint: ['/bin/bash', '/home/steam/entrypoint.sh'],
-      Env: createEnv(profile),
-      Labels: composeLabels,
-      NetworkingConfig: {
-        EndpointsConfig: {
-          [networkName]: {
-            Aliases: [networkAlias],
-          },
+  const containerOptions: Dockerode.ContainerCreateOptions = {
+    name: config.gameServerContainerName,
+    Image: config.gameServerImageName,
+    Entrypoint: ['/bin/bash', '/home/steam/entrypoint.sh'],
+    Env: createEnv(profile),
+    Labels: composeLabels,
+    NetworkingConfig: {
+      EndpointsConfig: {
+        [networkName]: {
+          Aliases: [networkAlias],
         },
       },
-      ExposedPorts: {
-        [`${profile.gamePort}/udp`]: {},
-        [`${profile.directPort}/udp`]: {},
-        [`${profile.rconPort}/tcp`]: {},
-      },
-      HostConfig: {
-        Binds: createExpectedBinds(),
-        ExtraHosts: ['host.docker.internal:host-gateway'],
-        ...getGameServerHostResourceConfig(),
-        NetworkMode: networkName,
-        PortBindings: createPortBindings(profile),
-        RestartPolicy: { Name: 'unless-stopped' },
-      },
-    })
+    },
+    ExposedPorts: {
+      [`${profile.gamePort}/udp`]: {},
+      [`${profile.directPort}/udp`]: {},
+      [`${profile.rconPort}/tcp`]: {},
+    },
+    HostConfig: {
+      Binds: createExpectedBinds(),
+      ExtraHosts: ['host.docker.internal:host-gateway'],
+      ...getGameServerHostResourceConfig(),
+      NetworkMode: networkName,
+      PortBindings: createPortBindings(profile),
+      RestartPolicy: { Name: 'unless-stopped' },
+    },
+  }
+
+  try {
+    return await client.createContainer(containerOptions)
   }
   catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-
-    if (message.includes('No such image')) {
-      throw new Error(`Game server image not found: ${config.gameServerImageName}. Build it with: docker compose build game-server`)
+    if (isMissingImageError(error)) {
+      await ensureGameServerImageAvailable(client, config.gameServerImageName)
+      return await client.createContainer(containerOptions)
     }
 
     throw error

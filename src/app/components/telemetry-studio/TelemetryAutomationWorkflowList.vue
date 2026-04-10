@@ -36,7 +36,7 @@ function createGraphHref(graphId: string) {
             </CardTitle>
             <CardDescription class="max-w-3xl text-sm leading-6">
               Visual workflows turn raw telemetry events into branching gameplay rules. Start from a blueprint,
-              then switch into the fullscreen editor to wire triggers, conditions, and actions.
+              then switch into the fullscreen editor to drag typed nodes onto the canvas and configure them in the side panel.
             </CardDescription>
           </div>
 

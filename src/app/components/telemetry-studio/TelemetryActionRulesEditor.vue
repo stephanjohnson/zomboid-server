@@ -16,7 +16,7 @@ const props = defineProps<{
         <div>
           <CardTitle>Action Rules</CardTitle>
           <CardDescription>
-            Attach money, global XP, category XP, and future unlock metadata to event keys or completed workflows.
+            Attach money, global XP, category XP, unlock metadata, or server-setting mutations to event keys or completed workflows.
           </CardDescription>
         </div>
         <Button @click="props.onAdd">
@@ -28,6 +28,16 @@ const props = defineProps<{
           <AlertTitle>Use workflow triggers for objectives and trophies</AlertTitle>
           <AlertDescription>
             For objective completions or achievement unlocks, point an action rule at a workflow key instead of a raw event key.
+          </AlertDescription>
+        </Alert>
+
+        <Alert>
+          <AlertTitle>Server setting automation</AlertTitle>
+          <AlertDescription>
+            Action config can mutate server.ini values with a JSON object like
+            <span class="font-mono"> {"serverSettings":{"PVP":true},"serverSettingsApplyMode":"restart-server"} </span>.
+            Use raw server.ini keys inside <span class="font-mono">serverSettings</span>. Choose <span class="font-mono">restart-server</span>
+            when the running container must be reconciled for the change to take effect immediately.
           </AlertDescription>
         </Alert>
 
@@ -99,7 +109,7 @@ const props = defineProps<{
               <Textarea
                 v-model="rule.configText"
                 :rows="6"
-                placeholder='{"badge": "first-blood", "rarity": "bronze"}'
+                placeholder='{"badge": "first-blood", "serverSettings": {"PVP": true}, "serverSettingsApplyMode": "restart-server"}'
               />
             </div>
           </div>

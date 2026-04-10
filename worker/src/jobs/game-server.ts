@@ -1,4 +1,3 @@
-import type { ServerProfile } from '@prisma/client'
 import type Dockerode from 'dockerode'
 import { existsSync } from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
@@ -13,7 +12,21 @@ interface RuntimeProfileModEntry {
   isEnabled?: boolean | null
 }
 
-type RuntimeProfile = ServerProfile & {
+interface RuntimeProfileBase {
+  servername: string
+  gamePort: number
+  directPort: number
+  rconPort: number
+  rconPassword?: string | null
+  steamBuild?: string | null
+  mapName: string
+  maxPlayers: number
+  pvp: boolean
+  serverIniOverrides?: unknown
+  sandboxVarsOverrides?: unknown
+}
+
+type RuntimeProfile = RuntimeProfileBase & {
   mods?: RuntimeProfileModEntry[]
 }
 
@@ -317,6 +330,60 @@ function getGameServerHostResourceConfig(): Pick<NonNullable<Dockerode.Container
   }
 }
 
+function isMissingImageError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.toLowerCase().includes('no such image')
+}
+
+async function pullDockerImage(docker: Dockerode, image: string): Promise<void> {
+  const stream = await new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+    docker.pull(image, (error: Error | null, result?: NodeJS.ReadableStream) => {
+      if (error) {
+        reject(error)
+        return
+      }
+
+      if (!result) {
+        reject(new Error(`Docker pull did not return a stream for ${image}`))
+        return
+      }
+
+      resolve(result)
+    })
+  })
+
+  const modem = (docker as Dockerode & {
+    modem?: {
+      followProgress?: (stream: NodeJS.ReadableStream, onFinished: (error?: Error | null) => void) => void
+    }
+  }).modem
+
+  if (!modem?.followProgress) {
+    throw new Error('Docker client does not support image pull progress tracking')
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    modem.followProgress(stream, (error) => {
+      if (error) {
+        reject(error)
+        return
+      }
+
+      resolve()
+    })
+  })
+}
+
+export async function ensureGameServerImageAvailable(docker: Dockerode, image: string): Promise<void> {
+  try {
+    await pullDockerImage(docker, image)
+  }
+  catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to pull game server image ${image}: ${message}`)
+  }
+}
+
 export async function getComposeOwnedContainerLabels(docker: Dockerode, serviceName: string): Promise<Record<string, string>> {
   const labels: Record<string, string> = {
     'com.docker.compose.project': inferComposeProjectName(),
@@ -355,7 +422,7 @@ export async function getComposeOwnedContainerLabels(docker: Dockerode, serviceN
   return labels
 }
 
-function createPortBindings(profile: ServerProfile): NonNullable<Dockerode.ContainerCreateOptions['HostConfig']>['PortBindings'] {
+function createPortBindings(profile: RuntimeProfile): NonNullable<Dockerode.ContainerCreateOptions['HostConfig']>['PortBindings'] {
   return {
     [`${profile.gamePort}/udp`]: [{ HostPort: String(profile.gamePort) }],
     [`${profile.directPort}/udp`]: [{ HostPort: String(profile.directPort) }],
@@ -370,7 +437,7 @@ export function buildContainerEnv(profile: RuntimeProfile, options: {
   forceUpdate?: boolean
 }): string[] {
   const rconPassword = profile.rconPassword || options.rconPassword || ''
-  const branch = options.branch ?? profile.steamBuild || 'public'
+  const branch = options.branch ?? profile.steamBuild ?? 'public'
   const modSettings = buildProfileModSettings({
     serverIniOverrides: profile.serverIniOverrides,
     mods: profile.mods,
@@ -431,7 +498,7 @@ export async function prepareGameServerRuntimeFiles(profile: RuntimeProfile, rco
   const serverIniOverrides = asStringRecord(profile.serverIniOverrides)
   const sandboxVarsOverrides = asUnknownRecord(profile.sandboxVarsOverrides)
   const modSettings = buildProfileModSettings(profile)
-  const serverIni = {
+  const serverIni: Record<string, string> = {
     ...DEFAULT_SERVER_INI_SETTINGS,
     ...serverIniOverrides,
     DefaultPort: String(profile.gamePort),
@@ -517,5 +584,30 @@ export function createContainerOptions(profile: RuntimeProfile, options: {
       PortBindings: createPortBindings(profile),
       RestartPolicy: { Name: 'unless-stopped' },
     },
+  }
+}
+
+export async function createContainerWithImagePull(
+  docker: Dockerode,
+  profile: RuntimeProfile,
+  options: {
+    containerName: string
+    image: string
+    env: string[]
+    labels?: Record<string, string>
+  },
+): Promise<Dockerode.Container> {
+  const containerOptions = createContainerOptions(profile, options)
+
+  try {
+    return await docker.createContainer(containerOptions)
+  }
+  catch (error) {
+    if (isMissingImageError(error)) {
+      await ensureGameServerImageAvailable(docker, options.image)
+      return await docker.createContainer(containerOptions)
+    }
+
+    throw error
   }
 }

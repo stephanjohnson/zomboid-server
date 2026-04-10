@@ -2,27 +2,35 @@
 import { computed } from 'vue'
 import { Handle, Position, type NodeProps } from '@vue-flow/core'
 
+import { humanizeConfigKey } from '~~/shared/config-settings'
 import {
-  findAutomationActionOption,
-  findAutomationEventOption,
-  type AutomationActionNodeData,
-  type AutomationConditionNodeData,
+  findAutomationActionOptionForNodeType,
+  findAutomationNodeCatalogItem,
+  findAutomationTriggerEventOption,
+  getAutomationNodeKind,
+  type AutomationActionNode,
+  type AutomationConditionNode,
   type AutomationNodeType,
-  type AutomationTriggerNodeData,
+  type AutomationStudioNode,
+  type AutomationTriggerNode,
 } from '~~/shared/telemetry-automation'
 
-type AutomationNodeData = AutomationTriggerNodeData | AutomationConditionNodeData | AutomationActionNodeData
+const props = defineProps<NodeProps<AutomationStudioNode['data'], object, AutomationNodeType>>()
 
-const props = defineProps<NodeProps<AutomationNodeData, object, AutomationNodeType>>()
+const nodeKind = computed(() => getAutomationNodeKind(props.type))
+const nodeMeta = computed(() => findAutomationNodeCatalogItem(props.type) ?? null)
+const triggerNode = computed(() => nodeKind.value === 'trigger' ? props as NodeProps<AutomationTriggerNode['data'], object, AutomationTriggerNode['type']> : null)
+const conditionNode = computed(() => props.type === 'condition' ? props as NodeProps<AutomationConditionNode['data'], object, 'condition'> : null)
+const actionNode = computed(() => nodeKind.value === 'action' ? props as NodeProps<AutomationActionNode['data'], object, AutomationActionNode['type']> : null)
 
-const title = computed(() => typeof props.label === 'string' ? props.label : 'Rule node')
+const title = computed(() => typeof props.label === 'string' ? props.label : nodeMeta.value?.title ?? 'Rule node')
 
 const toneClass = computed(() => {
-  if (props.type === 'trigger') {
+  if (nodeKind.value === 'trigger') {
     return 'border-primary/30 bg-card/95'
   }
 
-  if (props.type === 'condition') {
+  if (nodeKind.value === 'condition') {
     return 'border-accent/70 bg-card/95'
   }
 
@@ -30,11 +38,11 @@ const toneClass = computed(() => {
 })
 
 const kindLabel = computed(() => {
-  if (props.type === 'trigger') {
+  if (nodeKind.value === 'trigger') {
     return 'Trigger'
   }
 
-  if (props.type === 'condition') {
+  if (nodeKind.value === 'condition') {
     return 'Condition'
   }
 
@@ -42,55 +50,71 @@ const kindLabel = computed(() => {
 })
 
 const summary = computed(() => {
-  if (props.type === 'trigger') {
-    const eventOption = findAutomationEventOption((props.data as AutomationTriggerNodeData).eventKey)
-    return eventOption?.description ?? (props.data as AutomationTriggerNodeData).eventKey
+  if (triggerNode.value) {
+    const eventOption = findAutomationTriggerEventOption(triggerNode.value.type)
+    return eventOption?.description ?? nodeMeta.value?.description ?? 'Starts the workflow when this event arrives.'
   }
 
-  if (props.type === 'condition') {
-    const conditionData = props.data as AutomationConditionNodeData
+  if (conditionNode.value) {
+    const conditionData = conditionNode.value.data
     return `${conditionData.combinator.toUpperCase()} ${conditionData.checks.length} check${conditionData.checks.length === 1 ? '' : 's'} before the rule continues.`
   }
 
-  const actionData = props.data as AutomationActionNodeData
-  const actionOption = findAutomationActionOption(actionData.actionKind)
-
-  if (actionData.actionKind === 'assignCashReward') {
-    return `${actionData.amount ?? 0} credits to the ${actionData.targetScope}.`
+  if (!actionNode.value) {
+    return nodeMeta.value?.description ?? 'Rule node'
   }
 
-  if (actionData.actionKind === 'assignPzmXp') {
-    return `${actionData.amount ?? 0} ${actionData.xpCategory || 'general'} PZM XP.`
+  const actionOption = findAutomationActionOptionForNodeType(actionNode.value.type)
+
+  if (actionNode.value.type === 'action-assign-cash') {
+    return `${actionNode.value.data.amount ?? 0} credits to the ${actionNode.value.data.targetScope}.`
   }
 
-  if (actionData.actionKind === 'assignInGameXp') {
-    return `${actionData.amount ?? 0} XP in ${actionData.skillKey || 'a chosen skill'}.`
+  if (actionNode.value.type === 'action-assign-pzm-xp') {
+    return `${actionNode.value.data.amount ?? 0} ${actionNode.value.data.xpCategory || 'general'} PZM XP.`
   }
 
-  if (actionData.actionKind === 'assignLoot') {
-    return `Grant ${actionData.quantity ?? 1}x ${actionData.itemId || actionData.lootTableId || 'loot drop'}.`
+  if (actionNode.value.type === 'action-assign-ingame-xp') {
+    return `${actionNode.value.data.amount ?? 0} XP in ${actionNode.value.data.skillKey || 'a chosen skill'}.`
   }
 
-  return `${actionOption?.label ?? 'Flag action'} ${actionData.flagKey || 'flag.key'} on the ${actionData.targetScope}.`
+  if (actionNode.value.type === 'action-assign-loot') {
+    return `Grant ${actionNode.value.data.quantity ?? 1}x ${actionNode.value.data.itemId || actionNode.value.data.lootTableId || 'loot drop'}.`
+  }
+
+  if (actionNode.value.type === 'action-update-server-setting') {
+    return `Set ${humanizeConfigKey(actionNode.value.data.settingKey || 'server setting')} to ${actionNode.value.data.settingValue || 'value'}.`
+  }
+
+  return `${actionOption?.label ?? 'Flag action'} ${actionNode.value.data.flagKey || 'flag.key'} on the ${actionNode.value.data.targetScope}.`
 })
 
 const metaChips = computed(() => {
-  if (props.type === 'trigger') {
-    const triggerData = props.data as AutomationTriggerNodeData
+  if (triggerNode.value) {
+    const eventOption = findAutomationTriggerEventOption(triggerNode.value.type)
     return [
-      triggerData.scope,
-      triggerData.filters.length ? `${triggerData.filters.length} filters` : 'no filters',
-      triggerData.dedupeKey ? `dedupe ${triggerData.dedupeKey}` : 'repeatable',
+      eventOption?.scope ?? 'player',
+      triggerNode.value.data.filters.length ? `${triggerNode.value.data.filters.length} filters` : 'no filters',
+      triggerNode.value.data.dedupeKey ? `dedupe ${triggerNode.value.data.dedupeKey}` : 'repeatable',
     ]
   }
 
-  if (props.type === 'condition') {
-    const conditionData = props.data as AutomationConditionNodeData
-    return [conditionData.combinator, `${conditionData.checks.length} checks`]
+  if (conditionNode.value) {
+    return [conditionNode.value.data.combinator, `${conditionNode.value.data.checks.length} checks`]
   }
 
-  const actionData = props.data as AutomationActionNodeData
-  return [actionData.targetScope, findAutomationActionOption(actionData.actionKind)?.label ?? actionData.actionKind]
+  if (!actionNode.value) {
+    return []
+  }
+
+  if (actionNode.value.type === 'action-update-server-setting') {
+    return ['server', actionNode.value.data.valueType]
+  }
+
+  return [
+    actionNode.value.data.targetScope,
+    findAutomationActionOptionForNodeType(actionNode.value.type)?.label ?? actionNode.value.type,
+  ]
 })
 </script>
 
@@ -103,7 +127,7 @@ const metaChips = computed(() => {
     ]"
   >
     <Handle
-      v-if="props.type !== 'trigger'"
+      v-if="nodeKind !== 'trigger'"
       type="target"
       :position="Position.Left"
       :connectable="props.connectable"

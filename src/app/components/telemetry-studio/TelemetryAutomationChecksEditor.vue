@@ -58,7 +58,7 @@ function operatorNeedsValue(operator: AutomationPredicate['operator']) {
         :key="check.id"
         class="rounded-xl border border-border/60 bg-muted/20 p-3"
       >
-        <div class="grid gap-3 lg:grid-cols-2">
+        <div class="space-y-3">
           <div class="space-y-2">
             <Label>Source</Label>
             <Select v-model="check.source">
@@ -117,10 +117,8 @@ function operatorNeedsValue(operator: AutomationPredicate['operator']) {
               </SelectContent>
             </Select>
           </div>
-        </div>
 
-        <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div class="flex-1 space-y-2">
+          <div class="space-y-2">
             <Label>Comparison Value</Label>
             <Input
               v-model="check.value"
@@ -128,9 +126,12 @@ function operatorNeedsValue(operator: AutomationPredicate['operator']) {
               :placeholder="operatorNeedsValue(check.operator) ? 'Base.Axe' : 'No value required for this operator'"
             />
           </div>
-          <Button variant="ghost" size="sm" @click="removeCheck(index)">
-            Remove
-          </Button>
+
+          <div class="flex justify-end">
+            <Button variant="ghost" size="sm" @click="removeCheck(index)">
+              Remove
+            </Button>
+          </div>
         </div>
       </div>
     </div>

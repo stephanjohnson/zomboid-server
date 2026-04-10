@@ -1,6 +1,6 @@
 export const automationStudioVersion = 1 as const
+export const automationNodeDragMimeType = 'application/x-zomboid-automation-node-type' as const
 
-export const automationNodeTypes = ['trigger', 'condition', 'action'] as const
 export const automationExecutionScopes = ['player', 'server'] as const
 export const automationConditionSources = ['event', 'player', 'playerStat', 'item', 'flag', 'server'] as const
 export const automationConditionOperators = [
@@ -18,6 +18,7 @@ export const automationConditionOperators = [
   'isFalse',
 ] as const
 export const automationValueTypes = ['string', 'number', 'boolean'] as const
+export const automationServerSettingApplyModes = ['persist-only', 'restart-server'] as const
 export const automationActionKinds = [
   'assignLoot',
   'assignInGameXp',
@@ -25,18 +26,44 @@ export const automationActionKinds = [
   'assignCashReward',
   'setFlag',
   'unsetFlag',
+  'updateServerSetting',
 ] as const
 export const automationConditionCombinators = ['all', 'any'] as const
 export const automationBlueprintKeys = ['blank-rule', 'first-pickup-bonus', 'zombie-kill-reward', 'pvp-bounty'] as const
+export const automationTriggerNodeTypes = [
+  'trigger-item-found',
+  'trigger-zombie-kill',
+  'trigger-pvp-kill',
+  'trigger-skill-level-up',
+  'trigger-build-action',
+  'trigger-player-died',
+  'trigger-session-started',
+  'trigger-session-ended',
+] as const
+export const automationActionNodeTypes = [
+  'action-assign-loot',
+  'action-assign-ingame-xp',
+  'action-assign-pzm-xp',
+  'action-assign-cash',
+  'action-set-flag',
+  'action-unset-flag',
+  'action-update-server-setting',
+] as const
+export const automationNodeTypes = [...automationTriggerNodeTypes, 'condition', ...automationActionNodeTypes] as const
 
-export type AutomationNodeType = (typeof automationNodeTypes)[number]
 export type AutomationExecutionScope = (typeof automationExecutionScopes)[number]
 export type AutomationConditionSource = (typeof automationConditionSources)[number]
 export type AutomationConditionOperator = (typeof automationConditionOperators)[number]
 export type AutomationValueType = (typeof automationValueTypes)[number]
+export type AutomationServerSettingApplyMode = (typeof automationServerSettingApplyModes)[number]
 export type AutomationActionKind = (typeof automationActionKinds)[number]
 export type AutomationConditionCombinator = (typeof automationConditionCombinators)[number]
 export type AutomationBlueprintKey = (typeof automationBlueprintKeys)[number]
+export type AutomationTriggerNodeType = (typeof automationTriggerNodeTypes)[number]
+export type AutomationActionNodeType = (typeof automationActionNodeTypes)[number]
+export type AutomationNodeType = (typeof automationNodeTypes)[number]
+export type AutomationNodeKind = 'trigger' | 'condition' | 'action'
+export type AutomationPaletteSectionKey = 'triggers' | 'logic' | 'actions'
 
 export interface AutomationCanvasPosition {
   x: number
@@ -53,8 +80,6 @@ export interface AutomationPredicate {
 }
 
 export interface AutomationTriggerNodeData {
-  eventKey: string
-  scope: AutomationExecutionScope
   dedupeKey: string
   cooldownSeconds: number | null
   filters: AutomationPredicate[]
@@ -67,17 +92,47 @@ export interface AutomationConditionNodeData {
   notes: string
 }
 
-export interface AutomationActionNodeData {
-  actionKind: AutomationActionKind
+interface AutomationActionNodeDataBase {
+  notes: string
+}
+
+interface AutomationScopedActionNodeData extends AutomationActionNodeDataBase {
   targetScope: AutomationExecutionScope
-  amount: number | null
+}
+
+export interface AutomationAssignLootActionNodeData extends AutomationScopedActionNodeData {
   itemId: string
   lootTableId: string
   quantity: number | null
+}
+
+export interface AutomationAssignInGameXpActionNodeData extends AutomationScopedActionNodeData {
+  amount: number | null
   skillKey: string
+}
+
+export interface AutomationAssignPzmXpActionNodeData extends AutomationScopedActionNodeData {
+  amount: number | null
   xpCategory: string
+}
+
+export interface AutomationAssignCashRewardActionNodeData extends AutomationScopedActionNodeData {
+  amount: number | null
+}
+
+export interface AutomationSetFlagActionNodeData extends AutomationScopedActionNodeData {
   flagKey: string
-  notes: string
+}
+
+export interface AutomationUnsetFlagActionNodeData extends AutomationScopedActionNodeData {
+  flagKey: string
+}
+
+export interface AutomationUpdateServerSettingActionNodeData extends AutomationActionNodeDataBase {
+  settingKey: string
+  settingValue: string
+  valueType: AutomationValueType
+  applyMode: AutomationServerSettingApplyMode
 }
 
 interface AutomationNodeBase<TType extends AutomationNodeType, TData> {
@@ -88,10 +143,28 @@ interface AutomationNodeBase<TType extends AutomationNodeType, TData> {
   data: TData
 }
 
-export type AutomationTriggerNode = AutomationNodeBase<'trigger', AutomationTriggerNodeData>
+export type AutomationTriggerNode = AutomationNodeBase<AutomationTriggerNodeType, AutomationTriggerNodeData>
 export type AutomationConditionNode = AutomationNodeBase<'condition', AutomationConditionNodeData>
-export type AutomationActionNode = AutomationNodeBase<'action', AutomationActionNodeData>
+export type AutomationAssignLootActionNode = AutomationNodeBase<'action-assign-loot', AutomationAssignLootActionNodeData>
+export type AutomationAssignInGameXpActionNode = AutomationNodeBase<'action-assign-ingame-xp', AutomationAssignInGameXpActionNodeData>
+export type AutomationAssignPzmXpActionNode = AutomationNodeBase<'action-assign-pzm-xp', AutomationAssignPzmXpActionNodeData>
+export type AutomationAssignCashRewardActionNode = AutomationNodeBase<'action-assign-cash', AutomationAssignCashRewardActionNodeData>
+export type AutomationSetFlagActionNode = AutomationNodeBase<'action-set-flag', AutomationSetFlagActionNodeData>
+export type AutomationUnsetFlagActionNode = AutomationNodeBase<'action-unset-flag', AutomationUnsetFlagActionNodeData>
+export type AutomationUpdateServerSettingActionNode = AutomationNodeBase<'action-update-server-setting', AutomationUpdateServerSettingActionNodeData>
+export type AutomationActionNode =
+  | AutomationAssignLootActionNode
+  | AutomationAssignInGameXpActionNode
+  | AutomationAssignPzmXpActionNode
+  | AutomationAssignCashRewardActionNode
+  | AutomationSetFlagActionNode
+  | AutomationUnsetFlagActionNode
+  | AutomationUpdateServerSettingActionNode
 export type AutomationStudioNode = AutomationTriggerNode | AutomationConditionNode | AutomationActionNode
+export type AutomationNodeByType<TType extends AutomationNodeType> = Extract<AutomationStudioNode, { type: TType }>
+export type AutomationNodeOverrides<TType extends AutomationNodeType> = Partial<Omit<AutomationNodeByType<TType>, 'type' | 'data'>> & {
+  data?: Partial<AutomationNodeByType<TType>['data']>
+}
 
 export interface AutomationStudioEdge {
   id: string
@@ -148,6 +221,27 @@ export interface AutomationBlueprintOption {
   key: AutomationBlueprintKey
   title: string
   description: string
+}
+
+export interface AutomationNodeCatalogItem {
+  type: AutomationNodeType
+  kind: AutomationNodeKind
+  category: AutomationPaletteSectionKey
+  title: string
+  description: string
+  badge: string
+}
+
+export interface AutomationPaletteSection {
+  key: AutomationPaletteSectionKey
+  title: string
+  description: string
+  items: AutomationNodeCatalogItem[]
+}
+
+export interface AutomationNodeCreateRequest {
+  type: AutomationNodeType
+  position?: AutomationCanvasPosition
 }
 
 export const automationEventOptions: ReadonlyArray<AutomationEventOption> = [
@@ -294,6 +388,11 @@ export const automationActionOptions: ReadonlyArray<AutomationActionOption> = [
     label: 'Unset Flag',
     description: 'Clear a player or server flag when a rule should re-open.',
   },
+  {
+    key: 'updateServerSetting',
+    label: 'Update Server Setting',
+    description: 'Persist a server.ini value change and optionally apply it with a restart.',
+  },
 ]
 
 export const automationBlueprintOptions: ReadonlyArray<AutomationBlueprintOption> = [
@@ -319,8 +418,95 @@ export const automationBlueprintOptions: ReadonlyArray<AutomationBlueprintOption
   },
 ]
 
+const triggerNodeTypeByEventKey: Record<string, AutomationTriggerNodeType> = {
+  'pz.item.found': 'trigger-item-found',
+  'pz.zombie.kill': 'trigger-zombie-kill',
+  'pz.pvp.kill': 'trigger-pvp-kill',
+  'pz.skill.level_up': 'trigger-skill-level-up',
+  'pz.build.action': 'trigger-build-action',
+  'pz.player.died': 'trigger-player-died',
+  'pz.session.started': 'trigger-session-started',
+  'pz.session.ended': 'trigger-session-ended',
+}
+
+const eventKeyByTriggerNodeType: Record<AutomationTriggerNodeType, string> = {
+  'trigger-item-found': 'pz.item.found',
+  'trigger-zombie-kill': 'pz.zombie.kill',
+  'trigger-pvp-kill': 'pz.pvp.kill',
+  'trigger-skill-level-up': 'pz.skill.level_up',
+  'trigger-build-action': 'pz.build.action',
+  'trigger-player-died': 'pz.player.died',
+  'trigger-session-started': 'pz.session.started',
+  'trigger-session-ended': 'pz.session.ended',
+}
+
+const actionNodeTypeByActionKind: Record<AutomationActionKind, AutomationActionNodeType> = {
+  assignLoot: 'action-assign-loot',
+  assignInGameXp: 'action-assign-ingame-xp',
+  assignPzmXp: 'action-assign-pzm-xp',
+  assignCashReward: 'action-assign-cash',
+  setFlag: 'action-set-flag',
+  unsetFlag: 'action-unset-flag',
+  updateServerSetting: 'action-update-server-setting',
+}
+
+const actionKindByActionNodeType: Record<AutomationActionNodeType, AutomationActionKind> = {
+  'action-assign-loot': 'assignLoot',
+  'action-assign-ingame-xp': 'assignInGameXp',
+  'action-assign-pzm-xp': 'assignPzmXp',
+  'action-assign-cash': 'assignCashReward',
+  'action-set-flag': 'setFlag',
+  'action-unset-flag': 'unsetFlag',
+  'action-update-server-setting': 'updateServerSetting',
+}
+
+const actionBadgeByKind: Record<AutomationActionKind, string> = {
+  assignLoot: 'loot',
+  assignInGameXp: 'vanilla xp',
+  assignPzmXp: 'pzm xp',
+  assignCashReward: 'wallet',
+  setFlag: 'flag',
+  unsetFlag: 'flag',
+  updateServerSetting: 'server',
+}
+
 function createAutomationId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function defaultNodePosition(type: AutomationNodeType): AutomationCanvasPosition {
+  const kind = getAutomationNodeKind(type)
+
+  if (kind === 'trigger') {
+    return { x: 80, y: 120 }
+  }
+
+  if (kind === 'condition') {
+    return { x: 360, y: 120 }
+  }
+
+  return { x: 640, y: 120 }
+}
+
+function defaultNodeLabel(type: AutomationNodeType): string {
+  return findAutomationNodeCatalogItem(type)?.title ?? 'Rule node'
+}
+
+function createTriggerData(overrides: Partial<AutomationTriggerNodeData> = {}): AutomationTriggerNodeData {
+  return {
+    dedupeKey: overrides.dedupeKey ?? '',
+    cooldownSeconds: overrides.cooldownSeconds ?? null,
+    filters: overrides.filters?.map(filter => createAutomationPredicate(filter)) ?? [],
+    notes: overrides.notes ?? '',
+  }
+}
+
+function createConditionData(overrides: Partial<AutomationConditionNodeData> = {}): AutomationConditionNodeData {
+  return {
+    combinator: overrides.combinator ?? 'all',
+    checks: overrides.checks?.map(check => createAutomationPredicate(check)) ?? [createAutomationPredicate()],
+    notes: overrides.notes ?? '',
+  }
 }
 
 export function createAutomationPredicate(overrides: Partial<AutomationPredicate> = {}): AutomationPredicate {
@@ -334,56 +520,286 @@ export function createAutomationPredicate(overrides: Partial<AutomationPredicate
   }
 }
 
-export function createAutomationTriggerNode(overrides: Partial<AutomationTriggerNode> = {}): AutomationTriggerNode {
-  return {
-    id: overrides.id ?? createAutomationId('trigger'),
-    type: 'trigger',
-    label: overrides.label ?? 'Trigger',
-    position: overrides.position ?? { x: 80, y: 120 },
-    data: {
-      eventKey: overrides.data?.eventKey ?? 'pz.item.found',
-      scope: overrides.data?.scope ?? 'player',
-      dedupeKey: overrides.data?.dedupeKey ?? '',
-      cooldownSeconds: overrides.data?.cooldownSeconds ?? null,
-      filters: overrides.data?.filters?.map(filter => createAutomationPredicate(filter)) ?? [],
-      notes: overrides.data?.notes ?? '',
-    },
+export function getAutomationNodeKind(type: AutomationNodeType): AutomationNodeKind {
+  if (automationTriggerNodeTypes.includes(type as AutomationTriggerNodeType)) {
+    return 'trigger'
   }
+
+  if (automationActionNodeTypes.includes(type as AutomationActionNodeType)) {
+    return 'action'
+  }
+
+  return 'condition'
 }
 
-export function createAutomationConditionNode(overrides: Partial<AutomationConditionNode> = {}): AutomationConditionNode {
-  return {
-    id: overrides.id ?? createAutomationId('condition'),
+export function findAutomationEventOption(key: string): AutomationEventOption | undefined {
+  return automationEventOptions.find(option => option.key === key)
+}
+
+export function resolveAutomationTriggerNodeType(eventKey: string): AutomationTriggerNodeType {
+  return triggerNodeTypeByEventKey[eventKey] ?? 'trigger-item-found'
+}
+
+export function getAutomationTriggerEventKey(type: AutomationTriggerNodeType): string {
+  return eventKeyByTriggerNodeType[type]
+}
+
+export function findAutomationTriggerEventOption(type: AutomationTriggerNodeType): AutomationEventOption | undefined {
+  return findAutomationEventOption(getAutomationTriggerEventKey(type))
+}
+
+export function findAutomationActionOption(key: AutomationActionKind): AutomationActionOption | undefined {
+  return automationActionOptions.find(option => option.key === key)
+}
+
+export function resolveAutomationActionNodeType(actionKind: AutomationActionKind | string): AutomationActionNodeType {
+  return actionNodeTypeByActionKind[actionKind as AutomationActionKind] ?? 'action-assign-cash'
+}
+
+export function getAutomationActionKind(type: AutomationActionNodeType): AutomationActionKind {
+  return actionKindByActionNodeType[type]
+}
+
+export function findAutomationActionOptionForNodeType(type: AutomationActionNodeType): AutomationActionOption | undefined {
+  return findAutomationActionOption(getAutomationActionKind(type))
+}
+
+export function findAutomationConditionSourceOption(key: AutomationConditionSource): AutomationConditionSourceOption | undefined {
+  return automationConditionSourceOptions.find(option => option.key === key)
+}
+
+const automationNodeCatalogEntries: AutomationNodeCatalogItem[] = [
+  ...automationTriggerNodeTypes.map((type) => {
+    const eventOption = findAutomationTriggerEventOption(type)
+
+    return {
+      type,
+      kind: 'trigger' as const,
+      category: 'triggers' as const,
+      title: eventOption?.label ?? 'Trigger',
+      description: eventOption?.description ?? 'Start a workflow when this telemetry event arrives.',
+      badge: eventOption?.scope ?? 'player',
+    }
+  }),
+  {
     type: 'condition',
-    label: overrides.label ?? 'Condition',
-    position: overrides.position ?? { x: 360, y: 120 },
-    data: {
-      combinator: overrides.data?.combinator ?? 'all',
-      checks: overrides.data?.checks?.map(check => createAutomationPredicate(check)) ?? [createAutomationPredicate()],
-      notes: overrides.data?.notes ?? '',
-    },
-  }
+    kind: 'condition',
+    category: 'logic',
+    title: 'Condition Branch',
+    description: 'Evaluate one or more checks and split the path into true and false outcomes.',
+    badge: 'logic',
+  },
+  ...automationActionNodeTypes.map((type) => {
+    const actionOption = findAutomationActionOptionForNodeType(type)
+    const actionKind = getAutomationActionKind(type)
+
+    return {
+      type,
+      kind: 'action' as const,
+      category: 'actions' as const,
+      title: actionOption?.label ?? 'Action',
+      description: actionOption?.description ?? 'Execute a reward or state change.',
+      badge: actionBadgeByKind[actionKind],
+    }
+  }),
+]
+
+export const automationNodeCatalog: ReadonlyArray<AutomationNodeCatalogItem> = automationNodeCatalogEntries
+
+export const automationPaletteSections: ReadonlyArray<AutomationPaletteSection> = [
+  {
+    key: 'triggers',
+    title: 'Triggers',
+    description: 'Pick the exact game event that should start a workflow path.',
+    items: automationNodeCatalogEntries.filter(item => item.category === 'triggers'),
+  },
+  {
+    key: 'logic',
+    title: 'Logic',
+    description: 'Branch on flags, stats, or payload checks before rewards execute.',
+    items: automationNodeCatalogEntries.filter(item => item.category === 'logic'),
+  },
+  {
+    key: 'actions',
+    title: 'Actions',
+    description: 'Grant rewards, mutate flags, or update live server state.',
+    items: automationNodeCatalogEntries.filter(item => item.category === 'actions'),
+  },
+]
+
+export function findAutomationNodeCatalogItem(type: AutomationNodeType): AutomationNodeCatalogItem | undefined {
+  return automationNodeCatalogEntries.find(item => item.type === type)
 }
 
-export function createAutomationActionNode(overrides: Partial<AutomationActionNode> = {}): AutomationActionNode {
-  return {
-    id: overrides.id ?? createAutomationId('action'),
-    type: 'action',
-    label: overrides.label ?? 'Action',
-    position: overrides.position ?? { x: 640, y: 120 },
-    data: {
-      actionKind: overrides.data?.actionKind ?? 'assignCashReward',
-      targetScope: overrides.data?.targetScope ?? 'player',
-      amount: overrides.data?.amount ?? 100,
-      itemId: overrides.data?.itemId ?? '',
-      lootTableId: overrides.data?.lootTableId ?? '',
-      quantity: overrides.data?.quantity ?? 1,
-      skillKey: overrides.data?.skillKey ?? '',
-      xpCategory: overrides.data?.xpCategory ?? '',
-      flagKey: overrides.data?.flagKey ?? '',
-      notes: overrides.data?.notes ?? '',
-    },
+export function createAutomationNode<TType extends AutomationNodeType>(
+  type: TType,
+  overrides: AutomationNodeOverrides<TType> = {},
+): AutomationNodeByType<TType> {
+  const base = overrides as AutomationNodeOverrides<AutomationNodeType>
+  const position = base.position ?? defaultNodePosition(type)
+  const label = base.label ?? defaultNodeLabel(type)
+
+  if (type === 'condition') {
+    const conditionOverrides = overrides as AutomationNodeOverrides<'condition'>
+
+    return {
+      id: conditionOverrides.id ?? createAutomationId('condition'),
+      type,
+      label,
+      position,
+      data: createConditionData(conditionOverrides.data),
+    } as AutomationNodeByType<TType>
   }
+
+  if (automationTriggerNodeTypes.includes(type as AutomationTriggerNodeType)) {
+    const triggerOverrides = overrides as AutomationNodeOverrides<AutomationTriggerNodeType>
+
+    return {
+      id: triggerOverrides.id ?? createAutomationId(type),
+      type,
+      label,
+      position,
+      data: createTriggerData(triggerOverrides.data),
+    } as AutomationNodeByType<TType>
+  }
+
+  const actionOverrides = overrides as AutomationNodeOverrides<AutomationActionNodeType>
+
+  if (type === 'action-assign-loot') {
+    const actionData = actionOverrides.data as Partial<AutomationAssignLootActionNodeData> | undefined
+
+    return {
+      id: actionOverrides.id ?? createAutomationId(type),
+      type,
+      label,
+      position,
+      data: {
+        targetScope: actionData?.targetScope ?? 'player',
+        itemId: actionData?.itemId ?? '',
+        lootTableId: actionData?.lootTableId ?? '',
+        quantity: actionData?.quantity ?? 1,
+        notes: actionData?.notes ?? '',
+      },
+    } as AutomationNodeByType<TType>
+  }
+
+  if (type === 'action-assign-ingame-xp') {
+    const actionData = actionOverrides.data as Partial<AutomationAssignInGameXpActionNodeData> | undefined
+
+    return {
+      id: actionOverrides.id ?? createAutomationId(type),
+      type,
+      label,
+      position,
+      data: {
+        targetScope: actionData?.targetScope ?? 'player',
+        amount: actionData?.amount ?? 100,
+        skillKey: actionData?.skillKey ?? '',
+        notes: actionData?.notes ?? '',
+      },
+    } as AutomationNodeByType<TType>
+  }
+
+  if (type === 'action-assign-pzm-xp') {
+    const actionData = actionOverrides.data as Partial<AutomationAssignPzmXpActionNodeData> | undefined
+
+    return {
+      id: actionOverrides.id ?? createAutomationId(type),
+      type,
+      label,
+      position,
+      data: {
+        targetScope: actionData?.targetScope ?? 'player',
+        amount: actionData?.amount ?? 100,
+        xpCategory: actionData?.xpCategory ?? '',
+        notes: actionData?.notes ?? '',
+      },
+    } as AutomationNodeByType<TType>
+  }
+
+  if (type === 'action-set-flag') {
+    const actionData = actionOverrides.data as Partial<AutomationSetFlagActionNodeData> | undefined
+
+    return {
+      id: actionOverrides.id ?? createAutomationId(type),
+      type,
+      label,
+      position,
+      data: {
+        targetScope: actionData?.targetScope ?? 'player',
+        flagKey: actionData?.flagKey ?? '',
+        notes: actionData?.notes ?? '',
+      },
+    } as AutomationNodeByType<TType>
+  }
+
+  if (type === 'action-unset-flag') {
+    const actionData = actionOverrides.data as Partial<AutomationUnsetFlagActionNodeData> | undefined
+
+    return {
+      id: actionOverrides.id ?? createAutomationId(type),
+      type,
+      label,
+      position,
+      data: {
+        targetScope: actionData?.targetScope ?? 'player',
+        flagKey: actionData?.flagKey ?? '',
+        notes: actionData?.notes ?? '',
+      },
+    } as AutomationNodeByType<TType>
+  }
+
+  if (type === 'action-update-server-setting') {
+    const actionData = actionOverrides.data as Partial<AutomationUpdateServerSettingActionNodeData> | undefined
+
+    return {
+      id: actionOverrides.id ?? createAutomationId(type),
+      type,
+      label,
+      position,
+      data: {
+        settingKey: actionData?.settingKey ?? 'PVP',
+        settingValue: actionData?.settingValue ?? 'true',
+        valueType: actionData?.valueType ?? 'boolean',
+        applyMode: actionData?.applyMode ?? 'restart-server',
+        notes: actionData?.notes ?? '',
+      },
+    } as AutomationNodeByType<TType>
+  }
+
+  const actionData = actionOverrides.data as Partial<AutomationAssignCashRewardActionNodeData> | undefined
+
+  return {
+    id: actionOverrides.id ?? createAutomationId(type),
+    type,
+    label,
+    position,
+    data: {
+      targetScope: actionData?.targetScope ?? 'player',
+      amount: actionData?.amount ?? 100,
+      notes: actionData?.notes ?? '',
+    },
+  } as AutomationNodeByType<TType>
+}
+
+export function createAutomationTriggerNode<TType extends AutomationTriggerNodeType>(
+  type: TType,
+  overrides: AutomationNodeOverrides<TType> = {},
+): AutomationNodeByType<TType> {
+  return createAutomationNode(type, overrides)
+}
+
+export function createAutomationConditionNode(
+  overrides: AutomationNodeOverrides<'condition'> = {},
+): AutomationConditionNode {
+  return createAutomationNode('condition', overrides)
+}
+
+export function createAutomationActionNode<TType extends AutomationActionNodeType>(
+  type: TType,
+  overrides: AutomationNodeOverrides<TType> = {},
+): AutomationNodeByType<TType> {
+  return createAutomationNode(type, overrides)
 }
 
 function createEdge(source: string, target: string, overrides: Partial<AutomationStudioEdge> = {}): AutomationStudioEdge {
@@ -399,13 +815,11 @@ function createEdge(source: string, target: string, overrides: Partial<Automatio
 }
 
 export function createBlankAutomationGraph(name = 'New rule graph'): AutomationStudioGraph {
-  const trigger = createAutomationTriggerNode({
-    label: 'Choose event',
+  const trigger = createAutomationTriggerNode('trigger-item-found', {
+    label: 'Item pickup',
     data: {
-      eventKey: 'pz.item.found',
-      scope: 'player',
       filters: [createAutomationPredicate({ source: 'item', path: 'fullType', operator: 'equals', value: 'Base.Axe' })],
-      notes: 'Swap this event and filter with the raw game telemetry you want to react to.',
+      notes: 'Swap this item filter with the event payload you want to react to.',
     },
   })
   const condition = createAutomationConditionNode({
@@ -416,13 +830,12 @@ export function createBlankAutomationGraph(name = 'New rule graph'): AutomationS
       notes: 'Use conditions to branch on player stats, event fields, or flag state.',
     },
   })
-  const action = createAutomationActionNode({
+  const action = createAutomationActionNode('action-assign-cash', {
     label: 'Reward player',
     data: {
-      actionKind: 'assignCashReward',
       targetScope: 'player',
       amount: 250,
-      notes: 'Replace this with loot, in-game XP, PZM XP, cash, or a flag action.',
+      notes: 'Replace this with loot, in-game XP, PZM XP, cash, or a server-setting update.',
     },
   })
 
@@ -442,12 +855,10 @@ export function createAutomationBlueprintGraph(key: AutomationBlueprintKey): Aut
   }
 
   if (key === 'first-pickup-bonus') {
-    const trigger = createAutomationTriggerNode({
+    const trigger = createAutomationTriggerNode('trigger-item-found', {
       label: 'First axe pickup',
       position: { x: 80, y: 160 },
       data: {
-        eventKey: 'pz.item.found',
-        scope: 'player',
         dedupeKey: 'item.fullType',
         filters: [createAutomationPredicate({ source: 'item', path: 'fullType', operator: 'equals', value: 'Base.Axe' })],
         notes: 'Swap Base.Axe for any item full type or collection key you care about.',
@@ -462,24 +873,20 @@ export function createAutomationBlueprintGraph(key: AutomationBlueprintKey): Aut
         notes: 'This makes the reward one-time until another rule clears the flag.',
       },
     })
-    const reward = createAutomationActionNode({
-      label: 'Grant cash',
+    const reward = createAutomationActionNode('action-assign-cash', {
+      label: 'Grant credits',
       position: { x: 660, y: 90 },
       data: {
-        actionKind: 'assignCashReward',
         targetScope: 'player',
         amount: 250,
         notes: 'Replace with cash, PZM XP, or a loot payout.',
       },
     })
-    const flag = createAutomationActionNode({
+    const flag = createAutomationActionNode('action-set-flag', {
       label: 'Set player flag',
       position: { x: 660, y: 240 },
       data: {
-        actionKind: 'setFlag',
         targetScope: 'player',
-        amount: null,
-        quantity: null,
         flagKey: 'reward.first-axe',
         notes: 'This prevents the rule from firing again for the same player.',
       },
@@ -500,12 +907,10 @@ export function createAutomationBlueprintGraph(key: AutomationBlueprintKey): Aut
   }
 
   if (key === 'zombie-kill-reward') {
-    const trigger = createAutomationTriggerNode({
+    const trigger = createAutomationTriggerNode('trigger-zombie-kill', {
       label: 'Zombie kill',
       position: { x: 80, y: 160 },
       data: {
-        eventKey: 'pz.zombie.kill',
-        scope: 'player',
         filters: [],
         notes: 'Use trigger filters when only certain zombie or weapon types should count.',
       },
@@ -519,20 +924,18 @@ export function createAutomationBlueprintGraph(key: AutomationBlueprintKey): Aut
         notes: 'Example stat gate: only players with 25+ zombie kills receive the reward.',
       },
     })
-    const cash = createAutomationActionNode({
+    const cash = createAutomationActionNode('action-assign-cash', {
       label: 'Grant credits',
       position: { x: 660, y: 90 },
       data: {
-        actionKind: 'assignCashReward',
         targetScope: 'player',
         amount: 50,
       },
     })
-    const xp = createAutomationActionNode({
+    const xp = createAutomationActionNode('action-assign-pzm-xp', {
       label: 'Grant PZM XP',
       position: { x: 660, y: 240 },
       data: {
-        actionKind: 'assignPzmXp',
         targetScope: 'player',
         amount: 10,
         xpCategory: 'combat',
@@ -553,12 +956,10 @@ export function createAutomationBlueprintGraph(key: AutomationBlueprintKey): Aut
     }
   }
 
-  const trigger = createAutomationTriggerNode({
+  const trigger = createAutomationTriggerNode('trigger-pvp-kill', {
     label: 'PvP kill',
     position: { x: 80, y: 160 },
     data: {
-      eventKey: 'pz.pvp.kill',
-      scope: 'player',
       notes: 'The victim and weapon fields are available to follow-up conditions.',
     },
   })
@@ -574,20 +975,18 @@ export function createAutomationBlueprintGraph(key: AutomationBlueprintKey): Aut
       notes: 'Branch on either a long-distance kill or a high-value player state.',
     },
   })
-  const bounty = createAutomationActionNode({
+  const bounty = createAutomationActionNode('action-assign-cash', {
     label: 'Pay bounty',
     position: { x: 660, y: 90 },
     data: {
-      actionKind: 'assignCashReward',
       targetScope: 'player',
       amount: 1000,
     },
   })
-  const badgeXp = createAutomationActionNode({
+  const badgeXp = createAutomationActionNode('action-assign-pzm-xp', {
     label: 'Grant combat XP',
     position: { x: 660, y: 240 },
     data: {
-      actionKind: 'assignPzmXp',
       targetScope: 'player',
       amount: 250,
       xpCategory: 'combat',
@@ -656,20 +1055,19 @@ function normalizePredicate(value: unknown): AutomationPredicate {
   })
 }
 
-function normalizeTriggerNode(value: unknown): AutomationTriggerNode {
+function normalizeTriggerNode(type: AutomationTriggerNodeType, value: unknown): AutomationTriggerNode {
   const record = asRecord(value)
   const data = asRecord(record.data)
+  const defaultPosition = defaultNodePosition(type)
 
-  return createAutomationTriggerNode({
-    id: asString(record.id, createAutomationId('trigger')),
-    label: asString(record.label, 'Trigger'),
+  return createAutomationTriggerNode(type, {
+    id: asString(record.id, createAutomationId(type)),
+    label: asString(record.label, defaultNodeLabel(type)),
     position: {
-      x: asNumberOrNull(asRecord(record.position).x) ?? 80,
-      y: asNumberOrNull(asRecord(record.position).y) ?? 120,
+      x: asNumberOrNull(asRecord(record.position).x) ?? defaultPosition.x,
+      y: asNumberOrNull(asRecord(record.position).y) ?? defaultPosition.y,
     },
     data: {
-      eventKey: asString(data.eventKey, 'pz.item.found'),
-      scope: pickFromList(data.scope, automationExecutionScopes, 'player'),
       dedupeKey: asString(data.dedupeKey),
       cooldownSeconds: asNumberOrNull(data.cooldownSeconds),
       filters: asArray(data.filters).map(normalizePredicate),
@@ -681,13 +1079,14 @@ function normalizeTriggerNode(value: unknown): AutomationTriggerNode {
 function normalizeConditionNode(value: unknown): AutomationConditionNode {
   const record = asRecord(value)
   const data = asRecord(record.data)
+  const defaultPosition = defaultNodePosition('condition')
 
   return createAutomationConditionNode({
     id: asString(record.id, createAutomationId('condition')),
-    label: asString(record.label, 'Condition'),
+    label: asString(record.label, defaultNodeLabel('condition')),
     position: {
-      x: asNumberOrNull(asRecord(record.position).x) ?? 360,
-      y: asNumberOrNull(asRecord(record.position).y) ?? 120,
+      x: asNumberOrNull(asRecord(record.position).x) ?? defaultPosition.x,
+      y: asNumberOrNull(asRecord(record.position).y) ?? defaultPosition.y,
     },
     data: {
       combinator: pickFromList(data.combinator, automationConditionCombinators, 'all'),
@@ -697,44 +1096,147 @@ function normalizeConditionNode(value: unknown): AutomationConditionNode {
   })
 }
 
-function normalizeActionNode(value: unknown): AutomationActionNode {
+function normalizeActionNode(type: AutomationActionNodeType, value: unknown): AutomationActionNode {
   const record = asRecord(value)
   const data = asRecord(record.data)
+  const defaultPosition = defaultNodePosition(type)
+  const position = {
+    x: asNumberOrNull(asRecord(record.position).x) ?? defaultPosition.x,
+    y: asNumberOrNull(asRecord(record.position).y) ?? defaultPosition.y,
+  }
+  const label = asString(record.label, defaultNodeLabel(type))
 
-  return createAutomationActionNode({
-    id: asString(record.id, createAutomationId('action')),
-    label: asString(record.label, 'Action'),
-    position: {
-      x: asNumberOrNull(asRecord(record.position).x) ?? 640,
-      y: asNumberOrNull(asRecord(record.position).y) ?? 120,
-    },
+  if (type === 'action-assign-loot') {
+    return createAutomationActionNode(type, {
+      id: asString(record.id, createAutomationId(type)),
+      label,
+      position,
+      data: {
+        targetScope: pickFromList(data.targetScope, automationExecutionScopes, 'player'),
+        itemId: asString(data.itemId),
+        lootTableId: asString(data.lootTableId),
+        quantity: asNumberOrNull(data.quantity),
+        notes: asString(data.notes),
+      },
+    })
+  }
+
+  if (type === 'action-assign-ingame-xp') {
+    return createAutomationActionNode(type, {
+      id: asString(record.id, createAutomationId(type)),
+      label,
+      position,
+      data: {
+        targetScope: pickFromList(data.targetScope, automationExecutionScopes, 'player'),
+        amount: asNumberOrNull(data.amount),
+        skillKey: asString(data.skillKey),
+        notes: asString(data.notes),
+      },
+    })
+  }
+
+  if (type === 'action-assign-pzm-xp') {
+    return createAutomationActionNode(type, {
+      id: asString(record.id, createAutomationId(type)),
+      label,
+      position,
+      data: {
+        targetScope: pickFromList(data.targetScope, automationExecutionScopes, 'player'),
+        amount: asNumberOrNull(data.amount),
+        xpCategory: asString(data.xpCategory),
+        notes: asString(data.notes),
+      },
+    })
+  }
+
+  if (type === 'action-set-flag') {
+    return createAutomationActionNode(type, {
+      id: asString(record.id, createAutomationId(type)),
+      label,
+      position,
+      data: {
+        targetScope: pickFromList(data.targetScope, automationExecutionScopes, 'player'),
+        flagKey: asString(data.flagKey),
+        notes: asString(data.notes),
+      },
+    })
+  }
+
+  if (type === 'action-unset-flag') {
+    return createAutomationActionNode(type, {
+      id: asString(record.id, createAutomationId(type)),
+      label,
+      position,
+      data: {
+        targetScope: pickFromList(data.targetScope, automationExecutionScopes, 'player'),
+        flagKey: asString(data.flagKey),
+        notes: asString(data.notes),
+      },
+    })
+  }
+
+  if (type === 'action-update-server-setting') {
+    return createAutomationActionNode(type, {
+      id: asString(record.id, createAutomationId(type)),
+      label,
+      position,
+      data: {
+        settingKey: asString(data.settingKey, 'PVP'),
+        settingValue: asString(data.settingValue, 'true'),
+        valueType: pickFromList(data.valueType, automationValueTypes, 'boolean'),
+        applyMode: pickFromList(data.applyMode, automationServerSettingApplyModes, 'restart-server'),
+        notes: asString(data.notes),
+      },
+    })
+  }
+
+  return createAutomationActionNode(type, {
+    id: asString(record.id, createAutomationId(type)),
+    label,
+    position,
     data: {
-      actionKind: pickFromList(data.actionKind, automationActionKinds, 'assignCashReward'),
       targetScope: pickFromList(data.targetScope, automationExecutionScopes, 'player'),
       amount: asNumberOrNull(data.amount),
-      itemId: asString(data.itemId),
-      lootTableId: asString(data.lootTableId),
-      quantity: asNumberOrNull(data.quantity),
-      skillKey: asString(data.skillKey),
-      xpCategory: asString(data.xpCategory),
-      flagKey: asString(data.flagKey),
       notes: asString(data.notes),
     },
   })
 }
 
-function normalizeNode(value: unknown): AutomationStudioNode {
-  const type = pickFromList(asRecord(value).type, automationNodeTypes, 'trigger')
+function normalizeLegacyTriggerNode(value: unknown): AutomationTriggerNode {
+  const data = asRecord(asRecord(value).data)
+  return normalizeTriggerNode(resolveAutomationTriggerNodeType(asString(data.eventKey, 'pz.item.found')), value)
+}
 
-  if (type === 'condition') {
+function normalizeLegacyActionNode(value: unknown): AutomationActionNode {
+  const data = asRecord(asRecord(value).data)
+  const actionKind = pickFromList(data.actionKind, automationActionKinds, 'assignCashReward')
+  return normalizeActionNode(resolveAutomationActionNodeType(actionKind), value)
+}
+
+function normalizeNode(value: unknown): AutomationStudioNode {
+  const rawType = asString(asRecord(value).type)
+
+  if (rawType === 'condition') {
     return normalizeConditionNode(value)
   }
 
-  if (type === 'action') {
-    return normalizeActionNode(value)
+  if (rawType === 'trigger') {
+    return normalizeLegacyTriggerNode(value)
   }
 
-  return normalizeTriggerNode(value)
+  if (rawType === 'action') {
+    return normalizeLegacyActionNode(value)
+  }
+
+  if (automationTriggerNodeTypes.includes(rawType as AutomationTriggerNodeType)) {
+    return normalizeTriggerNode(rawType as AutomationTriggerNodeType, value)
+  }
+
+  if (automationActionNodeTypes.includes(rawType as AutomationActionNodeType)) {
+    return normalizeActionNode(rawType as AutomationActionNodeType, value)
+  }
+
+  return normalizeTriggerNode('trigger-item-found', value)
 }
 
 function normalizeEdge(value: unknown): AutomationStudioEdge {
@@ -773,16 +1275,4 @@ export function normalizeAutomationStudioDocument(value: unknown): AutomationStu
     version: automationStudioVersion,
     graphs: asArray(record.graphs).map(normalizeGraph),
   }
-}
-
-export function findAutomationEventOption(key: string): AutomationEventOption | undefined {
-  return automationEventOptions.find(option => option.key === key)
-}
-
-export function findAutomationActionOption(key: AutomationActionKind): AutomationActionOption | undefined {
-  return automationActionOptions.find(option => option.key === key)
-}
-
-export function findAutomationConditionSourceOption(key: AutomationConditionSource): AutomationConditionSourceOption | undefined {
-  return automationConditionSourceOptions.find(option => option.key === key)
 }

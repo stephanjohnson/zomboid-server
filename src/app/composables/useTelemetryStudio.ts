@@ -7,7 +7,7 @@ import {
 } from '~~/shared/telemetry-automation'
 
 export type WorkflowKind = 'workflow' | 'objective' | 'achievement'
-export type PresetType = 'ordered-objective' | 'achievement-trophy' | 'sequence-challenge'
+export type PresetType = 'ordered-objective' | 'achievement-trophy' | 'unlock-pvp-objective' | 'sequence-challenge'
 export type ObjectiveType = 'flag' | 'checkpoint' | 'zone' | 'delivery' | 'extraction' | 'milestone' | 'trophy'
 export type ObjectiveVisibility = 'tracked' | 'public' | 'hidden'
 export type ObjectiveTeamScope = 'solo' | 'team' | 'global'
@@ -108,6 +108,11 @@ export interface ObjectiveRewardDetailsPatch {
   rewardType?: string
   platform?: AchievementPlatform
   tier?: AchievementTier
+}
+
+export interface TelemetryPresetBundle {
+  workflow: WorkflowEditor
+  actionRule: ActionRuleEditor
 }
 
 interface TelemetryStudioResponse {
@@ -329,6 +334,183 @@ function defaultActionRule(): ActionRuleEditor {
     xpCategory: '',
     xpCategoryAmount: 0,
     configText: '',
+  }
+}
+
+export function createTelemetryPresetBundle(preset: PresetType, existingKeys: string[]): TelemetryPresetBundle {
+  if (preset === 'ordered-objective') {
+    const key = createUniqueKey('objective.capture-the-flags', existingKeys)
+
+    return {
+      workflow: {
+        key,
+        name: 'Capture the Flags in Order',
+        kind: 'objective',
+        isEnabled: true,
+        configText: prettyJson({
+          title: 'Capture the Flags',
+          objectiveType: 'flag',
+          visibility: 'public',
+          teamScope: 'team',
+          summary: 'Claim the alpha flag, then the bravo flag, then score at extraction before the timer expires.',
+          markerLabel: 'Alpha > Bravo > Extract',
+          locationLabel: 'Riverside route',
+          zoneId: 'ctf.riverside.route',
+          icon: 'flag',
+          accentColor: 'amber',
+          badgeId: 'ctf-victory',
+        }),
+        steps: [
+          { stepOrder: 1, eventKey: 'objective.flag.alpha.claimed', withinSeconds: '', matchConfigText: '' },
+          { stepOrder: 2, eventKey: 'objective.flag.bravo.claimed', withinSeconds: '180', matchConfigText: '' },
+          { stepOrder: 3, eventKey: 'objective.flag.extract.scored', withinSeconds: '120', matchConfigText: '' },
+        ],
+      },
+      actionRule: {
+        name: 'Capture the Flags reward',
+        triggerKind: 'WORKFLOW',
+        triggerKey: key,
+        isEnabled: true,
+        moneyAmount: 2500,
+        xpAmount: 0,
+        xpCategory: 'objectives',
+        xpCategoryAmount: 500,
+        configText: prettyJson({
+          badge: 'ctf-victory',
+          rewardType: 'objective',
+        }),
+      },
+    }
+  }
+
+  if (preset === 'achievement-trophy') {
+    const key = createUniqueKey('achievement.first-blood', existingKeys)
+
+    return {
+      workflow: {
+        key,
+        name: 'First Blood Trophy',
+        kind: 'achievement',
+        isEnabled: true,
+        configText: prettyJson({
+          title: 'First Blood',
+          objectiveType: 'trophy',
+          summary: 'Earn your first PvP kill on this profile.',
+          platform: 'universal',
+          trophyTier: 'bronze',
+          badgeId: 'first-blood',
+          hiddenUntilUnlocked: false,
+          icon: 'sword',
+          accentColor: 'rose',
+        }),
+        steps: [
+          { stepOrder: 1, eventKey: 'pz.pvp.kill', withinSeconds: '', matchConfigText: '' },
+        ],
+      },
+      actionRule: {
+        name: 'First Blood unlock',
+        triggerKind: 'WORKFLOW',
+        triggerKey: key,
+        isEnabled: true,
+        moneyAmount: 0,
+        xpAmount: 100,
+        xpCategory: 'achievements',
+        xpCategoryAmount: 250,
+        configText: prettyJson({
+          badge: 'first-blood',
+          unlock: true,
+          rewardType: 'achievement',
+          platform: 'universal',
+          tier: 'bronze',
+        }),
+      },
+    }
+  }
+
+  if (preset === 'unlock-pvp-objective') {
+    const key = createUniqueKey('objective.unlock-pvp', existingKeys)
+
+    return {
+      workflow: {
+        key,
+        name: 'Unlock PvP Objective',
+        kind: 'objective',
+        isEnabled: true,
+        configText: prettyJson({
+          title: 'Unlock PvP',
+          objectiveType: 'milestone',
+          visibility: 'public',
+          teamScope: 'global',
+          summary: 'Complete the hidden objective, then enable PvP for the whole profile.',
+          markerLabel: 'Unlock PvP',
+          locationLabel: 'Hidden objective site',
+          zoneId: 'objective.unlock-pvp',
+          icon: 'swords',
+          accentColor: 'crimson',
+          badgeId: 'pvp-unlocked',
+          notes: 'Replace the placeholder event key with the item discovery, zone capture, or objective completion event that should flip PvP on.',
+        }),
+        steps: [
+          { stepOrder: 1, eventKey: 'objective.hidden-item.discovered', withinSeconds: '', matchConfigText: '' },
+        ],
+      },
+      actionRule: {
+        name: 'Unlock PvP on completion',
+        triggerKind: 'WORKFLOW',
+        triggerKey: key,
+        isEnabled: true,
+        moneyAmount: 0,
+        xpAmount: 0,
+        xpCategory: '',
+        xpCategoryAmount: 0,
+        configText: prettyJson({
+          badge: 'pvp-unlocked',
+          rewardType: 'objective',
+          serverSettings: {
+            PVP: true,
+          },
+          serverSettingsApplyMode: 'restart-server',
+        }),
+      },
+    }
+  }
+
+  const key = createUniqueKey('objective.sequence.challenge', existingKeys)
+
+  return {
+    workflow: {
+      key,
+      name: 'Custom Sequence Challenge',
+      kind: 'objective',
+      isEnabled: true,
+      configText: prettyJson({
+        title: 'Custom Sequence Challenge',
+        objectiveType: 'checkpoint',
+        visibility: 'tracked',
+        teamScope: 'solo',
+        summary: 'Replace the placeholder event keys with your own objective or mod events.',
+        notes: 'Good starting point for custom game modes and objective experiments.',
+      }),
+      steps: [
+        { stepOrder: 1, eventKey: 'custom.sequence.start', withinSeconds: '', matchConfigText: '' },
+        { stepOrder: 2, eventKey: 'custom.sequence.middle', withinSeconds: '90', matchConfigText: '' },
+        { stepOrder: 3, eventKey: 'custom.sequence.finish', withinSeconds: '60', matchConfigText: '' },
+      ],
+    },
+    actionRule: {
+      name: 'Custom sequence reward',
+      triggerKind: 'WORKFLOW',
+      triggerKey: key,
+      isEnabled: true,
+      moneyAmount: 1000,
+      xpAmount: 0,
+      xpCategory: 'objectives',
+      xpCategoryAmount: 250,
+      configText: prettyJson({
+        badge: 'sequence-runner',
+        rewardType: 'objective',
+      }),
+    },
   }
 }
 
@@ -642,145 +824,10 @@ export async function useTelemetryStudio(profileId: string) {
   })
 
   function applyPreset(preset: PresetType) {
-    const existingKeys = workflows.value.map(workflow => workflow.key)
+    const presetBundle = createTelemetryPresetBundle(preset, workflows.value.map(workflow => workflow.key))
 
-    if (preset === 'ordered-objective') {
-      const key = createUniqueKey('objective.capture-the-flags', existingKeys)
-      workflows.value = [
-        ...workflows.value,
-        {
-          key,
-          name: 'Capture the Flags in Order',
-          kind: 'objective',
-          isEnabled: true,
-          configText: prettyJson({
-            title: 'Capture the Flags',
-            objectiveType: 'flag',
-            visibility: 'public',
-            teamScope: 'team',
-            summary: 'Claim the alpha flag, then the bravo flag, then score at extraction before the timer expires.',
-            markerLabel: 'Alpha > Bravo > Extract',
-            locationLabel: 'Riverside route',
-            zoneId: 'ctf.riverside.route',
-            icon: 'flag',
-            accentColor: 'amber',
-            badgeId: 'ctf-victory',
-          }),
-          steps: [
-            { stepOrder: 1, eventKey: 'objective.flag.alpha.claimed', withinSeconds: '', matchConfigText: '' },
-            { stepOrder: 2, eventKey: 'objective.flag.bravo.claimed', withinSeconds: '180', matchConfigText: '' },
-            { stepOrder: 3, eventKey: 'objective.flag.extract.scored', withinSeconds: '120', matchConfigText: '' },
-          ],
-        },
-      ]
-      actionRules.value = [
-        ...actionRules.value,
-        {
-          name: 'Capture the Flags reward',
-          triggerKind: 'WORKFLOW',
-          triggerKey: key,
-          isEnabled: true,
-          moneyAmount: 2500,
-          xpAmount: 0,
-          xpCategory: 'objectives',
-          xpCategoryAmount: 500,
-          configText: prettyJson({
-            badge: 'ctf-victory',
-            rewardType: 'objective',
-          }),
-        },
-      ]
-      return
-    }
-
-    if (preset === 'achievement-trophy') {
-      const key = createUniqueKey('achievement.first-blood', existingKeys)
-      workflows.value = [
-        ...workflows.value,
-        {
-          key,
-          name: 'First Blood Trophy',
-          kind: 'achievement',
-          isEnabled: true,
-          configText: prettyJson({
-            title: 'First Blood',
-            objectiveType: 'trophy',
-            summary: 'Earn your first PvP kill on this profile.',
-            platform: 'universal',
-            trophyTier: 'bronze',
-            badgeId: 'first-blood',
-            hiddenUntilUnlocked: false,
-            icon: 'sword',
-            accentColor: 'rose',
-          }),
-          steps: [
-            { stepOrder: 1, eventKey: 'pz.pvp.kill', withinSeconds: '', matchConfigText: '' },
-          ],
-        },
-      ]
-      actionRules.value = [
-        ...actionRules.value,
-        {
-          name: 'First Blood unlock',
-          triggerKind: 'WORKFLOW',
-          triggerKey: key,
-          isEnabled: true,
-          moneyAmount: 0,
-          xpAmount: 100,
-          xpCategory: 'achievements',
-          xpCategoryAmount: 250,
-          configText: prettyJson({
-            badge: 'first-blood',
-            unlock: true,
-            rewardType: 'achievement',
-            platform: 'universal',
-            tier: 'bronze',
-          }),
-        },
-      ]
-      return
-    }
-
-    const key = createUniqueKey('objective.sequence.challenge', existingKeys)
-    workflows.value = [
-      ...workflows.value,
-      {
-        key,
-        name: 'Custom Sequence Challenge',
-        kind: 'objective',
-        isEnabled: true,
-        configText: prettyJson({
-          title: 'Custom Sequence Challenge',
-          objectiveType: 'checkpoint',
-          visibility: 'tracked',
-          teamScope: 'solo',
-          summary: 'Replace the placeholder event keys with your own objective or mod events.',
-          notes: 'Good starting point for custom game modes and objective experiments.',
-        }),
-        steps: [
-          { stepOrder: 1, eventKey: 'custom.sequence.start', withinSeconds: '', matchConfigText: '' },
-          { stepOrder: 2, eventKey: 'custom.sequence.middle', withinSeconds: '90', matchConfigText: '' },
-          { stepOrder: 3, eventKey: 'custom.sequence.finish', withinSeconds: '60', matchConfigText: '' },
-        ],
-      },
-    ]
-    actionRules.value = [
-      ...actionRules.value,
-      {
-        name: 'Custom sequence reward',
-        triggerKind: 'WORKFLOW',
-        triggerKey: key,
-        isEnabled: true,
-        moneyAmount: 1000,
-        xpAmount: 0,
-        xpCategory: 'objectives',
-        xpCategoryAmount: 250,
-        configText: prettyJson({
-          badge: 'sequence-runner',
-          rewardType: 'objective',
-        }),
-      },
-    ]
+    workflows.value = [...workflows.value, presetBundle.workflow]
+    actionRules.value = [...actionRules.value, presetBundle.actionRule]
   }
 
   async function save() {

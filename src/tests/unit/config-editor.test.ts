@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildEditorDisplayValues, groupConfigEntries } from '../../shared/config-settings'
 import {
+  buildServerIniEditorMutation,
   buildServerIniEditorSettings,
   normalizeSandboxEditorSettings,
   splitServerIniEditorSettings,
@@ -75,6 +76,47 @@ describe('splitServerIniEditorSettings', () => {
       DoLuaChecksum: 'true',
       PauseEmpty: 'false',
     })
+  })
+})
+
+describe('buildServerIniEditorMutation', () => {
+  const profile = {
+    gamePort: 17261,
+    directPort: 17262,
+    rconPort: 28015,
+    rconPassword: 'super-secret',
+    mapName: 'Riverside, KY',
+    maxPlayers: 24,
+    pvp: false,
+    serverIniOverrides: {
+      Public: 'false',
+    },
+    mods: [],
+  }
+
+  it('merges server.ini patches through profile fields and overrides', () => {
+    const result = buildServerIniEditorMutation(profile, {
+      PVP: true,
+      SafetySystem: false,
+    })
+
+    expect(result?.changedKeys).toEqual(['PVP', 'SafetySystem'])
+    expect(result?.profileData).toMatchObject({
+      pvp: true,
+    })
+    expect(result?.overrideSettings).toEqual({
+      Public: 'false',
+      SafetySystem: 'false',
+    })
+  })
+
+  it('returns null when the patch does not change the effective settings', () => {
+    const result = buildServerIniEditorMutation(profile, {
+      PVP: false,
+      Public: 'false',
+    })
+
+    expect(result).toBeNull()
   })
 })
 

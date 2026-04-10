@@ -1,14 +1,8 @@
 import * as v from 'valibot'
 
 import {
-  automationActionKinds,
-  automationConditionCombinators,
-  automationConditionOperators,
-  automationConditionSources,
-  automationExecutionScopes,
   automationNodeTypes,
   automationStudioVersion,
-  automationValueTypes,
 } from '../../../../shared/telemetry-automation'
 
 const ListenerSchema = v.object({
@@ -46,75 +40,16 @@ const ActionRuleSchema = v.object({
   config: v.optional(v.record(v.string(), v.unknown())),
 })
 
-const AutomationPredicateSchema = v.object({
+const AutomationNodeSchema = v.object({
   id: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  source: v.picklist(automationConditionSources),
-  path: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  operator: v.picklist(automationConditionOperators),
-  value: v.optional(v.string(), ''),
-  valueType: v.picklist(automationValueTypes),
-})
-
-const AutomationTriggerNodeSchema = v.object({
-  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  type: v.literal(automationNodeTypes[0]),
+  type: v.picklist(automationNodeTypes),
   label: v.pipe(v.string(), v.trim(), v.minLength(1)),
   position: v.object({
     x: v.number(),
     y: v.number(),
   }),
-  data: v.object({
-    eventKey: v.pipe(v.string(), v.trim(), v.minLength(1)),
-    scope: v.picklist(automationExecutionScopes),
-    dedupeKey: v.optional(v.string(), ''),
-    cooldownSeconds: v.optional(v.nullable(v.number()), null),
-    filters: v.optional(v.array(AutomationPredicateSchema), []),
-    notes: v.optional(v.string(), ''),
-  }),
+  data: v.optional(v.record(v.string(), v.unknown()), {}),
 })
-
-const AutomationConditionNodeSchema = v.object({
-  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  type: v.literal(automationNodeTypes[1]),
-  label: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  position: v.object({
-    x: v.number(),
-    y: v.number(),
-  }),
-  data: v.object({
-    combinator: v.picklist(automationConditionCombinators),
-    checks: v.optional(v.array(AutomationPredicateSchema), []),
-    notes: v.optional(v.string(), ''),
-  }),
-})
-
-const AutomationActionNodeSchema = v.object({
-  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  type: v.literal(automationNodeTypes[2]),
-  label: v.pipe(v.string(), v.trim(), v.minLength(1)),
-  position: v.object({
-    x: v.number(),
-    y: v.number(),
-  }),
-  data: v.object({
-    actionKind: v.picklist(automationActionKinds),
-    targetScope: v.picklist(automationExecutionScopes),
-    amount: v.optional(v.nullable(v.number()), null),
-    itemId: v.optional(v.string(), ''),
-    lootTableId: v.optional(v.string(), ''),
-    quantity: v.optional(v.nullable(v.number()), null),
-    skillKey: v.optional(v.string(), ''),
-    xpCategory: v.optional(v.string(), ''),
-    flagKey: v.optional(v.string(), ''),
-    notes: v.optional(v.string(), ''),
-  }),
-})
-
-const AutomationNodeSchema = v.variant('type', [
-  AutomationTriggerNodeSchema,
-  AutomationConditionNodeSchema,
-  AutomationActionNodeSchema,
-])
 
 const AutomationEdgeSchema = v.object({
   id: v.pipe(v.string(), v.trim(), v.minLength(1)),

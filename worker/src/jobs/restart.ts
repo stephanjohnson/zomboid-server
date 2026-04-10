@@ -2,7 +2,7 @@ import type { PrismaClient } from '@prisma/client'
 import Dockerode from 'dockerode'
 import { Rcon } from 'rcon-client'
 import pino from 'pino'
-import { buildContainerEnv, createContainerOptions, getComposeOwnedContainerLabels, prepareGameServerRuntimeFiles } from './game-server.js'
+import { buildContainerEnv, createContainerWithImagePull, getComposeOwnedContainerLabels, prepareGameServerRuntimeFiles } from './game-server.js'
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' })
 
@@ -90,7 +90,7 @@ export async function handleRestartJob(
   const labels = await getComposeOwnedContainerLabels(docker, 'game-server')
   await prepareGameServerRuntimeFiles(profile, rconPassword)
 
-  const container = await docker.createContainer(createContainerOptions(profile, {
+  const container = await createContainerWithImagePull(docker, profile, {
     containerName,
     image: gameServerImage,
     env: buildContainerEnv(profile, {
@@ -98,7 +98,7 @@ export async function handleRestartJob(
       rconPassword,
     }),
     labels,
-  }))
+  })
 
   await container.start()
   logger.info({ profileId: profile.id }, 'Server restarted with latest profile')

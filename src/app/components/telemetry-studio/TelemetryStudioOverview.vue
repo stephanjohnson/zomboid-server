@@ -35,6 +35,12 @@ const presets: Array<{
     detail: 'Best for platform-style achievements, milestones, rare finds, and named unlocks.',
   },
   {
+    key: 'unlock-pvp-objective',
+    title: 'Unlock PvP objective',
+    description: 'Scaffold a server-wide objective that flips PvP on when the workflow completes and requests an immediate restart-based apply.',
+    detail: 'Best for hidden-item discoveries, capture objectives, relic hunts, and other events that should change the server ruleset mid-campaign.',
+  },
+  {
     key: 'sequence-challenge',
     title: 'Custom sequence',
     description: 'Start from a blank three-step sequence and replace the event keys with your own custom or mod-generated events.',
@@ -102,7 +108,7 @@ const presets: Array<{
             Start from objective and achievement scaffolds, then edit the event keys and metadata to fit your game mode.
           </CardDescription>
         </CardHeader>
-        <CardContent class="grid gap-4 md:grid-cols-3">
+        <CardContent class="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
           <div
             v-for="preset in presets"
             :key="preset.key"
