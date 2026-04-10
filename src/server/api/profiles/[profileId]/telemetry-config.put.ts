@@ -1,5 +1,16 @@
 import * as v from 'valibot'
 
+import {
+  automationActionKinds,
+  automationConditionCombinators,
+  automationConditionOperators,
+  automationConditionSources,
+  automationExecutionScopes,
+  automationNodeTypes,
+  automationStudioVersion,
+  automationValueTypes,
+} from '../../../../shared/telemetry-automation'
+
 const ListenerSchema = v.object({
   adapterKey: v.pipe(v.string(), v.trim(), v.minLength(1)),
   name: v.pipe(v.string(), v.trim(), v.minLength(1)),
@@ -35,10 +46,108 @@ const ActionRuleSchema = v.object({
   config: v.optional(v.record(v.string(), v.unknown())),
 })
 
+const AutomationPredicateSchema = v.object({
+  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  source: v.picklist(automationConditionSources),
+  path: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  operator: v.picklist(automationConditionOperators),
+  value: v.optional(v.string(), ''),
+  valueType: v.picklist(automationValueTypes),
+})
+
+const AutomationTriggerNodeSchema = v.object({
+  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  type: v.literal(automationNodeTypes[0]),
+  label: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  position: v.object({
+    x: v.number(),
+    y: v.number(),
+  }),
+  data: v.object({
+    eventKey: v.pipe(v.string(), v.trim(), v.minLength(1)),
+    scope: v.picklist(automationExecutionScopes),
+    dedupeKey: v.optional(v.string(), ''),
+    cooldownSeconds: v.optional(v.nullable(v.number()), null),
+    filters: v.optional(v.array(AutomationPredicateSchema), []),
+    notes: v.optional(v.string(), ''),
+  }),
+})
+
+const AutomationConditionNodeSchema = v.object({
+  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  type: v.literal(automationNodeTypes[1]),
+  label: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  position: v.object({
+    x: v.number(),
+    y: v.number(),
+  }),
+  data: v.object({
+    combinator: v.picklist(automationConditionCombinators),
+    checks: v.optional(v.array(AutomationPredicateSchema), []),
+    notes: v.optional(v.string(), ''),
+  }),
+})
+
+const AutomationActionNodeSchema = v.object({
+  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  type: v.literal(automationNodeTypes[2]),
+  label: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  position: v.object({
+    x: v.number(),
+    y: v.number(),
+  }),
+  data: v.object({
+    actionKind: v.picklist(automationActionKinds),
+    targetScope: v.picklist(automationExecutionScopes),
+    amount: v.optional(v.nullable(v.number()), null),
+    itemId: v.optional(v.string(), ''),
+    lootTableId: v.optional(v.string(), ''),
+    quantity: v.optional(v.nullable(v.number()), null),
+    skillKey: v.optional(v.string(), ''),
+    xpCategory: v.optional(v.string(), ''),
+    flagKey: v.optional(v.string(), ''),
+    notes: v.optional(v.string(), ''),
+  }),
+})
+
+const AutomationNodeSchema = v.variant('type', [
+  AutomationTriggerNodeSchema,
+  AutomationConditionNodeSchema,
+  AutomationActionNodeSchema,
+])
+
+const AutomationEdgeSchema = v.object({
+  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  source: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  target: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  sourceHandle: v.optional(v.nullable(v.string())),
+  targetHandle: v.optional(v.nullable(v.string())),
+  label: v.optional(v.string()),
+  animated: v.optional(v.boolean(), false),
+})
+
+const AutomationGraphSchema = v.object({
+  id: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  name: v.pipe(v.string(), v.trim(), v.minLength(1)),
+  description: v.optional(v.string(), ''),
+  isEnabled: v.optional(v.boolean(), true),
+  nodes: v.array(AutomationNodeSchema),
+  edges: v.array(AutomationEdgeSchema),
+})
+
+const AutomationStudioConfigSchema = v.object({
+  version: v.literal(automationStudioVersion),
+  graphs: v.array(AutomationGraphSchema),
+})
+
 const UpdateTelemetryConfigSchema = v.object({
   listeners: v.optional(v.array(ListenerSchema), []),
   workflows: v.optional(v.array(WorkflowSchema), []),
   actionRules: v.optional(v.array(ActionRuleSchema), []),
+  automationStudioConfig: v.optional(AutomationStudioConfigSchema, {
+    version: automationStudioVersion,
+    graphs: [],
+  }),
 })
 
 export default defineEventHandler(async (event) => {
@@ -60,6 +169,13 @@ export default defineEventHandler(async (event) => {
   }
 
   await prisma.$transaction(async (transaction) => {
+    await transaction.serverProfile.update({
+      where: { id: profileId },
+      data: {
+        automationStudioConfig: body.automationStudioConfig,
+      },
+    })
+
     await transaction.telemetryListener.deleteMany({ where: { profileId } })
     await transaction.actionRule.deleteMany({ where: { profileId } })
 

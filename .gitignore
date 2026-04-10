@@ -23,6 +23,9 @@ Thumbs.db
 
 # Prisma
 src/prisma/migrations/
+!src/prisma/migrations/
+!src/prisma/migrations/**/
+!src/prisma/migrations/**/migration.sql
 
 # Docker volumes
 backups/

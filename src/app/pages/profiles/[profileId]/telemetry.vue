@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TelemetryAutomationStudio from '@/components/telemetry-studio/TelemetryAutomationStudio.vue'
+
 const route = useRoute()
 const profileId = route.params.profileId as string
 
@@ -7,17 +9,19 @@ if (!isAdmin.value) {
   await navigateTo('/profiles')
 }
 
-const tab = shallowRef<'overview' | 'objectives' | 'listeners' | 'workflows' | 'actions'>('overview')
+const tab = shallowRef<'studio' | 'overview' | 'objectives' | 'listeners' | 'workflows' | 'actions'>('studio')
 
 const {
   profile,
   listeners,
   workflows,
   actionRules,
+  automationStudio,
   topXpPlayers,
   objectiveCards,
   objectiveCount,
   achievementCount,
+  automationGraphCount,
   pending,
   saving,
   saveError,
@@ -92,8 +96,9 @@ const {
       </CardContent>
     </Card>
 
-    <Tabs v-else v-model="tab" default-value="overview" class="space-y-4">
+    <Tabs v-else v-model="tab" default-value="studio" class="space-y-4">
       <TabsList class="flex h-auto flex-wrap gap-2 bg-transparent p-0">
+        <TabsTrigger value="studio">Studio</TabsTrigger>
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="objectives">Objectives</TabsTrigger>
         <TabsTrigger value="listeners">Listeners</TabsTrigger>
@@ -101,9 +106,17 @@ const {
         <TabsTrigger value="actions">Actions</TabsTrigger>
       </TabsList>
 
+      <TabsContent value="studio">
+        <TelemetryAutomationStudio
+          v-model="automationStudio"
+          :profile-name="profile?.name ?? 'Profile'"
+        />
+      </TabsContent>
+
       <TabsContent value="overview">
         <TelemetryStudioOverview
           :profile-name="profile?.name ?? 'Profile'"
+          :automation-graph-count="automationGraphCount"
           :listener-count="listeners.length"
           :workflow-count="workflows.length"
           :objective-count="objectiveCount"

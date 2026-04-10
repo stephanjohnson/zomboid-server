@@ -1,5 +1,11 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 
+import {
+  createEmptyAutomationStudioDocument,
+  normalizeAutomationStudioDocument,
+  type AutomationStudioDocument,
+} from '~~/shared/telemetry-automation'
+
 export type WorkflowKind = 'workflow' | 'objective' | 'achievement'
 export type PresetType = 'ordered-objective' | 'achievement-trophy' | 'sequence-challenge'
 export type ObjectiveType = 'flag' | 'checkpoint' | 'zone' | 'delivery' | 'extraction' | 'milestone' | 'trophy'
@@ -109,6 +115,7 @@ interface TelemetryStudioResponse {
     id: string
     name: string
     servername: string
+    automationStudioConfig: unknown | null
     telemetryListeners: Array<{
       adapterKey: string
       name: string
@@ -330,6 +337,7 @@ export async function useTelemetryStudio(profileId: string) {
   const listeners = ref<TelemetryListenerEditor[]>([])
   const workflows = ref<WorkflowEditor[]>([])
   const actionRules = ref<ActionRuleEditor[]>([])
+  const automationStudio = ref<AutomationStudioDocument>(createEmptyAutomationStudioDocument())
   const xpBalances = ref<Array<{ username: string, totalXp: number }>>([])
   const xpCategories = ref<Array<{ category: string, username: string, totalXp: number }>>([])
   const saveError = shallowRef('')
@@ -350,6 +358,7 @@ export async function useTelemetryStudio(profileId: string) {
       name: value.profile.name,
       servername: value.profile.servername,
     }
+    automationStudio.value = normalizeAutomationStudioDocument(value.profile.automationStudioConfig)
     listeners.value = value.profile.telemetryListeners.map(listener => ({
       adapterKey: listener.adapterKey,
       name: listener.name,
@@ -398,6 +407,7 @@ export async function useTelemetryStudio(profileId: string) {
 
   const objectiveCount = computed(() => workflows.value.filter(workflow => workflow.kind === 'objective').length)
   const achievementCount = computed(() => workflows.value.filter(workflow => workflow.kind === 'achievement').length)
+  const automationGraphCount = computed(() => automationStudio.value.graphs.length)
   const topXpPlayers = computed(() => xpBalances.value.slice(0, 5))
   const canSave = computed(() => !pending.value && !saving.value && Boolean(profile.value))
 
@@ -784,6 +794,7 @@ export async function useTelemetryStudio(profileId: string) {
 
     try {
       const payload = {
+        automationStudioConfig: automationStudio.value,
         listeners: listeners.value.map((listener, index) => ({
           adapterKey: listener.adapterKey.trim(),
           name: listener.name.trim(),
@@ -847,12 +858,14 @@ export async function useTelemetryStudio(profileId: string) {
     listeners,
     workflows,
     actionRules,
+    automationStudio,
     xpBalances,
     xpCategories,
     topXpPlayers,
     objectiveCards,
     objectiveCount,
     achievementCount,
+    automationGraphCount,
     pending,
     saving,
     saveError,

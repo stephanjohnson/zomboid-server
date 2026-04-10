@@ -3,6 +3,7 @@ import type { PresetType } from '@/composables/useTelemetryStudio'
 
 const props = defineProps<{
   profileName: string
+  automationGraphCount: number
   listenerCount: number
   workflowCount: number
   objectiveCount: number
@@ -48,6 +49,7 @@ const presets: Array<{
       <CardHeader class="space-y-3">
         <div class="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{{ props.profileName }}</Badge>
+          <Badge variant="outline">{{ props.automationGraphCount }} rule graphs</Badge>
           <Badge variant="outline">{{ props.listenerCount }} listeners</Badge>
           <Badge variant="outline">{{ props.workflowCount }} workflows</Badge>
           <Badge variant="outline">{{ props.actionRuleCount }} actions</Badge>
@@ -64,6 +66,12 @@ const presets: Array<{
       </CardHeader>
       <CardContent>
         <div class="grid gap-4 md:grid-cols-3">
+          <div class="rounded-xl border border-border/70 bg-background/80 p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Rule Graphs</p>
+            <p class="mt-2 text-sm leading-6 text-muted-foreground">
+              Design branching trigger and reward logic visually, then drop back to the raw editors when you need lower-level control.
+            </p>
+          </div>
           <div class="rounded-xl border border-border/70 bg-background/80 p-4">
             <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Objectives</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">

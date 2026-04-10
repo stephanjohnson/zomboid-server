@@ -74,6 +74,7 @@ model ServerProfile {
   // Additional settings stored as JSON
   serverIniOverrides   Json?     @map("server_ini_overrides")
   sandboxVarsOverrides Json?     @map("sandbox_vars_overrides")
+  automationStudioConfig Json?   @map("automation_studio_config")
   lastGameState        Json?     @map("last_game_state")
   lastTelemetryAt      DateTime? @map("last_telemetry_at")
 
