@@ -93,6 +93,30 @@ type StoreBundleSummaryInput = Prisma.StoreBundleGetPayload<{
   }
 }>
 
+type StoreBundleLootTableInput = Prisma.StoreBundleGetPayload<{
+  include: {
+    items: {
+      include: {
+        variant: {
+          include: {
+            product: true
+          }
+        }
+      }
+    }
+  }
+}>
+
+export interface StoreLootTableResolution {
+  id: string
+  name: string
+  slug: string
+  items: Array<{
+    itemId: string
+    quantity: number
+  }>
+}
+
 function sortBySortOrder<T extends { sortOrder: number }>(items: T[]) {
   return [...items].sort((left, right) => {
     if (left.sortOrder !== right.sortOrder) {
@@ -315,6 +339,60 @@ export function mapStoreBundleSummary(bundle: StoreBundleSummaryInput) {
       productSlug: item.variant.product.slug,
     })),
   }
+}
+
+export function mapStoreBundleLootTable(bundle: StoreBundleLootTableInput): StoreLootTableResolution {
+  const itemTotals = new Map<string, number>()
+
+  for (const item of sortBySortOrder(bundle.items)) {
+    const itemId = item.variant.itemCode.trim()
+    if (!itemId) {
+      continue
+    }
+
+    const quantity = Math.max(1, Math.floor(item.quantity)) * Math.max(1, Math.floor(item.variant.quantity))
+    itemTotals.set(itemId, (itemTotals.get(itemId) ?? 0) + quantity)
+  }
+
+  return {
+    id: bundle.id,
+    name: bundle.name,
+    slug: bundle.slug,
+    items: [...itemTotals.entries()].map(([itemId, quantity]) => ({
+      itemId,
+      quantity,
+    })),
+  }
+}
+
+export async function resolveStoreBundleLootTable(profileId: string, bundleIdOrSlug: string): Promise<StoreLootTableResolution | null> {
+  const reference = bundleIdOrSlug.trim()
+  if (!reference) {
+    return null
+  }
+
+  const bundle = await prisma.storeBundle.findFirst({
+    where: {
+      profileId,
+      OR: [
+        { id: reference },
+        { slug: reference },
+      ],
+    },
+    include: {
+      items: {
+        include: {
+          variant: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return bundle ? mapStoreBundleLootTable(bundle) : null
 }
 
 export async function resolveStoreProfile(profileId?: string) {

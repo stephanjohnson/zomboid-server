@@ -835,7 +835,7 @@ export function createBlankAutomationGraph(name = 'New rule graph'): AutomationS
     data: {
       targetScope: 'player',
       amount: 250,
-      notes: 'Replace this with loot, in-game XP, PZM XP, cash, or a server-setting update.',
+      notes: 'Replace this with loot, in-game XP, PZM XP, cash, flags, or a server-setting update.',
     },
   })
 
@@ -859,7 +859,6 @@ export function createAutomationBlueprintGraph(key: AutomationBlueprintKey): Aut
       label: 'First axe pickup',
       position: { x: 80, y: 160 },
       data: {
-        dedupeKey: 'item.fullType',
         filters: [createAutomationPredicate({ source: 'item', path: 'fullType', operator: 'equals', value: 'Base.Axe' })],
         notes: 'Swap Base.Axe for any item full type or collection key you care about.',
       },

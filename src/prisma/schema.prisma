@@ -75,6 +75,7 @@ model ServerProfile {
   serverIniOverrides   Json?     @map("server_ini_overrides")
   sandboxVarsOverrides Json?     @map("sandbox_vars_overrides")
   automationStudioConfig Json?   @map("automation_studio_config")
+  automationState      Json?     @map("automation_state")
   lastGameState        Json?     @map("last_game_state")
   lastTelemetryAt      DateTime? @map("last_telemetry_at")
 
@@ -92,6 +93,7 @@ model ServerProfile {
   workflows          WorkflowDefinition[]
   workflowRuns       WorkflowRun[]
   actionRules        ActionRule[]
+  automationActionExecutions AutomationActionExecution[]
   rewardRules        RewardRule[]
   rewardGrants       RewardGrant[]
   xpGrants           XpGrant[]
@@ -317,6 +319,7 @@ model ServerPlayer {
   profession      String?
   skills          Json?
   inventory       Json?
+  automationState Json?     @map("automation_state")
   firstSeenAt     DateTime  @default(now()) @map("first_seen_at")
   lastSeenAt      DateTime  @default(now()) @map("last_seen_at")
   lastTelemetryAt DateTime? @map("last_telemetry_at")
@@ -332,6 +335,7 @@ model ServerPlayer {
   xpGrants        XpGrant[]
   wallet          PlayerWallet?
   rewardGrants    RewardGrant[]
+  automationActionExecutions AutomationActionExecution[]
   storeOrders     StoreOrder[]
 
   @@unique([profileId, username])
@@ -382,6 +386,7 @@ model PlayerTelemetryEvent {
   player   ServerPlayer? @relation(fields: [playerId], references: [id], onDelete: SetNull)
   grants   RewardGrant[]
   xpGrants XpGrant[]
+  automationActionExecutions AutomationActionExecution[]
 
   @@index([profileId, eventKey, occurredAt])
   @@index([profileId, type, occurredAt])
@@ -462,6 +467,7 @@ model WorkflowRun {
   profile  ServerProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
   player   ServerPlayer?      @relation(fields: [playerId], references: [id], onDelete: SetNull)
   xpGrants XpGrant[]
+  automationActionExecutions AutomationActionExecution[]
 
   @@index([workflowId, status])
   @@index([profileId, playerId, status])
@@ -486,6 +492,7 @@ model ActionRule {
   profile      ServerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   rewardGrants RewardGrant[]
   xpGrants     XpGrant[]
+  automationActionExecutions AutomationActionExecution[]
 
   @@index([profileId, triggerKind, triggerKey, isEnabled])
   @@map("action_rules")
@@ -598,6 +605,34 @@ model XpGrant {
   @@index([playerId, grantedAt])
   @@index([playerId, category, grantedAt])
   @@map("xp_grants")
+}
+
+model AutomationActionExecution {
+  id            String   @id @default(cuid())
+  profileId     String   @map("profile_id")
+  playerId      String   @map("player_id")
+  actionRuleId  String   @map("action_rule_id")
+  sourceEventId String?  @map("source_event_id")
+  workflowRunId String?  @map("workflow_run_id")
+  effectType    String   @map("effect_type")
+  uniqueKey     String   @unique @map("unique_key")
+  status        String   @default("PENDING")
+  reason        String
+  metadata      Json?
+  error         String?
+  queuedAt      DateTime @default(now()) @map("queued_at")
+  executedAt    DateTime? @map("executed_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  profile     ServerProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  player      ServerPlayer          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  actionRule  ActionRule            @relation(fields: [actionRuleId], references: [id], onDelete: Cascade)
+  sourceEvent PlayerTelemetryEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+  workflowRun WorkflowRun?          @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+
+  @@index([profileId, status, queuedAt])
+  @@index([playerId, status, queuedAt])
+  @@map("automation_action_executions")
 }
 
 // =============================================================================

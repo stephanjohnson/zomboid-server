@@ -2,6 +2,15 @@ import * as prismaClient from '@prisma/client'
 import * as v from 'valibot'
 
 import {
+  buildAutomationRuntimeState,
+  getAutomationRuntimeExecutionOrder,
+  getAutomationRuntimeFlags,
+  mergeAutomationRuntimeFlags,
+  setAutomationRuntimeFlag,
+  unsetAutomationRuntimeFlag,
+  type AutomationRuntimeFlagMutation,
+} from '../../../shared/telemetry-automation-runtime'
+import {
   buildActionRulePlan,
   buildRewardGrantCandidate,
   deriveOfflineEvents,
@@ -11,6 +20,7 @@ import {
   getPreviousPlayerState,
   toWorkflowDefinitionLike,
   toWorkflowRunLike,
+  type AutomationRuleEvaluationContext,
   type ActionRulePlan,
   type TelemetryEventRecord,
 } from '../../utils/mod-telemetry'
@@ -124,6 +134,15 @@ interface PendingServerSettingsUpdate {
   reasons: string[]
 }
 
+type AutomationEffectType = 'ITEM_GRANT' | 'INGAME_XP_GRANT'
+
+interface PendingAutomationExecution {
+  executionId: string
+  effectType: AutomationEffectType
+  playerId: string
+  command: string | null
+}
+
 function mergePendingServerSettingsUpdate(
   pending: PendingServerSettingsUpdate | null,
   serverSettings: NonNullable<ActionRulePlan['serverSettings']>,
@@ -141,6 +160,201 @@ function mergePendingServerSettingsUpdate(
       ? pending.reasons
       : [...(pending?.reasons ?? []), reason],
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  return value as Record<string, unknown>
+}
+
+function escapeRconArgument(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')
+}
+
+function buildAddItemCommand(playerUsername: string, itemId: string, quantity: number): string {
+  return `additem "${escapeRconArgument(playerUsername)}" "${escapeRconArgument(itemId)}" ${Math.max(1, Math.floor(quantity))}`
+}
+
+function buildAddXpCommand(playerUsername: string, skillKey: string, amount: number): string {
+  return `addxp "${escapeRconArgument(playerUsername)}" ${skillKey}=${Math.max(1, Math.floor(amount))} -true`
+}
+
+function sortActionRules<T extends { name: string, config: unknown }>(rules: T[]): T[] {
+  return [...rules].sort((left, right) => {
+    const leftOrder = getAutomationRuntimeExecutionOrder(left.config)
+    const rightOrder = getAutomationRuntimeExecutionOrder(right.config)
+
+    if (leftOrder == null && rightOrder == null) {
+      return left.name.localeCompare(right.name)
+    }
+
+    if (leftOrder == null) {
+      return 1
+    }
+
+    if (rightOrder == null) {
+      return -1
+    }
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder
+    }
+
+    return left.name.localeCompare(right.name)
+  })
+}
+
+function getDistanceMeters(metadata: Record<string, unknown>): number | null {
+  const killerX = typeof metadata.killerX === 'number' ? metadata.killerX : null
+  const killerY = typeof metadata.killerY === 'number' ? metadata.killerY : null
+  const victimX = typeof metadata.victimX === 'number' ? metadata.victimX : null
+  const victimY = typeof metadata.victimY === 'number' ? metadata.victimY : null
+
+  if (killerX == null || killerY == null || victimX == null || victimY == null) {
+    return null
+  }
+
+  return Math.hypot(victimX - killerX, victimY - killerY)
+}
+
+function buildItemContext(quantity: number, metadata: Record<string, unknown>): Record<string, unknown> {
+  const itemType = typeof metadata.itemType === 'string'
+    ? metadata.itemType
+    : typeof metadata.fullType === 'string'
+      ? metadata.fullType
+      : ''
+
+  return {
+    ...metadata,
+    fullType: itemType || undefined,
+    quantity: typeof metadata.quantity === 'number' ? metadata.quantity : quantity,
+    count: typeof metadata.count === 'number' ? metadata.count : quantity,
+  }
+}
+
+function buildEventContext(eventKey: string, quantity: number, metadata: Record<string, unknown>): Record<string, unknown> {
+  const distanceMeters = getDistanceMeters(metadata)
+
+  return {
+    key: eventKey,
+    eventKey,
+    quantity,
+    ...metadata,
+    distanceMeters: distanceMeters ?? metadata.distanceMeters,
+    skill: typeof metadata.skill === 'string'
+      ? {
+          key: metadata.skill,
+          level: typeof metadata.toLevel === 'number' ? metadata.toLevel : undefined,
+          previousLevel: typeof metadata.fromLevel === 'number' ? metadata.fromLevel : undefined,
+        }
+      : undefined,
+    victim: typeof metadata.victim === 'string'
+      ? {
+          username: metadata.victim,
+          x: typeof metadata.victimX === 'number' ? metadata.victimX : undefined,
+          y: typeof metadata.victimY === 'number' ? metadata.victimY : undefined,
+        }
+      : undefined,
+    weapon: typeof metadata.weapon === 'string'
+      ? {
+          type: metadata.weapon,
+        }
+      : undefined,
+  }
+}
+
+function buildPlayerContext(player: prismaClient.ServerPlayer | null): Record<string, unknown> {
+  if (!player) {
+    return {}
+  }
+
+  return {
+    id: player.id,
+    username: player.username,
+    steamId: player.steamId ?? undefined,
+    displayName: player.displayName ?? undefined,
+    profession: player.profession ?? undefined,
+    x: player.x ?? undefined,
+    y: player.y ?? undefined,
+    z: player.z ?? undefined,
+  }
+}
+
+function buildPlayerStatContext(
+  player: prismaClient.ServerPlayer | null,
+  wallet: { balance: number, totalEarned: number, totalSpent: number } | null,
+  totalXp: number,
+  categories: Record<string, number>,
+): Record<string, unknown> {
+  if (!player) {
+    return {}
+  }
+
+  return {
+    kills: {
+      zombies: player.zombieKills,
+      players: player.playerKills,
+    },
+    hoursSurvived: player.hoursSurvived,
+    skills: asRecord(player.skills),
+    wallet: {
+      balance: wallet?.balance ?? 0,
+      totalEarned: wallet?.totalEarned ?? 0,
+      totalSpent: wallet?.totalSpent ?? 0,
+    },
+    xp: {
+      total: totalXp,
+      categories,
+    },
+  }
+}
+
+function buildServerContext(
+  profile: prismaClient.ServerProfile,
+  gameState: Record<string, unknown>,
+  playerCount: number,
+  serverFlags: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    id: profile.id,
+    name: profile.name,
+    servername: profile.servername,
+    steamBuild: profile.steamBuild,
+    playerCount,
+    gameState,
+    season: typeof gameState.season === 'string' ? gameState.season : undefined,
+    weather: asRecord(gameState.weather),
+    flags: serverFlags,
+  }
+}
+
+function applyFlagMutation(
+  mutation: AutomationRuntimeFlagMutation,
+  playerId: string | null,
+  currentPlayerFlagsById: Map<string, Record<string, unknown>>,
+  currentServerFlags: Record<string, unknown>,
+  dirtyPlayerIds: Set<string>,
+): Record<string, unknown> {
+  if (mutation.targetScope === 'server') {
+    return mutation.operation === 'set'
+      ? setAutomationRuntimeFlag(currentServerFlags, mutation.flagKey, true)
+      : unsetAutomationRuntimeFlag(currentServerFlags, mutation.flagKey)
+  }
+
+  if (!playerId) {
+    return currentServerFlags
+  }
+
+  const nextPlayerFlags = mutation.operation === 'set'
+    ? setAutomationRuntimeFlag(currentPlayerFlagsById.get(playerId) ?? {}, mutation.flagKey, true)
+    : unsetAutomationRuntimeFlag(currentPlayerFlagsById.get(playerId) ?? {}, mutation.flagKey)
+
+  currentPlayerFlagsById.set(playerId, nextPlayerFlags)
+  dirtyPlayerIds.add(playerId)
+  return currentServerFlags
 }
 
 export default defineEventHandler(async (event) => {
@@ -162,13 +376,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'No matching server profile found for telemetry upload' })
   }
 
-  const result = await prisma.$transaction(async (transaction) => {
+  const { pendingAutomationExecutions, ...result } = await prisma.$transaction(async (transaction) => {
     const [
       existingPlayers,
       enabledLegacyRules,
       enabledActionRules,
       enabledWorkflows,
       activeWorkflowRuns,
+      playerWallets,
+      playerXpBalances,
+      playerXpCategoryBalances,
     ] = await Promise.all([
       transaction.serverPlayer.findMany({ where: { profileId: profile.id } }),
       transaction.rewardRule.findMany({ where: { profileId: profile.id, isEnabled: true } }),
@@ -180,16 +397,134 @@ export default defineEventHandler(async (event) => {
       transaction.workflowRun.findMany({
         where: { profileId: profile.id, status: WorkflowRunStatus.ACTIVE },
       }),
+      transaction.playerWallet.findMany({
+        where: { player: { profileId: profile.id } },
+      }),
+      transaction.playerXpBalance.findMany({
+        where: { player: { profileId: profile.id } },
+      }),
+      transaction.playerXpCategoryBalance.findMany({
+        where: { player: { profileId: profile.id } },
+      }),
     ])
 
     const existingPlayersByUsername = new Map(existingPlayers.map(player => [player.username, player]))
+    const currentPlayersById = new Map(existingPlayers.map(player => [player.id, player]))
+    const sortedActionRules = sortActionRules(enabledActionRules)
+    const currentWalletsByPlayerId = new Map(playerWallets.map(wallet => [wallet.playerId, {
+      balance: wallet.balance,
+      totalEarned: wallet.totalEarned,
+      totalSpent: wallet.totalSpent,
+    }]))
+    const currentXpTotalsByPlayerId = new Map(playerXpBalances.map(balance => [balance.playerId, balance.totalXp]))
+    const currentXpCategoriesByPlayerId = playerXpCategoryBalances.reduce<Map<string, Map<string, number>>>((acc, balance) => {
+      const categories = acc.get(balance.playerId) ?? new Map<string, number>()
+      categories.set(balance.category, balance.totalXp)
+      acc.set(balance.playerId, categories)
+      return acc
+    }, new Map())
+    const currentPlayerFlagsById = new Map(existingPlayers.map(player => [player.id, getAutomationRuntimeFlags(player.automationState)]))
+    let currentServerFlags = getAutomationRuntimeFlags(profile.automationState)
+    const dirtyPlayerFlagIds = new Set<string>()
+    let serverFlagsDirty = false
+    const currentGameState = asRecord(body.gameState ?? profile.lastGameState)
     const seenUsernames = new Set<string>()
     const playerIdsByUsername = new Map<string, string>()
     const createdEvents: TelemetryEventRecord[] = []
     const workflowRunMap = buildWorkflowRunMap(activeWorkflowRuns)
     let moneyGrantsCreated = 0
     let xpGrantsCreated = 0
+    let itemGrantsQueued = 0
+    let inGameXpGrantsQueued = 0
     let pendingServerSettingsUpdate: PendingServerSettingsUpdate | null = null
+    const pendingAutomationExecutions: PendingAutomationExecution[] = []
+
+    const buildEvaluationContext = (
+      playerId: string | null,
+      eventKey: string,
+      quantity: number,
+      metadata: Record<string, unknown> | null,
+    ): AutomationRuleEvaluationContext => {
+      const player = playerId ? currentPlayersById.get(playerId) ?? null : null
+      const playerWallet = playerId ? currentWalletsByPlayerId.get(playerId) ?? null : null
+      const totalXp = playerId ? currentXpTotalsByPlayerId.get(playerId) ?? 0 : 0
+      const xpCategories = playerId
+        ? Object.fromEntries(currentXpCategoriesByPlayerId.get(playerId)?.entries() ?? [])
+        : {}
+      const playerFlags = playerId ? currentPlayerFlagsById.get(playerId) ?? {} : {}
+      const metadataRecord = metadata ?? {}
+      const onlinePlayerCount = Array.from(currentPlayersById.values()).filter(currentPlayer => currentPlayer.isOnline).length
+
+      return {
+        event: buildEventContext(eventKey, quantity, metadataRecord),
+        player: buildPlayerContext(player),
+        playerStat: buildPlayerStatContext(player, playerWallet, totalXp, xpCategories),
+        item: buildItemContext(quantity, metadataRecord),
+        flag: mergeAutomationRuntimeFlags(playerFlags, currentServerFlags),
+        server: buildServerContext(profile, currentGameState, onlinePlayerCount, currentServerFlags),
+      }
+    }
+
+    const stageAutomationExecution = async (params: {
+      uniqueKey: string
+      playerId: string
+      actionRuleId: string
+      sourceEventId?: string
+      workflowRunId?: string
+      effectType: AutomationEffectType
+      reason: string
+      metadata: Record<string, unknown> | null
+      buildCommand: (playerUsername: string) => string
+    }) => {
+      const existingExecution = await transaction.automationActionExecution.findUnique({
+        where: { uniqueKey: params.uniqueKey },
+      })
+
+      if (existingExecution?.status === 'COMPLETED') {
+        return false
+      }
+
+      const persistedExecution = existingExecution
+        ? await transaction.automationActionExecution.update({
+            where: { id: existingExecution.id },
+            data: {
+              playerId: params.playerId,
+              actionRuleId: params.actionRuleId,
+              sourceEventId: params.sourceEventId ?? null,
+              workflowRunId: params.workflowRunId ?? null,
+              effectType: params.effectType,
+              status: 'PENDING',
+              reason: params.reason,
+              metadata: params.metadata,
+              error: null,
+              executedAt: null,
+            },
+          })
+        : await transaction.automationActionExecution.create({
+            data: {
+              profileId: profile.id,
+              playerId: params.playerId,
+              actionRuleId: params.actionRuleId,
+              sourceEventId: params.sourceEventId ?? null,
+              workflowRunId: params.workflowRunId ?? null,
+              effectType: params.effectType,
+              uniqueKey: params.uniqueKey,
+              status: 'PENDING',
+              reason: params.reason,
+              metadata: params.metadata,
+            },
+          })
+
+      const playerUsername = currentPlayersById.get(params.playerId)?.username?.trim() || null
+      pendingAutomationExecutions.push({
+        executionId: persistedExecution.id,
+        effectType: params.effectType,
+        playerId: params.playerId,
+        command: playerUsername ? params.buildCommand(playerUsername) : null,
+      })
+
+      return true
+    }
 
     for (const player of body.players) {
       seenUsernames.add(player.username)
@@ -238,6 +573,8 @@ export default defineEventHandler(async (event) => {
       })
 
       existingPlayersByUsername.set(player.username, playerRecord)
+      currentPlayersById.set(playerRecord.id, playerRecord)
+      currentPlayerFlagsById.set(playerRecord.id, getAutomationRuntimeFlags(playerRecord.automationState))
       playerIdsByUsername.set(player.username, playerRecord.id)
 
       await transaction.playerSnapshot.create({
@@ -307,6 +644,19 @@ export default defineEventHandler(async (event) => {
             lastTelemetryAt: occurredAt,
           },
         })
+
+        const existingPlayer = existingPlayersByUsername.get(offlineEvent.playerUsername)
+        if (existingPlayer) {
+          const nextPlayer = {
+            ...existingPlayer,
+            isOnline: false,
+            lastSeenAt: occurredAt,
+            lastTelemetryAt: occurredAt,
+          }
+
+          existingPlayersByUsername.set(offlineEvent.playerUsername, nextPlayer)
+          currentPlayersById.set(existingPlayer.id, nextPlayer)
+        }
       }
 
       if (playerId) {
@@ -364,6 +714,8 @@ export default defineEventHandler(async (event) => {
       }
 
       existingPlayersByUsername.set(kill.killer, killer)
+      currentPlayersById.set(killer.id, killer)
+      currentPlayerFlagsById.set(killer.id, getAutomationRuntimeFlags(killer.automationState))
       const killOccurredAt = parseOccurredAt(kill.occurredAt)
       const created = await transaction.playerTelemetryEvent.create({
         data: {
@@ -422,6 +774,8 @@ export default defineEventHandler(async (event) => {
         })
 
       existingPlayersByUsername.set(rawEvent.username, playerRecord)
+      currentPlayersById.set(playerRecord.id, playerRecord)
+      currentPlayerFlagsById.set(playerRecord.id, getAutomationRuntimeFlags(playerRecord.automationState))
       playerIdsByUsername.set(rawEvent.username, playerRecord.id)
 
       const created = await transaction.playerTelemetryEvent.create({
@@ -451,6 +805,8 @@ export default defineEventHandler(async (event) => {
       ruleKey: string
       playerId: string
       runId: string
+      eventKey: string
+      quantity: number
       metadata: Record<string, unknown> | null
     }> = []
 
@@ -463,7 +819,12 @@ export default defineEventHandler(async (event) => {
         const workflowLike = toWorkflowDefinitionLike(workflow)
         const runKey = `${workflow.id}:${createdEvent.playerId}`
         const existingRun = workflowRunMap.get(runKey) ?? null
-        const plan = evaluateWorkflowTransition(workflowLike, existingRun ? toWorkflowRunLike(existingRun) : null, createdEvent)
+        const plan = evaluateWorkflowTransition(
+          workflowLike,
+          existingRun ? toWorkflowRunLike(existingRun) : null,
+          createdEvent,
+          buildEvaluationContext(createdEvent.playerId, createdEvent.eventKey, createdEvent.quantity, createdEvent.metadata),
+        )
 
         if (!plan) {
           continue
@@ -529,6 +890,8 @@ export default defineEventHandler(async (event) => {
             ruleKey: plan.completed.workflowKey,
             playerId: plan.completed.playerId,
             runId: completedRunId,
+            eventKey: plan.completed.eventKey,
+            quantity: plan.completed.quantity,
             metadata: plan.completed.metadata ?? null,
           })
         }
@@ -553,6 +916,12 @@ export default defineEventHandler(async (event) => {
           continue
         }
 
+        const existingWallet = currentWalletsByPlayerId.get(createdEvent.playerId) ?? {
+          balance: 0,
+          totalEarned: 0,
+          totalSpent: 0,
+        }
+
         await transaction.playerWallet.upsert({
           where: { playerId: createdEvent.playerId },
           update: {
@@ -564,6 +933,12 @@ export default defineEventHandler(async (event) => {
             balance: candidate.amount,
             totalEarned: candidate.amount,
           },
+        })
+
+        currentWalletsByPlayerId.set(createdEvent.playerId, {
+          balance: existingWallet.balance + candidate.amount,
+          totalEarned: existingWallet.totalEarned + candidate.amount,
+          totalSpent: existingWallet.totalSpent,
         })
 
         await transaction.rewardGrant.create({
@@ -583,16 +958,32 @@ export default defineEventHandler(async (event) => {
         moneyGrantsCreated = moneyGrantsCreated + 1
       }
 
-      for (const actionRule of enabledActionRules) {
+      for (const actionRule of sortedActionRules) {
         const plan = buildActionRulePlan(actionRule, {
           kind: TriggerSourceKind.EVENT,
           key: createdEvent.eventKey,
           quantity: createdEvent.quantity,
           metadata: createdEvent.metadata,
+          evaluationContext: buildEvaluationContext(createdEvent.playerId, createdEvent.eventKey, createdEvent.quantity, createdEvent.metadata),
         })
 
         if (!plan) {
           continue
+        }
+
+        if (plan.flagMutation) {
+          const nextServerFlags = applyFlagMutation(
+            plan.flagMutation,
+            createdEvent.playerId,
+            currentPlayerFlagsById,
+            currentServerFlags,
+            dirtyPlayerFlagIds,
+          )
+
+          if (nextServerFlags !== currentServerFlags) {
+            currentServerFlags = nextServerFlags
+            serverFlagsDirty = true
+          }
         }
 
         if (plan.serverSettings) {
@@ -607,6 +998,12 @@ export default defineEventHandler(async (event) => {
           const uniqueKey = `${actionRule.id}:${createdEvent.id}:money`
           const existingGrant = await transaction.rewardGrant.findUnique({ where: { uniqueKey } })
           if (!existingGrant) {
+            const existingWallet = currentWalletsByPlayerId.get(createdEvent.playerId) ?? {
+              balance: 0,
+              totalEarned: 0,
+              totalSpent: 0,
+            }
+
             await transaction.playerWallet.upsert({
               where: { playerId: createdEvent.playerId },
               update: {
@@ -618,6 +1015,12 @@ export default defineEventHandler(async (event) => {
                 balance: plan.moneyAmount,
                 totalEarned: plan.moneyAmount,
               },
+            })
+
+            currentWalletsByPlayerId.set(createdEvent.playerId, {
+              balance: existingWallet.balance + plan.moneyAmount,
+              totalEarned: existingWallet.totalEarned + plan.moneyAmount,
+              totalSpent: existingWallet.totalSpent,
             })
 
             await transaction.rewardGrant.create({
@@ -654,7 +1057,14 @@ export default defineEventHandler(async (event) => {
             },
           })
 
+          currentXpTotalsByPlayerId.set(
+            createdEvent.playerId,
+            (currentXpTotalsByPlayerId.get(createdEvent.playerId) ?? 0) + award.amount,
+          )
+
           if (award.category) {
+            const categories = currentXpCategoriesByPlayerId.get(createdEvent.playerId) ?? new Map<string, number>()
+
             await transaction.playerXpCategoryBalance.upsert({
               where: {
                 playerId_category: {
@@ -669,6 +1079,9 @@ export default defineEventHandler(async (event) => {
                 totalXp: award.amount,
               },
             })
+
+            categories.set(award.category, (categories.get(award.category) ?? 0) + award.amount)
+            currentXpCategoriesByPlayerId.set(createdEvent.playerId, categories)
           }
 
           await transaction.xpGrant.create({
@@ -688,20 +1101,83 @@ export default defineEventHandler(async (event) => {
 
           xpGrantsCreated = xpGrantsCreated + 1
         }
+
+        for (const itemGrant of plan.itemGrants ?? []) {
+          const staged = await stageAutomationExecution({
+            uniqueKey: `${actionRule.id}:${createdEvent.id}:item:${itemGrant.itemId}`,
+            playerId: createdEvent.playerId,
+            actionRuleId: actionRule.id,
+            sourceEventId: createdEvent.id,
+            effectType: 'ITEM_GRANT',
+            reason: plan.reason,
+            metadata: {
+              ...(plan.metadata ?? {}),
+              itemId: itemGrant.itemId,
+              quantity: itemGrant.quantity,
+            },
+            buildCommand: playerUsername => buildAddItemCommand(playerUsername, itemGrant.itemId, itemGrant.quantity),
+          })
+
+          if (staged) {
+            itemGrantsQueued = itemGrantsQueued + 1
+          }
+        }
+
+        for (const xpGrant of plan.inGameXpGrants ?? []) {
+          const staged = await stageAutomationExecution({
+            uniqueKey: `${actionRule.id}:${createdEvent.id}:ingame-xp:${xpGrant.skillKey}`,
+            playerId: createdEvent.playerId,
+            actionRuleId: actionRule.id,
+            sourceEventId: createdEvent.id,
+            effectType: 'INGAME_XP_GRANT',
+            reason: plan.reason,
+            metadata: {
+              ...(plan.metadata ?? {}),
+              skillKey: xpGrant.skillKey,
+              amount: xpGrant.amount,
+            },
+            buildCommand: playerUsername => buildAddXpCommand(playerUsername, xpGrant.skillKey, xpGrant.amount),
+          })
+
+          if (staged) {
+            inGameXpGrantsQueued = inGameXpGrantsQueued + 1
+          }
+        }
       }
     }
 
     for (const completedWorkflow of completedWorkflowTriggers) {
-      for (const actionRule of enabledActionRules) {
+      for (const actionRule of sortedActionRules) {
         const plan = buildActionRulePlan(actionRule, {
           kind: TriggerSourceKind.WORKFLOW,
           key: completedWorkflow.ruleKey,
-          quantity: 1,
+          quantity: completedWorkflow.quantity,
           metadata: completedWorkflow.metadata,
+          evaluationContext: buildEvaluationContext(
+            completedWorkflow.playerId,
+            completedWorkflow.eventKey,
+            completedWorkflow.quantity,
+            completedWorkflow.metadata,
+          ),
         })
 
         if (!plan) {
           continue
+        }
+
+        if (plan.flagMutation) {
+          const nextServerFlags = applyFlagMutation(
+            plan.flagMutation,
+            completedWorkflow.playerId,
+            currentPlayerFlagsById,
+            currentServerFlags,
+            dirtyPlayerFlagIds,
+          )
+
+          if (nextServerFlags !== currentServerFlags) {
+            currentServerFlags = nextServerFlags
+            serverFlagsDirty = true
+          }
         }
 
         if (plan.serverSettings) {
@@ -716,6 +1192,12 @@ export default defineEventHandler(async (event) => {
           const uniqueKey = `${actionRule.id}:${completedWorkflow.runId}:money`
           const existingGrant = await transaction.rewardGrant.findUnique({ where: { uniqueKey } })
           if (!existingGrant) {
+            const existingWallet = currentWalletsByPlayerId.get(completedWorkflow.playerId) ?? {
+              balance: 0,
+              totalEarned: 0,
+              totalSpent: 0,
+            }
+
             await transaction.playerWallet.upsert({
               where: { playerId: completedWorkflow.playerId },
               update: {
@@ -727,6 +1209,12 @@ export default defineEventHandler(async (event) => {
                 balance: plan.moneyAmount,
                 totalEarned: plan.moneyAmount,
               },
+            })
+
+            currentWalletsByPlayerId.set(completedWorkflow.playerId, {
+              balance: existingWallet.balance + plan.moneyAmount,
+              totalEarned: existingWallet.totalEarned + plan.moneyAmount,
+              totalSpent: existingWallet.totalSpent,
             })
 
             await transaction.rewardGrant.create({
@@ -762,7 +1250,14 @@ export default defineEventHandler(async (event) => {
             },
           })
 
+          currentXpTotalsByPlayerId.set(
+            completedWorkflow.playerId,
+            (currentXpTotalsByPlayerId.get(completedWorkflow.playerId) ?? 0) + award.amount,
+          )
+
           if (award.category) {
+            const categories = currentXpCategoriesByPlayerId.get(completedWorkflow.playerId) ?? new Map<string, number>()
+
             await transaction.playerXpCategoryBalance.upsert({
               where: {
                 playerId_category: {
@@ -777,6 +1272,9 @@ export default defineEventHandler(async (event) => {
                 totalXp: award.amount,
               },
             })
+
+            categories.set(award.category, (categories.get(award.category) ?? 0) + award.amount)
+            currentXpCategoriesByPlayerId.set(completedWorkflow.playerId, categories)
           }
 
           await transaction.xpGrant.create({
@@ -796,7 +1294,60 @@ export default defineEventHandler(async (event) => {
 
           xpGrantsCreated = xpGrantsCreated + 1
         }
+
+        for (const itemGrant of plan.itemGrants ?? []) {
+          const staged = await stageAutomationExecution({
+            uniqueKey: `${actionRule.id}:${completedWorkflow.runId}:item:${itemGrant.itemId}`,
+            playerId: completedWorkflow.playerId,
+            actionRuleId: actionRule.id,
+            workflowRunId: completedWorkflow.runId,
+            effectType: 'ITEM_GRANT',
+            reason: plan.reason,
+            metadata: {
+              ...(plan.metadata ?? {}),
+              itemId: itemGrant.itemId,
+              quantity: itemGrant.quantity,
+            },
+            buildCommand: playerUsername => buildAddItemCommand(playerUsername, itemGrant.itemId, itemGrant.quantity),
+          })
+
+          if (staged) {
+            itemGrantsQueued = itemGrantsQueued + 1
+          }
+        }
+
+        for (const xpGrant of plan.inGameXpGrants ?? []) {
+          const staged = await stageAutomationExecution({
+            uniqueKey: `${actionRule.id}:${completedWorkflow.runId}:ingame-xp:${xpGrant.skillKey}`,
+            playerId: completedWorkflow.playerId,
+            actionRuleId: actionRule.id,
+            workflowRunId: completedWorkflow.runId,
+            effectType: 'INGAME_XP_GRANT',
+            reason: plan.reason,
+            metadata: {
+              ...(plan.metadata ?? {}),
+              skillKey: xpGrant.skillKey,
+              amount: xpGrant.amount,
+            },
+            buildCommand: playerUsername => buildAddXpCommand(playerUsername, xpGrant.skillKey, xpGrant.amount),
+          })
+
+          if (staged) {
+            inGameXpGrantsQueued = inGameXpGrantsQueued + 1
+          }
+        }
       }
+    }
+
+    if (dirtyPlayerFlagIds.size > 0) {
+      await Promise.all(
+        Array.from(dirtyPlayerFlagIds).map(playerId => transaction.serverPlayer.update({
+          where: { id: playerId },
+          data: {
+            automationState: buildAutomationRuntimeState(currentPlayerFlagsById.get(playerId) ?? {}),
+          },
+        })),
+      )
     }
 
     const serverSettingsMutation = pendingServerSettingsUpdate
@@ -810,6 +1361,11 @@ export default defineEventHandler(async (event) => {
           ? {
               ...serverSettingsMutation.profileData,
               serverIniOverrides: serverSettingsMutation.overrideSettings,
+            }
+          : {}),
+        ...(serverFlagsDirty
+          ? {
+              automationState: buildAutomationRuntimeState(currentServerFlags),
             }
           : {}),
         lastTelemetryAt: occurredAt,
@@ -832,15 +1388,69 @@ export default defineEventHandler(async (event) => {
     }
 
     return {
+      pendingAutomationExecutions,
       playersProcessed: body.players.length,
       eventsCreated: createdEvents.length,
       moneyGrantsCreated,
       xpGrantsCreated,
+      itemGrantsQueued,
+      inGameXpGrantsQueued,
       workflowCompletions: completedWorkflowTriggers.length,
       serverSettingsChanged: serverSettingsMutation?.changedKeys.length ?? 0,
       restartRequested: Boolean(serverSettingsMutation && pendingServerSettingsUpdate?.applyMode === 'restart-server'),
     }
   })
+
+  let itemGrantsCompleted = 0
+  let inGameXpGrantsCompleted = 0
+  let automationExecutionsFailed = 0
+
+  for (const pendingExecution of pendingAutomationExecutions) {
+    const markFailed = async (message: string) => {
+      automationExecutionsFailed = automationExecutionsFailed + 1
+
+      try {
+        await prisma.automationActionExecution.update({
+          where: { id: pendingExecution.executionId },
+          data: {
+            status: 'FAILED',
+            error: message,
+          },
+        })
+      }
+      catch (updateError) {
+        logger.error({ updateError, executionId: pendingExecution.executionId }, 'Failed to record automation execution failure')
+      }
+    }
+
+    if (!pendingExecution.command) {
+      await markFailed('Player username unavailable for automation reward delivery')
+      continue
+    }
+
+    try {
+      await sendRconCommand(pendingExecution.command)
+      await prisma.automationActionExecution.update({
+        where: { id: pendingExecution.executionId },
+        data: {
+          status: 'COMPLETED',
+          error: null,
+          executedAt: new Date(),
+        },
+      })
+
+      if (pendingExecution.effectType === 'ITEM_GRANT') {
+        itemGrantsCompleted = itemGrantsCompleted + 1
+      } else {
+        inGameXpGrantsCompleted = inGameXpGrantsCompleted + 1
+      }
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown automation reward delivery error'
+      logger.error({ error, executionId: pendingExecution.executionId, effectType: pendingExecution.effectType, playerId: pendingExecution.playerId }, 'Automation reward delivery failed')
+      await markFailed(message)
+    }
+  }
 
   if (result.restartRequested) {
     try {
@@ -884,5 +1494,8 @@ export default defineEventHandler(async (event) => {
     ok: true,
     profileId: profile.id,
     ...result,
+    itemGrantsCompleted,
+    inGameXpGrantsCompleted,
+    automationExecutionsFailed,
   }
 })

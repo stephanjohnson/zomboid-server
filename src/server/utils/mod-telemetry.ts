@@ -8,6 +8,18 @@ import type {
   WorkflowStep,
 } from '@prisma/client'
 
+import {
+  getAutomationRuntimeFlagMutation,
+  getAutomationRuntimeInGameXpGrant,
+  getAutomationRuntimeItemGrants,
+  getAutomationRuntimePredicate,
+  type AutomationRuntimeFlagMutation,
+  type AutomationRuntimeInGameXpGrant,
+  type AutomationRuntimeItemGrant,
+  type AutomationRuntimePredicateCheck,
+  type AutomationRuntimePredicateNode,
+} from '../../shared/telemetry-automation-runtime'
+
 import { TelemetryEventKeys } from './telemetry-config'
 
 const { RewardTriggerType, TelemetryEventType, WorkflowRunStatus } = prismaClient
@@ -65,12 +77,24 @@ export interface ActionRulePlan {
     category?: string
     amount: number
   }>
+  itemGrants?: AutomationRuntimeItemGrant[]
+  inGameXpGrants?: AutomationRuntimeInGameXpGrant[]
   serverSettings?: {
     settings: Record<string, string>
     applyMode: 'persist-only' | 'restart-server'
   }
+  flagMutation?: AutomationRuntimeFlagMutation
   reason: string
   metadata?: Record<string, unknown>
+}
+
+export interface AutomationRuleEvaluationContext {
+  event: Record<string, unknown>
+  player: Record<string, unknown>
+  playerStat: Record<string, unknown>
+  item: Record<string, unknown>
+  flag: Record<string, unknown>
+  server: Record<string, unknown>
 }
 
 export interface WorkflowDefinitionLike {
@@ -124,6 +148,8 @@ export interface WorkflowTransitionPlan {
     workflowId: string
     workflowKey: string
     playerId: string | null
+    eventKey: string
+    quantity: number
     metadata?: Record<string, unknown>
   }
 }
@@ -142,6 +168,219 @@ function asRecord(value: unknown): Record<string, unknown> {
   }
 
   return value as Record<string, unknown>
+}
+
+function getByPath(value: unknown, path: string): unknown {
+  if (!path.trim()) {
+    return value
+  }
+
+  return path
+    .split('.')
+    .map(segment => segment.trim())
+    .filter(Boolean)
+    .reduce<unknown>((currentValue, segment) => {
+      if (!currentValue || typeof currentValue !== 'object' || Array.isArray(currentValue)) {
+        return undefined
+      }
+
+      return (currentValue as Record<string, unknown>)[segment]
+    }, value)
+}
+
+function normalizeBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true') {
+      return true
+    }
+
+    if (normalized === 'false') {
+      return false
+    }
+  }
+
+  return null
+}
+
+function normalizeNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  return null
+}
+
+function hasValue(value: unknown): boolean {
+  return value !== null && value !== undefined && value !== ''
+}
+
+function getPredicateSourceRoot(
+  context: AutomationRuleEvaluationContext,
+  source: AutomationRuntimePredicateCheck['source'],
+): Record<string, unknown> {
+  switch (source) {
+    case 'player':
+      return context.player
+    case 'playerStat':
+      return context.playerStat
+    case 'item':
+      return context.item
+    case 'flag':
+      return context.flag
+    case 'server':
+      return context.server
+    case 'event':
+    default:
+      return context.event
+  }
+}
+
+function evaluatePredicateCheck(
+  check: AutomationRuntimePredicateCheck,
+  context: AutomationRuleEvaluationContext,
+): boolean {
+  const actualValue = getByPath(getPredicateSourceRoot(context, check.source), check.path)
+
+  if (check.operator === 'exists') {
+    return hasValue(actualValue)
+  }
+
+  if (check.operator === 'notExists') {
+    return !hasValue(actualValue)
+  }
+
+  if (check.operator === 'isTrue') {
+    return normalizeBoolean(actualValue) === true
+  }
+
+  if (check.operator === 'isFalse') {
+    return normalizeBoolean(actualValue) === false
+  }
+
+  if (check.valueType === 'number') {
+    const actualNumber = normalizeNumber(actualValue)
+    const expectedNumber = normalizeNumber(check.value)
+    if (actualNumber == null || expectedNumber == null) {
+      return false
+    }
+
+    if (check.operator === 'equals') {
+      return actualNumber === expectedNumber
+    }
+
+    if (check.operator === 'notEquals') {
+      return actualNumber !== expectedNumber
+    }
+
+    if (check.operator === 'gt') {
+      return actualNumber > expectedNumber
+    }
+
+    if (check.operator === 'gte') {
+      return actualNumber >= expectedNumber
+    }
+
+    if (check.operator === 'lt') {
+      return actualNumber < expectedNumber
+    }
+
+    if (check.operator === 'lte') {
+      return actualNumber <= expectedNumber
+    }
+
+    if (check.operator === 'contains') {
+      return Array.isArray(actualValue)
+        ? actualValue.some(value => normalizeNumber(value) === expectedNumber)
+        : false
+    }
+
+    return false
+  }
+
+  if (check.valueType === 'boolean') {
+    const actualBoolean = normalizeBoolean(actualValue)
+    const expectedBoolean = normalizeBoolean(check.value)
+    if (actualBoolean == null || expectedBoolean == null) {
+      return false
+    }
+
+    if (check.operator === 'equals') {
+      return actualBoolean === expectedBoolean
+    }
+
+    if (check.operator === 'notEquals') {
+      return actualBoolean !== expectedBoolean
+    }
+
+    if (check.operator === 'contains') {
+      return Array.isArray(actualValue)
+        ? actualValue.some(value => normalizeBoolean(value) === expectedBoolean)
+        : false
+    }
+
+    return false
+  }
+
+  const actualString = typeof actualValue === 'string'
+    ? actualValue
+    : actualValue == null
+      ? ''
+      : String(actualValue)
+  const expectedString = check.value
+
+  if (check.operator === 'equals') {
+    return actualString === expectedString
+  }
+
+  if (check.operator === 'notEquals') {
+    return actualString !== expectedString
+  }
+
+  if (check.operator === 'contains') {
+    return Array.isArray(actualValue)
+      ? actualValue.some(value => String(value) === expectedString)
+      : actualString.includes(expectedString)
+  }
+
+  if (check.operator === 'matches') {
+    try {
+      return new RegExp(expectedString, 'i').test(actualString)
+    }
+    catch {
+      return actualString.includes(expectedString)
+    }
+  }
+
+  return false
+}
+
+function evaluateCompiledPredicate(
+  predicate: AutomationRuntimePredicateNode,
+  context: AutomationRuleEvaluationContext,
+): boolean {
+  if (predicate.kind === 'check') {
+    return evaluatePredicateCheck(predicate, context)
+  }
+
+  if (predicate.kind === 'not') {
+    return !evaluateCompiledPredicate(predicate.child, context)
+  }
+
+  if (predicate.combinator === 'any') {
+    return predicate.children.some(child => evaluateCompiledPredicate(child, context))
+  }
+
+  return predicate.children.every(child => evaluateCompiledPredicate(child, context))
 }
 
 function normalizeSkills(skills?: Record<string, number> | null): Record<string, number> {
@@ -307,6 +546,22 @@ function matchesConfigMetadata(config: Record<string, unknown>, metadata: Record
   return matchesMetadataFilter(filter, metadata ?? {})
 }
 
+function matchesRuleConfig(
+  config: Record<string, unknown>,
+  metadata: Record<string, unknown> | null,
+  evaluationContext?: AutomationRuleEvaluationContext,
+): boolean {
+  const compiledPredicate = getAutomationRuntimePredicate(config)
+
+  if (compiledPredicate) {
+    if (!evaluationContext || !evaluateCompiledPredicate(compiledPredicate, evaluationContext)) {
+      return false
+    }
+  }
+
+  return matchesConfigMetadata(config, metadata)
+}
+
 function getRuleMultiplier(config: Record<string, unknown>, quantity: number): number {
   return config.multiplyByQuantity === false ? 1 : Math.max(1, quantity)
 }
@@ -342,6 +597,40 @@ function getActionRuleServerSettings(config: Record<string, unknown>): ActionRul
   return {
     settings,
     applyMode: config.serverSettingsApplyMode === 'restart-server' ? 'restart-server' : 'persist-only',
+  }
+}
+
+function getActionRuleFlagMutation(config: Record<string, unknown>): AutomationRuntimeFlagMutation | undefined {
+  return getAutomationRuntimeFlagMutation(config) ?? undefined
+}
+
+function getActionRuleItemGrants(
+  config: Record<string, unknown>,
+  multiplier: number,
+): AutomationRuntimeItemGrant[] | undefined {
+  const itemGrants = getAutomationRuntimeItemGrants(config)
+  if (itemGrants.length === 0) {
+    return undefined
+  }
+
+  return itemGrants.map(itemGrant => ({
+    itemId: itemGrant.itemId,
+    quantity: Math.max(1, itemGrant.quantity * multiplier),
+  }))
+}
+
+function getActionRuleInGameXpGrant(
+  config: Record<string, unknown>,
+  multiplier: number,
+): AutomationRuntimeInGameXpGrant | undefined {
+  const inGameXpGrant = getAutomationRuntimeInGameXpGrant(config)
+  if (!inGameXpGrant) {
+    return undefined
+  }
+
+  return {
+    skillKey: inGameXpGrant.skillKey,
+    amount: Math.max(1, inGameXpGrant.amount * multiplier),
   }
 }
 
@@ -434,6 +723,7 @@ export function buildActionRulePlan(
     key: string
     quantity: number
     metadata: Record<string, unknown> | null
+    evaluationContext?: AutomationRuleEvaluationContext
   },
 ): ActionRulePlan | null {
   if (rule.triggerKind !== trigger.kind || rule.triggerKey !== trigger.key) {
@@ -441,14 +731,17 @@ export function buildActionRulePlan(
   }
 
   const config = getRuleConfig(rule)
-  if (!matchesConfigMetadata(config, trigger.metadata)) {
+  if (!matchesRuleConfig(config, trigger.metadata, trigger.evaluationContext)) {
     return null
   }
 
   const multiplier = getRuleMultiplier(config, trigger.quantity)
   const moneyAmount = Math.max(0, rule.moneyAmount) * multiplier
   const xpAwards: ActionRulePlan['xpAwards'] = []
+  const itemGrants = getActionRuleItemGrants(config, multiplier)
+  const inGameXpGrant = getActionRuleInGameXpGrant(config, multiplier)
   const serverSettings = getActionRuleServerSettings(config)
+  const flagMutation = getActionRuleFlagMutation(config)
 
   if (rule.xpAmount > 0) {
     xpAwards.push({ amount: rule.xpAmount * multiplier })
@@ -461,14 +754,17 @@ export function buildActionRulePlan(
     })
   }
 
-  if (moneyAmount <= 0 && xpAwards.length === 0 && !serverSettings) {
+  if (moneyAmount <= 0 && xpAwards.length === 0 && !itemGrants && !inGameXpGrant && !serverSettings && !flagMutation) {
     return null
   }
 
   return {
     moneyAmount,
     xpAwards,
+    itemGrants,
+    inGameXpGrants: inGameXpGrant ? [inGameXpGrant] : undefined,
     serverSettings,
+    flagMutation,
     reason: rule.name,
     metadata: trigger.metadata ?? undefined,
   }
@@ -478,8 +774,12 @@ function normalizeWorkflowSteps(steps: WorkflowStepLike[]): WorkflowStepLike[] {
   return [...steps].sort((left, right) => left.stepOrder - right.stepOrder)
 }
 
-function stepMatchesEvent(step: WorkflowStepLike, event: TelemetryEventRecord): boolean {
-  return step.eventKey === event.eventKey && matchesConfigMetadata(asRecord(step.matchConfig), event.metadata)
+function stepMatchesEvent(
+  step: WorkflowStepLike,
+  event: TelemetryEventRecord,
+  evaluationContext?: AutomationRuleEvaluationContext,
+): boolean {
+  return step.eventKey === event.eventKey && matchesRuleConfig(asRecord(step.matchConfig), event.metadata, evaluationContext)
 }
 
 function buildRunContext(event: TelemetryEventRecord): Record<string, unknown> {
@@ -503,6 +803,7 @@ export function evaluateWorkflowTransition(
   workflow: WorkflowDefinitionLike,
   run: WorkflowRunLike | null,
   event: TelemetryEventRecord,
+  evaluationContext?: AutomationRuleEvaluationContext,
 ): WorkflowTransitionPlan | null {
   if (!event.playerId) {
     return null
@@ -523,7 +824,7 @@ export function evaluateWorkflowTransition(
 
   if (activeRun?.status === WorkflowRunStatus.ACTIVE) {
     const expectedStep = steps.find(step => step.stepOrder === activeRun.currentStep + 1)
-    if (expectedStep && stepMatchesEvent(expectedStep, event)) {
+    if (expectedStep && stepMatchesEvent(expectedStep, event, evaluationContext)) {
       if (expectedStep.withinSeconds && activeRun.lastMatchedAt) {
         const deltaSeconds = (event.occurredAt.getTime() - activeRun.lastMatchedAt.getTime()) / 1000
         if (deltaSeconds > expectedStep.withinSeconds) {
@@ -549,6 +850,8 @@ export function evaluateWorkflowTransition(
           workflowId: workflow.id,
           workflowKey: workflow.key,
           playerId: event.playerId,
+          eventKey: event.eventKey,
+          quantity: event.quantity,
           metadata: event.metadata ?? undefined,
         }
       }
@@ -558,7 +861,7 @@ export function evaluateWorkflowTransition(
   }
 
   const firstStep = steps[0]
-  if (!firstStep || !stepMatchesEvent(firstStep, event)) {
+  if (!firstStep || !stepMatchesEvent(firstStep, event, evaluationContext)) {
     return transition.expireRunId ? transition : null
   }
 
@@ -581,6 +884,8 @@ export function evaluateWorkflowTransition(
       workflowId: workflow.id,
       workflowKey: workflow.key,
       playerId: event.playerId,
+      eventKey: event.eventKey,
+      quantity: event.quantity,
       metadata: event.metadata ?? undefined,
     }
   }

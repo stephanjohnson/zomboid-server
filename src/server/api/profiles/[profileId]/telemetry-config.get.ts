@@ -1,3 +1,5 @@
+import { isAutomationRuntimeGeneratedConfig } from '../../../../shared/telemetry-automation-runtime'
+
 export default defineEventHandler(async (event) => {
   const user = event.context.user
   if (!user || user.role !== 'ADMIN') {
@@ -61,8 +63,15 @@ export default defineEventHandler(async (event) => {
     }),
   ])
 
+  const manualWorkflows = profile.workflows.filter(workflow => !isAutomationRuntimeGeneratedConfig(workflow.config))
+  const manualActionRules = profile.actionRules.filter(rule => !isAutomationRuntimeGeneratedConfig(rule.config))
+
   return {
-    profile,
+    profile: {
+      ...profile,
+      workflows: manualWorkflows,
+      actionRules: manualActionRules,
+    },
     xpBalances,
     xpCategories,
   }

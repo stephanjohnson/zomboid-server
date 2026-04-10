@@ -15,6 +15,12 @@ import {
   evaluateWorkflowTransition,
 } from '../../server/utils/mod-telemetry'
 import { TelemetryEventKeys } from '../../server/utils/telemetry-config'
+import {
+  automationRuntimeFlagMutationKey,
+  automationRuntimeInGameXpGrantKey,
+  automationRuntimeItemGrantKey,
+  automationRuntimePredicateKey,
+} from '../../shared/telemetry-automation-runtime'
 
 describe('derivePlayerEvents', () => {
   it('creates session, zombie kill, and skill events from snapshot deltas', () => {
@@ -233,6 +239,194 @@ describe('buildActionRulePlan', () => {
       metadata: { itemType: 'Base.Flag' },
     })
   })
+
+  it('builds direct item and in-game XP grants from compiled action config', () => {
+    const plan = buildActionRulePlan({
+      ...baseRule,
+      name: 'Loot and XP',
+      triggerKey: TelemetryEventKeys.ITEM_FOUND,
+      moneyAmount: 0,
+      xpAmount: 0,
+      xpCategory: null,
+      xpCategoryAmount: 0,
+      config: {
+        multiplyByQuantity: true,
+        [automationRuntimeItemGrantKey]: {
+          itemId: 'Base.Katana',
+          quantity: 1,
+        },
+        [automationRuntimeInGameXpGrantKey]: {
+          skillKey: 'Axe',
+          amount: 3,
+        },
+      },
+    }, {
+      kind: TriggerSourceKind.EVENT,
+      key: TelemetryEventKeys.ITEM_FOUND,
+      quantity: 2,
+      metadata: { itemType: 'Base.Key1' },
+    })
+
+    expect(plan).toEqual({
+      moneyAmount: 0,
+      xpAwards: [],
+      itemGrants: [{
+        itemId: 'Base.Katana',
+        quantity: 2,
+      }],
+      inGameXpGrants: [{
+        skillKey: 'Axe',
+        amount: 6,
+      }],
+      reason: 'Loot and XP',
+      metadata: { itemType: 'Base.Key1' },
+    })
+  })
+
+  it('builds multiple item grants from a compiled named loot table payout', () => {
+    const plan = buildActionRulePlan({
+      ...baseRule,
+      name: 'Bundle payout',
+      triggerKey: TelemetryEventKeys.ITEM_FOUND,
+      moneyAmount: 0,
+      xpAmount: 0,
+      xpCategory: null,
+      xpCategoryAmount: 0,
+      config: {
+        multiplyByQuantity: true,
+        [automationRuntimeItemGrantKey]: [
+          {
+            itemId: 'Base.Bat',
+            quantity: 1,
+          },
+          {
+            itemId: 'Base.NailsBox',
+            quantity: 3,
+          },
+        ],
+      },
+    }, {
+      kind: TriggerSourceKind.EVENT,
+      key: TelemetryEventKeys.ITEM_FOUND,
+      quantity: 2,
+      metadata: { itemType: 'Base.Key1' },
+    })
+
+    expect(plan).toEqual({
+      moneyAmount: 0,
+      xpAwards: [],
+      itemGrants: [
+        {
+          itemId: 'Base.Bat',
+          quantity: 2,
+        },
+        {
+          itemId: 'Base.NailsBox',
+          quantity: 6,
+        },
+      ],
+      reason: 'Bundle payout',
+      metadata: { itemType: 'Base.Key1' },
+    })
+  })
+
+  it('evaluates compiled predicates and returns flag mutations for generated rules', () => {
+    const plan = buildActionRulePlan({
+      ...baseRule,
+      name: 'Unlock objective',
+      triggerKind: TriggerSourceKind.WORKFLOW,
+      triggerKey: 'automation.graph.graph-1.trigger.trigger-1',
+      moneyAmount: 0,
+      xpAmount: 0,
+      xpCategory: null,
+      xpCategoryAmount: 0,
+      config: {
+        [automationRuntimePredicateKey]: {
+          kind: 'group',
+          combinator: 'all',
+          children: [{
+            kind: 'check',
+            source: 'flag',
+            path: 'objective.unlocked',
+            operator: 'isFalse',
+            value: '',
+            valueType: 'boolean',
+          }],
+        },
+        [automationRuntimeFlagMutationKey]: {
+          operation: 'set',
+          targetScope: 'server',
+          flagKey: 'objective.unlocked',
+        },
+      },
+    }, {
+      kind: TriggerSourceKind.WORKFLOW,
+      key: 'automation.graph.graph-1.trigger.trigger-1',
+      quantity: 1,
+      metadata: { itemType: 'Base.Key1' },
+      evaluationContext: {
+        event: { key: TelemetryEventKeys.ITEM_FOUND },
+        player: {},
+        playerStat: {},
+        item: { fullType: 'Base.Key1' },
+        flag: { objective: { unlocked: false } },
+        server: {},
+      },
+    })
+
+    expect(plan).toEqual({
+      moneyAmount: 0,
+      xpAwards: [],
+      flagMutation: {
+        operation: 'set',
+        targetScope: 'server',
+        flagKey: 'objective.unlocked',
+      },
+      reason: 'Unlock objective',
+      metadata: { itemType: 'Base.Key1' },
+    })
+  })
+
+  it('rejects generated rules when compiled predicates do not match the evaluation context', () => {
+    const plan = buildActionRulePlan({
+      ...baseRule,
+      triggerKey: TelemetryEventKeys.ITEM_FOUND,
+      moneyAmount: 0,
+      xpAmount: 0,
+      xpCategory: null,
+      xpCategoryAmount: 0,
+      config: {
+        [automationRuntimePredicateKey]: {
+          kind: 'check',
+          source: 'item',
+          path: 'fullType',
+          operator: 'equals',
+          value: 'Base.Key1',
+          valueType: 'string',
+        },
+        [automationRuntimeFlagMutationKey]: {
+          operation: 'set',
+          targetScope: 'player',
+          flagKey: 'reward.key-found',
+        },
+      },
+    }, {
+      kind: TriggerSourceKind.EVENT,
+      key: TelemetryEventKeys.ITEM_FOUND,
+      quantity: 1,
+      metadata: { itemType: 'Base.Hammer' },
+      evaluationContext: {
+        event: { key: TelemetryEventKeys.ITEM_FOUND },
+        player: {},
+        playerStat: {},
+        item: { fullType: 'Base.Hammer' },
+        flag: {},
+        server: {},
+      },
+    })
+
+    expect(plan).toBeNull()
+  })
 })
 
 describe('evaluateWorkflowTransition', () => {
@@ -304,7 +498,58 @@ describe('evaluateWorkflowTransition', () => {
       workflowId: 'workflow-1',
       workflowKey: 'capture-chain',
       playerId: 'player-1',
+      eventKey: 'objective.flag.bravo',
+      quantity: 1,
       metadata: { flag: 'bravo' },
+    })
+  })
+
+  it('evaluates compiled match config for workflow steps', () => {
+    const plan = evaluateWorkflowTransition({
+      ...workflow,
+      steps: [{
+        id: 'step-1',
+        stepOrder: 1,
+        eventKey: TelemetryEventKeys.ITEM_FOUND,
+        withinSeconds: null,
+        matchConfig: {
+          [automationRuntimePredicateKey]: {
+            kind: 'check',
+            source: 'item',
+            path: 'fullType',
+            operator: 'equals',
+            value: 'Base.Key1',
+            valueType: 'string',
+          },
+        },
+      }],
+    }, null, {
+      id: 'event-compiled-1',
+      playerId: 'player-1',
+      type: null,
+      eventKey: TelemetryEventKeys.ITEM_FOUND,
+      quantity: 1,
+      metadata: { itemType: 'Base.Key1' },
+      occurredAt: new Date('2026-04-04T12:00:00Z'),
+    }, {
+      event: { key: TelemetryEventKeys.ITEM_FOUND },
+      player: {},
+      playerStat: {},
+      item: { fullType: 'Base.Key1' },
+      flag: {},
+      server: {},
+    })
+
+    expect(plan?.createRun).toMatchObject({
+      workflowId: 'workflow-1',
+      playerId: 'player-1',
+      status: WorkflowRunStatus.COMPLETED,
+      currentStep: 1,
+    })
+    expect(plan?.completed).toMatchObject({
+      workflowKey: 'capture-chain',
+      eventKey: TelemetryEventKeys.ITEM_FOUND,
+      quantity: 1,
     })
   })
 

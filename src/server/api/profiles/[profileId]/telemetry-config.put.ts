@@ -1,9 +1,12 @@
 import * as v from 'valibot'
 
 import {
+  normalizeAutomationStudioDocument,
   automationNodeTypes,
   automationStudioVersion,
 } from '../../../../shared/telemetry-automation'
+import { compileAutomationStudioDocument } from '../../../utils/telemetry-automation-compiler'
+import { resolveStoreBundleLootTable } from '../../../utils/store'
 
 const ListenerSchema = v.object({
   adapterKey: v.pipe(v.string(), v.trim(), v.minLength(1)),
@@ -85,6 +88,18 @@ const UpdateTelemetryConfigSchema = v.object({
   }),
 })
 
+function assertUniqueWorkflowKeys(keys: string[], messagePrefix: string) {
+  const seen = new Set<string>()
+
+  for (const key of keys) {
+    if (seen.has(key)) {
+      throw createError({ statusCode: 400, message: `${messagePrefix}: duplicate workflow key "${key}".` })
+    }
+
+    seen.add(key)
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const user = event.context.user
   if (!user || user.role !== 'ADMIN') {
@@ -97,17 +112,66 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, v.parser(UpdateTelemetryConfigSchema))
+  const normalizedAutomationStudioConfig = normalizeAutomationStudioDocument(body.automationStudioConfig)
 
   const profile = await prisma.serverProfile.findUnique({ where: { id: profileId } })
   if (!profile) {
     throw createError({ statusCode: 404, message: 'Profile not found' })
   }
 
+  let compiledAutomation
+  try {
+    compiledAutomation = await compileAutomationStudioDocument(normalizedAutomationStudioConfig, {
+      resolveNamedLootTable: lootTableId => resolveStoreBundleLootTable(profile.id, lootTableId),
+    })
+  }
+  catch (error) {
+    throw createError({
+      statusCode: 400,
+      message: error instanceof Error ? error.message : 'Failed to compile automation workflows',
+    })
+  }
+
+  const manualWorkflowPayload = body.workflows.map(workflow => ({
+    key: workflow.key,
+    name: workflow.name,
+    isEnabled: workflow.isEnabled ?? true,
+    config: workflow.config,
+    steps: workflow.steps,
+  }))
+  const combinedWorkflowPayload = [...manualWorkflowPayload, ...compiledAutomation.workflows]
+  assertUniqueWorkflowKeys(combinedWorkflowPayload.map(workflow => workflow.key), 'Telemetry config save failed')
+
+  const combinedActionRulePayload = [
+    ...body.actionRules.map(rule => ({
+      name: rule.name,
+      triggerKind: rule.triggerKind,
+      triggerKey: rule.triggerKey,
+      isEnabled: rule.isEnabled ?? true,
+      moneyAmount: Math.floor(rule.moneyAmount ?? 0),
+      xpAmount: Math.floor(rule.xpAmount ?? 0),
+      xpCategory: rule.xpCategory ?? null,
+      xpCategoryAmount: Math.floor(rule.xpCategoryAmount ?? 0),
+      config: rule.config,
+    })),
+    ...compiledAutomation.actionRules.map(rule => ({
+      name: rule.name,
+      triggerKind: rule.triggerKind,
+      triggerKey: rule.triggerKey,
+      isEnabled: rule.isEnabled,
+      moneyAmount: Math.floor(rule.moneyAmount),
+      xpAmount: Math.floor(rule.xpAmount),
+      xpCategory: rule.xpCategory,
+      xpCategoryAmount: Math.floor(rule.xpCategoryAmount),
+      config: rule.config,
+    })),
+  ]
+
   await prisma.$transaction(async (transaction) => {
     await transaction.serverProfile.update({
       where: { id: profileId },
       data: {
-        automationStudioConfig: body.automationStudioConfig,
+        automationStudioConfig: normalizedAutomationStudioConfig,
       },
     })
 
@@ -145,24 +209,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (body.actionRules.length > 0) {
+    if (combinedActionRulePayload.length > 0) {
       await transaction.actionRule.createMany({
-        data: body.actionRules.map(rule => ({
+        data: combinedActionRulePayload.map(rule => ({
           profileId,
-          name: rule.name,
-          triggerKind: rule.triggerKind,
-          triggerKey: rule.triggerKey,
-          isEnabled: rule.isEnabled ?? true,
-          moneyAmount: Math.floor(rule.moneyAmount ?? 0),
-          xpAmount: Math.floor(rule.xpAmount ?? 0),
-          xpCategory: rule.xpCategory ?? null,
-          xpCategoryAmount: Math.floor(rule.xpCategoryAmount ?? 0),
-          config: rule.config,
+          ...rule,
         })),
       })
     }
 
-    for (const workflow of body.workflows) {
+    for (const workflow of combinedWorkflowPayload) {
       const createdWorkflow = await transaction.workflowDefinition.create({
         data: {
           profileId,
