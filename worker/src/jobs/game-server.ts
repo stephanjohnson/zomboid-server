@@ -268,6 +268,55 @@ function inferComposeProjectName(): string {
   return 'zomboid-server'
 }
 
+const DOCKER_MEMORY_UNITS: Record<string, number> = {
+  b: 1,
+  k: 1024,
+  kb: 1024,
+  m: 1024 ** 2,
+  mb: 1024 ** 2,
+  g: 1024 ** 3,
+  gb: 1024 ** 3,
+  t: 1024 ** 4,
+  tb: 1024 ** 4,
+}
+
+function parseDockerMemory(value: string | undefined, variableName: string): number {
+  if (!value?.trim()) {
+    return 0
+  }
+
+  const normalizedValue = value.trim().toLowerCase()
+  const match = normalizedValue.match(/^(\d+(?:\.\d+)?)([kmgt]?b?)?$/)
+
+  if (!match) {
+    throw new Error(`Invalid ${variableName} value: ${value}`)
+  }
+
+  const amount = Number(match[1])
+  const unit = match[2] || 'b'
+  const multiplier = DOCKER_MEMORY_UNITS[unit]
+
+  if (!multiplier) {
+    throw new Error(`Unsupported ${variableName} unit: ${value}`)
+  }
+
+  return Math.floor(amount * multiplier)
+}
+
+function getGameServerHostResourceConfig(): Pick<NonNullable<Dockerode.ContainerCreateOptions['HostConfig']>, 'Memory' | 'MemoryReservation'> {
+  const memory = parseDockerMemory(process.env.GAME_SERVER_MEM_LIMIT || '4g', 'GAME_SERVER_MEM_LIMIT')
+  const memoryReservation = parseDockerMemory(process.env.GAME_SERVER_MEM_RESERVATION || '3g', 'GAME_SERVER_MEM_RESERVATION')
+
+  if (memory > 0 && memoryReservation > memory) {
+    throw new Error('GAME_SERVER_MEM_RESERVATION cannot exceed GAME_SERVER_MEM_LIMIT')
+  }
+
+  return {
+    Memory: memory,
+    MemoryReservation: memoryReservation,
+  }
+}
+
 export async function getComposeOwnedContainerLabels(docker: Dockerode, serviceName: string): Promise<Record<string, string>> {
   const labels: Record<string, string> = {
     'com.docker.compose.project': inferComposeProjectName(),
@@ -348,6 +397,7 @@ export function buildContainerEnv(profile: RuntimeProfile, options: {
     `GAME_VERSION=${branch}`,
     `MAP_NAMES=${profile.mapName}`,
     `MAX_PLAYERS=${profile.maxPlayers}`,
+    `MAX_RAM=${process.env.PZ_MAX_RAM || '3072m'}`,
     `PUBLIC_SERVER=true`,
     `PAUSE_ON_EMPTY=true`,
     `STEAM_VAC=true`,
@@ -462,6 +512,7 @@ export function createContainerOptions(profile: RuntimeProfile, options: {
     HostConfig: {
       Binds: binds,
       ExtraHosts: ['host.docker.internal:host-gateway'],
+      ...getGameServerHostResourceConfig(),
       NetworkMode: networkName,
       PortBindings: createPortBindings(profile),
       RestartPolicy: { Name: 'unless-stopped' },

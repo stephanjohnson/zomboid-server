@@ -76,6 +76,56 @@ function inferComposeProjectName(): string {
   return 'zomboid-server'
 }
 
+const DOCKER_MEMORY_UNITS: Record<string, number> = {
+  b: 1,
+  k: 1024,
+  kb: 1024,
+  m: 1024 ** 2,
+  mb: 1024 ** 2,
+  g: 1024 ** 3,
+  gb: 1024 ** 3,
+  t: 1024 ** 4,
+  tb: 1024 ** 4,
+}
+
+function parseDockerMemory(value: string | undefined, variableName: string): number {
+  if (!value?.trim()) {
+    return 0
+  }
+
+  const normalizedValue = value.trim().toLowerCase()
+  const match = normalizedValue.match(/^(\d+(?:\.\d+)?)([kmgt]?b?)?$/)
+
+  if (!match) {
+    throw new Error(`Invalid ${variableName} value: ${value}`)
+  }
+
+  const amount = Number(match[1])
+  const unit = match[2] || 'b'
+  const multiplier = DOCKER_MEMORY_UNITS[unit]
+
+  if (!multiplier) {
+    throw new Error(`Unsupported ${variableName} unit: ${value}`)
+  }
+
+  return Math.floor(amount * multiplier)
+}
+
+function getGameServerHostResourceConfig(): Pick<NonNullable<Dockerode.ContainerCreateOptions['HostConfig']>, 'Memory' | 'MemoryReservation'> {
+  const config = useRuntimeConfig()
+  const memory = parseDockerMemory(config.gameServerMemoryLimit, 'GAME_SERVER_MEM_LIMIT')
+  const memoryReservation = parseDockerMemory(config.gameServerMemoryReservation, 'GAME_SERVER_MEM_RESERVATION')
+
+  if (memory > 0 && memoryReservation > memory) {
+    throw new Error('GAME_SERVER_MEM_RESERVATION cannot exceed GAME_SERVER_MEM_LIMIT')
+  }
+
+  return {
+    Memory: memory,
+    MemoryReservation: memoryReservation,
+  }
+}
+
 async function getComposeLabels(client: Dockerode, serviceName: string): Promise<Record<string, string>> {
   const labels: Record<string, string> = {
     'com.docker.compose.project': inferComposeProjectName(),
@@ -168,6 +218,7 @@ function createEnv(profile: GameServerProfileRuntime): string[] {
     `GAME_VERSION=${profile.steamBuild || 'public'}`,
     `MAP_NAMES=${profile.mapName}`,
     `MAX_PLAYERS=${profile.maxPlayers}`,
+    `MAX_RAM=${config.gameServerMaxRam}`,
     `PUBLIC_SERVER=true`,
     `PAUSE_ON_EMPTY=true`,
     `STEAM_VAC=true`,
@@ -231,8 +282,17 @@ async function containerNeedsReconciliation(profile: GameServerProfileRuntime): 
   const networkAlias = getGameServerNetworkAlias()
   const attachedNetwork = info.NetworkSettings?.Networks?.[networkName]
   const expectedLabels = await getComposeLabels(getDockerClient(), 'game-server')
+  const expectedHostResources = getGameServerHostResourceConfig()
 
   if (info.Config?.Image !== config.gameServerImageName) {
+    return true
+  }
+
+  if ((info.HostConfig?.Memory ?? 0) !== expectedHostResources.Memory) {
+    return true
+  }
+
+  if ((info.HostConfig?.MemoryReservation ?? 0) !== expectedHostResources.MemoryReservation) {
     return true
   }
 
@@ -303,6 +363,7 @@ async function createGameContainer(profile: GameServerProfileRuntime): Promise<D
       HostConfig: {
         Binds: createExpectedBinds(),
         ExtraHosts: ['host.docker.internal:host-gateway'],
+        ...getGameServerHostResourceConfig(),
         NetworkMode: networkName,
         PortBindings: createPortBindings(profile),
         RestartPolicy: { Name: 'unless-stopped' },
