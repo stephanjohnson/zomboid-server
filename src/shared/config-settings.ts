@@ -95,6 +95,21 @@ const DAY_LENGTH_OPTIONS: ConfigOption[] = [
   { value: '9', label: 'Real-time' },
 ]
 
+const MONTH_OPTIONS: ConfigOption[] = [
+  { value: '1', label: 'January' },
+  { value: '2', label: 'February' },
+  { value: '3', label: 'March' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'May' },
+  { value: '6', label: 'June' },
+  { value: '7', label: 'July' },
+  { value: '8', label: 'August' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+]
+
 const TEMPERATURE_OPTIONS: ConfigOption[] = [
   { value: '1', label: 'Very Cold' },
   { value: '2', label: 'Cold' },
@@ -153,6 +168,19 @@ const ZOMBIE_TRANSMISSION_OPTIONS: ConfigOption[] = [
   { value: '4', label: 'None' },
 ]
 
+const ZOMBIE_COUNT_OPTIONS: ConfigOption[] = [
+  { value: '1', label: 'Insane' },
+  { value: '2', label: 'High' },
+  { value: '3', label: 'Normal' },
+  { value: '4', label: 'Low' },
+  { value: '5', label: 'None' },
+]
+
+const ZOMBIE_DISTRIBUTION_OPTIONS: ConfigOption[] = [
+  { value: '1', label: 'Urban Focused' },
+  { value: '2', label: 'Uniform' },
+]
+
 const INFECTION_TIMING_OPTIONS: ConfigOption[] = [
   { value: '1', label: 'Instant' },
   { value: '2', label: 'Minutes' },
@@ -175,28 +203,413 @@ const ZOMBIE_MEMORY_OPTIONS: ConfigOption[] = [
   { value: '4', label: 'None' },
 ]
 
+const ZOMBIE_DECOMPOSITION_OPTIONS: ConfigOption[] = [
+  { value: '1', label: 'Slows + Weakens' },
+  { value: '2', label: 'Slows' },
+  { value: '3', label: 'Weakens' },
+  { value: '4', label: 'No Effect' },
+]
+
 const ZOMBIE_SENSE_OPTIONS: ConfigOption[] = [
   { value: '1', label: 'High' },
   { value: '2', label: 'Normal' },
   { value: '3', label: 'Poor' },
 ]
 
+const STEAM_SCOREBOARD_OPTIONS: ConfigOption[] = [
+  { value: 'false', label: 'Hidden' },
+  { value: 'true', label: 'Visible To Everyone' },
+  { value: 'admin', label: 'Admins Only' },
+]
+
+const MAP_REMOTE_PLAYER_VISIBILITY_OPTIONS: ConfigOption[] = [
+  { value: '1', label: 'Hidden' },
+  { value: '2', label: 'Friends Only' },
+  { value: '3', label: 'Everyone' },
+]
+
+const BAD_WORD_POLICY_OPTIONS: ConfigOption[] = [
+  { value: '1', label: 'Ban' },
+  { value: '2', label: 'Kick' },
+  { value: '3', label: 'Record Violation' },
+  { value: '4', label: 'Mute' },
+]
+
 function defineSetting(definition: ConfigSettingDefinition): ConfigSettingDefinition {
   return {
     persistence: 'override',
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
     ...definition,
   }
 }
 
+function booleanSetting(
+  group: string,
+  description: string,
+  defaultValue: boolean,
+  extra: Partial<ConfigSettingDefinition> = {},
+): ConfigSettingDefinition {
+  return defineSetting({
+    group,
+    description,
+    rawType: 'boolean',
+    control: 'switch',
+    defaultValue,
+    ...extra,
+  })
+}
+
+function numberSetting(
+  group: string,
+  description: string,
+  defaultValue?: number,
+  extra: Partial<ConfigSettingDefinition> = {},
+): ConfigSettingDefinition {
+  return defineSetting({
+    group,
+    description,
+    rawType: 'number',
+    control: 'number',
+    ...(defaultValue === undefined ? {} : { defaultValue }),
+    ...extra,
+  })
+}
+
+function textSetting(
+  group: string,
+  description: string,
+  defaultValue?: string,
+  extra: Partial<ConfigSettingDefinition> = {},
+): ConfigSettingDefinition {
+  return defineSetting({
+    group,
+    description,
+    rawType: 'string',
+    control: 'text',
+    ...(defaultValue === undefined ? {} : { defaultValue }),
+    ...extra,
+  })
+}
+
+function selectSetting(
+  rawType: ConfigRawType,
+  group: string,
+  description: string,
+  defaultValue: string | number | boolean,
+  options: ConfigOption[],
+  extra: Partial<ConfigSettingDefinition> = {},
+): ConfigSettingDefinition {
+  return defineSetting({
+    group,
+    description,
+    rawType,
+    control: 'select',
+    defaultValue,
+    options,
+    ...extra,
+  })
+}
+
 export const SERVER_INI_GROUP_ORDER = [
   'Access & Visibility',
+  'Chat & Identity',
   'Player Rules',
+  'PvP & Safety',
   'Network & RCON',
   'World & Saves',
+  'Safehouses & Factions',
   'Security',
+  'Moderation & Logging',
+  'Integrations',
+  'Performance & Cleanup',
+  'Anti-Cheat',
   'World Map',
   'Workshop & Mods',
 ] as const
+
+const EXTENDED_SERVER_INI_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinition> = {
+  GlobalChat: booleanSetting('Chat & Identity', 'Enable or disable global chat.', true),
+  ChatStreams: textSetting('Chat & Identity', 'Comma-separated list of enabled chat streams.', 's,r,a,w,y,sh,f,all', {
+    label: 'Enabled Chat Streams',
+  }),
+  ServerWelcomeMessage: textSetting('Chat & Identity', 'Welcome message shown to players after login. Use <LINE> for new lines.', '', {
+    label: 'Welcome Message',
+  }),
+  DisplayUserName: booleanSetting('Chat & Identity', 'Show usernames above player heads.', true, {
+    label: 'Display Usernames',
+  }),
+  ShowFirstAndLastName: booleanSetting('Chat & Identity', 'Show character first and last names above player heads.', false, {
+    label: 'Show Character Names',
+  }),
+  UsernameDisguises: booleanSetting('Chat & Identity', 'Allow disguised usernames for supported gameplay scenarios.', false),
+  HideDisguisedUserName: booleanSetting('Chat & Identity', 'Hide the original username when a player is disguised.', false, {
+    label: 'Hide Disguised Username',
+  }),
+  MouseOverToSeeDisplayName: booleanSetting('Chat & Identity', 'Require hovering another player to see their display name.', true, {
+    label: 'Mouse Over For Display Name',
+  }),
+  ChatMessageCharacterLimit: numberSetting('Chat & Identity', 'Maximum characters allowed in a chat message.', 200, {
+    min: 64,
+    max: 1024,
+  }),
+  ChatMessageSlowModeTime: numberSetting('Chat & Identity', 'Cooldown between chat messages in slow mode, in seconds.', 3, {
+    label: 'Chat Slow Mode Time',
+    min: 1,
+    max: 30,
+  }),
+
+  SpawnPoint: textSetting('Player Rules', 'Force all new players to spawn at a specific x,y,z coordinate. Use 0,0,0 to disable.', '0,0,0'),
+  SpawnItems: textSetting('Player Rules', 'Comma-separated item types that new players receive on spawn.', ''),
+  AllowCoop: booleanSetting('Player Rules', 'Allow co-op and split-screen players to join.', true),
+  SleepAllowed: booleanSetting('Player Rules', 'Allow players to sleep when tired.', false),
+  SleepNeeded: booleanSetting('Player Rules', 'Make players require sleep when tired.', false),
+  KnockedDownAllowed: booleanSetting('Player Rules', 'Allow knockdown reactions in multiplayer.', false),
+  SneakModeHideFromOtherPlayers: booleanSetting('Player Rules', 'Hide sneaking players from others more aggressively.', true),
+  UltraSpeedDoesnotAffectToAnimals: booleanSetting('Player Rules', 'Prevent ultra-speed time acceleration from affecting animals.', false, {
+    label: 'Ultra Speed Ignores Animals',
+  }),
+  PlayerRespawnWithSelf: booleanSetting('Player Rules', 'Allow players to respawn where they died.', false),
+  PlayerRespawnWithOther: booleanSetting('Player Rules', 'Allow players to respawn at a split-screen partner location.', false),
+  PlayerBumpPlayer: booleanSetting('Player Rules', 'Allow players to bump into and knock over other players.', false),
+
+  PVPLogToolChat: booleanSetting('PvP & Safety', 'Write PvP events to the admin chat log.', true, {
+    label: 'Log PvP To Admin Chat',
+  }),
+  PVPLogToolFile: booleanSetting('PvP & Safety', 'Write PvP events to the file log.', true, {
+    label: 'Log PvP To File',
+  }),
+  SafetySystem: booleanSetting('PvP & Safety', 'Allow players to toggle individual PvP safety when PvP is enabled.', true),
+  ShowSafety: booleanSetting('PvP & Safety', 'Show the PvP skull icon above players who disable safety.', true),
+  SafetyToggleTimer: numberSetting('PvP & Safety', 'Time required to toggle PvP safety.', 2, {
+    min: 0,
+    max: 1000,
+  }),
+  SafetyCooldownTimer: numberSetting('PvP & Safety', 'Cooldown before a player can toggle PvP safety again.', 3, {
+    min: 0,
+    max: 1000,
+  }),
+  SafetyDisconnectDelay: numberSetting('PvP & Safety', 'Delay before safety changes apply after disconnecting.', 60, {
+    min: 0,
+    max: 60,
+  }),
+  PVPMeleeWhileHitReaction: booleanSetting('PvP & Safety', 'Allow follow-up melee hits while the target is in hit reaction.', false),
+  HidePlayersBehindYou: booleanSetting('PvP & Safety', 'Hide players you cannot see directly, similar to zombies.', true),
+  PVPMeleeDamageModifier: numberSetting('PvP & Safety', 'Damage multiplier for melee attacks in PvP.', 30, {
+    label: 'PvP Melee Damage Multiplier',
+    min: 0,
+    max: 500,
+    step: 0.1,
+  }),
+  PVPFirearmDamageModifier: numberSetting('PvP & Safety', 'Damage multiplier for firearm attacks in PvP.', 50, {
+    label: 'PvP Firearm Damage Multiplier',
+    min: 0,
+    max: 500,
+    step: 0.1,
+  }),
+
+  DenyLoginOnOverloadedServer: booleanSetting('Access & Visibility', 'Reject login attempts while the server is overloaded.', true),
+  PublicName: textSetting('Access & Visibility', 'Public name shown in the in-game and Steam server browsers.', '', {
+    label: 'Public Browser Name',
+  }),
+  PublicDescription: textSetting('Access & Visibility', 'Description shown in the public server browser.', '', {
+    label: 'Public Browser Description',
+  }),
+  LoginQueueEnabled: booleanSetting('Access & Visibility', 'Enable the login queue when too many players connect at once.', false),
+  LoginQueueConnectTimeout: numberSetting('Access & Visibility', 'How long players can stay in the login queue before timing out.', 60, {
+    min: 20,
+    max: 1200,
+  }),
+  server_browser_announced_ip: textSetting('Access & Visibility', 'Specific IP address to announce to the server browser.', '', {
+    label: 'Announced Server IP',
+  }),
+
+  PingLimit: numberSetting('Network & RCON', 'Kick players whose ping stays above this limit. Set 0 to disable.', 0, {
+    min: 0,
+    max: 2147483647,
+  }),
+  SteamScoreboard: selectSetting('string', 'Network & RCON', 'Choose who can see Steam names and avatars in the scoreboard.', 'false', STEAM_SCOREBOARD_OPTIONS, {
+    label: 'Steam Scoreboard Visibility',
+  }),
+  UPnP: booleanSetting('Network & RCON', 'Attempt automatic UPnP port forwarding on the gateway.', true, {
+    label: 'UPnP Port Forwarding',
+  }),
+  VoiceEnable: booleanSetting('Network & RCON', 'Enable in-game voice chat.', true),
+  VoiceMinDistance: numberSetting('Network & RCON', 'Minimum distance where voice can be heard.', 10, {
+    min: 0,
+    max: 100000,
+    step: 0.1,
+  }),
+  VoiceMaxDistance: numberSetting('Network & RCON', 'Maximum distance where voice can be heard.', 100, {
+    min: 0,
+    max: 100000,
+    step: 0.1,
+  }),
+  Voice3D: booleanSetting('Network & RCON', 'Enable directional 3D voice audio.', true),
+  SpeedLimit: numberSetting('Network & RCON', 'Vehicle speed limit used by the server.', 70, {
+    min: 10,
+    max: 150,
+    step: 0.1,
+  }),
+
+  SwitchZombiesOwnershipEachUpdate: booleanSetting('World & Saves', 'Reassign zombie ownership between clients every update.', false, {
+    label: 'Reassign Zombie Ownership Each Update',
+  }),
+  ServerPlayerID: numberSetting('World & Saves', 'Server-side character identity used alongside Reset ID.', undefined, {
+    label: 'Server Player ID',
+  }),
+  FastForwardMultiplier: numberSetting('World & Saves', 'How quickly time passes while players sleep.', 40, {
+    min: 1,
+    max: 100,
+    step: 0.1,
+  }),
+  Seed: textSetting('World & Saves', 'World generation seed for the map.', '', {
+    label: 'World Seed',
+  }),
+
+  SafehousePreventsLootRespawn: booleanSetting('Safehouses & Factions', 'Prevent loot respawns in claimed safehouses.', true),
+  DropOffWhiteListAfterDeath: booleanSetting('Safehouses & Factions', 'Remove whitelist accounts after character death.', false),
+  PlayerSafehouse: booleanSetting('Safehouses & Factions', 'Allow players to claim safehouses.', false),
+  AdminSafehouse: booleanSetting('Safehouses & Factions', 'Allow admins to claim safehouses.', false),
+  SafehouseAllowTrepass: booleanSetting('Safehouses & Factions', 'Allow non-members to enter safehouses.', true, {
+    label: 'Allow Safehouse Trespass',
+  }),
+  SafehouseAllowFire: booleanSetting('Safehouses & Factions', 'Allow fire to damage safehouses.', true),
+  SafehouseAllowLoot: booleanSetting('Safehouses & Factions', 'Allow non-members to loot safehouses.', true),
+  SafehouseAllowRespawn: booleanSetting('Safehouses & Factions', 'Respawn players in a safehouse they belonged to.', false),
+  SafehouseDaySurvivedToClaim: numberSetting('Safehouses & Factions', 'Required in-game days survived before a player can claim a safehouse.', 0),
+  SafeHouseRemovalTime: numberSetting('Safehouses & Factions', 'Hours before inactive players are removed from a safehouse.', 144, {
+    label: 'Safehouse Removal Time',
+  }),
+  SafehouseAllowNonResidential: booleanSetting('Safehouses & Factions', 'Allow claiming non-residential buildings as safehouses.', false),
+  SafehouseDisableDisguises: booleanSetting('Safehouses & Factions', 'Disable disguises while inside safehouses.', true),
+  MaxSafezoneSize: numberSetting('Safehouses & Factions', 'Maximum safezone size.', 20000),
+  AllowDestructionBySledgehammer: booleanSetting('Safehouses & Factions', 'Allow players to destroy world objects with sledgehammers.', true),
+  SledgehammerOnlyInSafehouse: booleanSetting('Safehouses & Factions', 'Restrict sledgehammer destruction to safehouses.', false),
+  War: booleanSetting('Safehouses & Factions', 'Enable safehouse war mode.', true),
+  WarStartDelay: numberSetting('Safehouses & Factions', 'Delay before a declared safehouse war starts.', 600, {
+    min: 60,
+  }),
+  WarDuration: numberSetting('Safehouses & Factions', 'Duration of a safehouse war.', 3600, {
+    min: 60,
+  }),
+  WarSafehouseHitPoints: numberSetting('Safehouses & Factions', 'Hit points allowed during safehouse war.', 3, {
+    min: 0,
+  }),
+  DisableSafehouseWhenPlayerConnected: booleanSetting('Safehouses & Factions', 'Treat safehouses like normal houses while a member is online.', false),
+  Faction: booleanSetting('Safehouses & Factions', 'Allow players to create factions.', true),
+  FactionDaySurvivedToCreate: numberSetting('Safehouses & Factions', 'Required in-game days survived before creating a faction.', 0),
+  FactionPlayersRequiredForTag: numberSetting('Safehouses & Factions', 'Required faction members before creating a faction tag.', 1, {
+    min: 1,
+  }),
+
+  DoLuaChecksum: booleanSetting('Security', 'Kick players whose Lua files do not match the server.', false, {
+    label: 'Lua Checksum Enforcement',
+    searchTerms: ['lua mismatch', 'checksum'],
+  }),
+  MaxAccountsPerUser: numberSetting('Security', 'Maximum number of accounts a single Steam user can create.', 0, {
+    min: 0,
+    max: 2147483647,
+  }),
+  AllowNonAsciiUsername: booleanSetting('Security', 'Allow non-ASCII characters in usernames.', false),
+
+  AnnounceDeath: booleanSetting('Moderation & Logging', 'Announce player deaths globally in chat.', false),
+  AnnounceAnimalDeath: booleanSetting('Moderation & Logging', 'Announce animal deaths globally in chat.', false),
+  DisableRadioStaff: booleanSetting('Moderation & Logging', 'Disable radio transmissions from staff.', false),
+  DisableRadioAdmin: booleanSetting('Moderation & Logging', 'Disable radio transmissions from admins.', true),
+  DisableRadioGM: booleanSetting('Moderation & Logging', 'Disable radio transmissions from game masters.', true),
+  DisableRadioOverseer: booleanSetting('Moderation & Logging', 'Disable radio transmissions from overseers.', false),
+  DisableRadioModerator: booleanSetting('Moderation & Logging', 'Disable radio transmissions from moderators.', false),
+  DisableRadioInvisible: booleanSetting('Moderation & Logging', 'Disable radio transmissions from invisible players.', true),
+  ClientCommandFilter: textSetting('Moderation & Logging', 'Semicolon-separated command patterns to exclude or include in cmd.txt.', '-vehicle.*;+vehicle.damageWindow;+vehicle.fixPart;+vehicle.installPart;+vehicle.uninstallPart', {
+    label: 'Client Command Filter',
+  }),
+  ClientActionLogs: textSetting('Moderation & Logging', 'Semicolon-separated client actions to write to ClientActionLogs.txt.', 'ISEnterVehicle;ISExitVehicle;ISTakeEngineParts;', {
+    label: 'Client Action Logs',
+  }),
+  PerkLogs: booleanSetting('Moderation & Logging', 'Log perk level changes to PerkLog.txt.', true, {
+    label: 'Perk Logs',
+  }),
+  BanKickGlobalSound: booleanSetting('Moderation & Logging', 'Play a global sound when players are banned or kicked.', true),
+  BadWordListFile: textSetting('Moderation & Logging', 'Path to the bad-word list file.', ''),
+  GoodWordListFile: textSetting('Moderation & Logging', 'Path to the allow-list file for words that should bypass bad-word filtering.', ''),
+  BadWordPolicy: selectSetting('number', 'Moderation & Logging', 'Action to take when a bad word is used in chat.', 3, BAD_WORD_POLICY_OPTIONS, {
+    min: 1,
+    max: 4,
+  }),
+  BadWordReplacement: textSetting('Moderation & Logging', 'Replacement text used when bad words are filtered.', '[HIDDEN]'),
+  DisableScoreboard: booleanSetting('Moderation & Logging', 'Hide the scoreboard entirely.', false),
+  HideAdminsInPlayerList: booleanSetting('Moderation & Logging', 'Hide admins from the player list.', false),
+
+  DiscordEnable: booleanSetting('Integrations', 'Enable Discord chat integration.', false),
+  DiscordToken: textSetting('Integrations', 'Discord bot token used for server integration.', '', {
+    sensitive: true,
+  }),
+  DiscordChatChannel: textSetting('Integrations', 'Discord channel name used for chat relay.', ''),
+  DiscordLogChannel: textSetting('Integrations', 'Discord channel name used for server logs.', ''),
+  DiscordCommandChannel: textSetting('Integrations', 'Discord channel name used for bot commands.', ''),
+  WebhookAddress: textSetting('Integrations', 'Webhook URL used for outgoing notifications.', '', {
+    sensitive: true,
+  }),
+
+  NoFire: booleanSetting('Performance & Cleanup', 'Disable all fire except campfires.', false),
+  ItemNumbersLimitPerContainer: numberSetting('Performance & Cleanup', 'Maximum items allowed in a container. 0 disables the limit.', 0, {
+    min: 0,
+    max: 9000,
+  }),
+  BloodSplatLifespanDays: numberSetting('Performance & Cleanup', 'Days before blood splats are cleaned up. 0 means never.', 0, {
+    min: 0,
+    max: 365,
+  }),
+  RemovePlayerCorpsesOnCorpseRemoval: booleanSetting('Performance & Cleanup', 'Remove player corpses when corpse cleanup runs.', false),
+  TrashDeleteAll: booleanSetting('Performance & Cleanup', 'Allow players to use the delete-all action on bins.', false),
+  CarEngineAttractionModifier: numberSetting('Performance & Cleanup', 'Scale how strongly car engines attract zombies.', 0.5, {
+    min: 0,
+    max: 10,
+    step: 0.1,
+  }),
+  BackupsCount: numberSetting('Performance & Cleanup', 'How many rotating backups to keep.', 5, {
+    min: 1,
+    max: 300,
+  }),
+  BackupsOnStart: booleanSetting('Performance & Cleanup', 'Create a backup when the server starts.', true),
+  BackupsOnVersionChange: booleanSetting('Performance & Cleanup', 'Create a backup when the server version changes.', true),
+  BackupsPeriod: numberSetting('Performance & Cleanup', 'Backup interval in minutes. 0 disables periodic backups.', 0, {
+    min: 0,
+    max: 1500,
+  }),
+  DisableVehicleTowing: booleanSetting('Performance & Cleanup', 'Disable towing vehicles.', false),
+  DisableTrailerTowing: booleanSetting('Performance & Cleanup', 'Disable towing trailers.', false),
+  DisableBurntTowing: booleanSetting('Performance & Cleanup', 'Disable towing burnt vehicles.', false),
+  MultiplayerStatisticsPeriod: numberSetting('Performance & Cleanup', 'How often multiplayer statistics are updated. 0 disables them.', 1, {
+    min: 0,
+    max: 10,
+  }),
+  MaxPacketsPerSecond: numberSetting('Performance & Cleanup', 'Maximum packets per second the server accepts from a client.', 300, {
+    min: 100,
+    max: 1000,
+  }),
+  UsePhysicsHitReaction: booleanSetting('Performance & Cleanup', 'Use physics-based hit reactions.', false),
+
+  AntiCheatSafety: numberSetting('Anti-Cheat', 'Anti-cheat level for safety checks.', 4, { min: 0, max: 4 }),
+  AntiCheatMovement: numberSetting('Anti-Cheat', 'Anti-cheat level for movement checks.', 4, { min: 0, max: 4 }),
+  AntiCheatHit: numberSetting('Anti-Cheat', 'Anti-cheat level for hit validation.', 4, { min: 0, max: 4 }),
+  AntiCheatPacket: numberSetting('Anti-Cheat', 'Anti-cheat level for packet validation.', 4, { min: 0, max: 4 }),
+  AntiCheatPermission: numberSetting('Anti-Cheat', 'Anti-cheat level for permission checks.', 4, { min: 0, max: 4 }),
+  AntiCheatXP: numberSetting('Anti-Cheat', 'Anti-cheat level for XP validation.', 4, { min: 0, max: 4 }),
+  AntiCheatFire: numberSetting('Anti-Cheat', 'Anti-cheat level for fire checks.', 4, { min: 0, max: 4 }),
+  AntiCheatSafeHouse: numberSetting('Anti-Cheat', 'Anti-cheat level for safehouse checks.', 4, { min: 0, max: 4 }),
+  AntiCheatRecipe: numberSetting('Anti-Cheat', 'Anti-cheat level for recipe validation.', 4, { min: 0, max: 4 }),
+  AntiCheatPlayer: numberSetting('Anti-Cheat', 'Anti-cheat level for player validation.', 4, { min: 0, max: 4 }),
+  AntiCheatChecksum: numberSetting('Anti-Cheat', 'Anti-cheat level for checksum validation.', 4, { min: 0, max: 4 }),
+  AntiCheatItem: numberSetting('Anti-Cheat', 'Anti-cheat level for item validation.', 4, { min: 0, max: 4 }),
+  AntiCheatServerCustomization: numberSetting('Anti-Cheat', 'Anti-cheat level for server customization checks.', 4, { min: 0, max: 4 }),
+
+  MapRemotePlayerVisibility: selectSetting('number', 'World Map', 'Choose who can see remote players on the in-game map.', 1, MAP_REMOTE_PLAYER_VISIBILITY_OPTIONS, {
+    label: 'Remote Player Map Visibility',
+    min: 1,
+    max: 3,
+  }),
+}
 
 export const SERVER_INI_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinition> = {
   Public: defineSetting({
@@ -311,6 +724,7 @@ export const SERVER_INI_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinit
     persistence: 'profile-field',
     profileField: 'rconPassword',
     sensitive: true,
+    searchTerms: ['admin password', 'remote console'],
   }),
   PauseEmpty: defineSetting({
     label: 'Pause When Empty',
@@ -395,6 +809,7 @@ export const SERVER_INI_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinit
     persistence: 'managed',
     managedTarget: 'mods',
   }),
+  ...EXTENDED_SERVER_INI_SETTING_DEFINITIONS,
 }
 
 export const SANDBOX_GROUP_ORDER = [
@@ -419,6 +834,62 @@ export const SANDBOX_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinition
     docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
     searchTerms: ['day duration', '1 hour', '2 hours', 'time multiplier'],
   }),
+  StartYear: defineSetting({
+    label: 'Start Year',
+    group: 'World Time',
+    description: 'Sandbox year code for when the apocalypse begins. Use the advanced raw value if you need the exact underlying year index.',
+    rawType: 'number',
+    control: 'number',
+    defaultValue: 1,
+    min: 1,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['starting year', 'world start year'],
+  }),
+  StartMonth: defineSetting({
+    label: 'Start Month',
+    group: 'World Time',
+    description: 'Calendar month when the apocalypse starts.',
+    rawType: 'number',
+    control: 'select',
+    defaultValue: 7,
+    options: MONTH_OPTIONS,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['starting month', 'july', 'calendar month'],
+  }),
+  StartDay: defineSetting({
+    label: 'Start Day',
+    group: 'World Time',
+    description: 'Day of the month when the world begins.',
+    rawType: 'number',
+    control: 'number',
+    defaultValue: 9,
+    min: 1,
+    max: 31,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['starting day', 'calendar day'],
+  }),
+  Zombies: defineSetting({
+    label: 'Zombie Count Preset',
+    group: 'Zombie Population',
+    description: 'Preset that controls the overall zombie count before the detailed population multipliers apply.',
+    rawType: 'number',
+    control: 'select',
+    defaultValue: 3,
+    options: ZOMBIE_COUNT_OPTIONS,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['overall zombie count', 'spawn rate', 'insane', 'none'],
+  }),
+  Distribution: defineSetting({
+    label: 'Zombie Distribution',
+    group: 'Zombie Population',
+    description: 'Choose whether zombies cluster in towns or spread uniformly across the map.',
+    rawType: 'number',
+    control: 'select',
+    defaultValue: 1,
+    options: ZOMBIE_DISTRIBUTION_OPTIONS,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['urban focused', 'uniform distribution'],
+  }),
   'ZombieConfig.PopulationMultiplier': defineSetting({
     label: 'Population Multiplier',
     group: 'Zombie Population',
@@ -430,6 +901,19 @@ export const SANDBOX_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinition
     max: 4,
     step: 0.1,
     docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+  }),
+  'ZombieConfig.PopulationStartMultiplier': defineSetting({
+    label: 'Starting Population Multiplier',
+    group: 'Zombie Population',
+    description: 'Population multiplier applied on the first day before the peak ramp begins.',
+    rawType: 'number',
+    control: 'number',
+    defaultValue: 1,
+    min: 0,
+    max: 4,
+    step: 0.1,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['day 1 population', 'initial population'],
   }),
   'ZombieConfig.PopulationPeakMultiplier': defineSetting({
     label: 'Peak Population Multiplier',
@@ -579,6 +1063,17 @@ export const SANDBOX_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinition
     defaultValue: 2,
     options: ZOMBIE_MEMORY_OPTIONS,
     docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+  }),
+  'ZombieLore.Decomp': defineSetting({
+    label: 'Zombie Decomposition',
+    group: 'Zombie Behavior',
+    description: 'How decomposition weakens or slows zombies over time.',
+    rawType: 'number',
+    control: 'select',
+    defaultValue: 1,
+    options: ZOMBIE_DECOMPOSITION_OPTIONS,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['decomposition', 'decay'],
   }),
   'ZombieLore.Sight': defineSetting({
     label: 'Zombie Sight',
@@ -753,6 +1248,28 @@ export const SANDBOX_SETTING_DEFINITIONS: Record<string, ConfigSettingDefinition
     defaultValue: 3,
     options: EROSION_OPTIONS,
     docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+  }),
+  WaterShut: defineSetting({
+    label: 'Water Shutoff Preset',
+    group: 'Climate & Utilities',
+    description: 'Sandbox preset code for when water shuts off. Use Water Shutoff Delay for exact day control.',
+    rawType: 'number',
+    control: 'number',
+    defaultValue: 2,
+    min: 1,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['water shutoff preset', 'water shutoff timing'],
+  }),
+  ElecShut: defineSetting({
+    label: 'Electricity Shutoff Preset',
+    group: 'Climate & Utilities',
+    description: 'Sandbox preset code for when electricity shuts off. Use Electricity Shutoff Delay for exact day control.',
+    rawType: 'number',
+    control: 'number',
+    defaultValue: 2,
+    min: 1,
+    docsUrl: PZ_SERVER_SETTINGS_WIKI_URL,
+    searchTerms: ['electricity shutoff preset', 'power shutoff timing'],
   }),
   WaterShutModifier: defineSetting({
     label: 'Water Shutoff Delay',

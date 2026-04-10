@@ -18,6 +18,7 @@ const DEFAULT_SERVER_INI_SETTINGS: Record<string, string> = {
   Map: 'Muldraugh, KY',
   Mods: '',
   WorkshopItems: '',
+  DoLuaChecksum: 'false',
   Password: '',
   Public: 'true',
   PauseEmpty: 'true',
@@ -134,7 +135,6 @@ export function buildServerIniSettings(
     PVP: profile.pvp ? 'true' : 'false',
     RCONPort: String(profile.rconPort),
     RCONPassword: rconPassword,
-    DoLuaChecksum: 'false',
   }
 
   settings.Mods = appendEntries(settings.Mods, modSettings.modIds)

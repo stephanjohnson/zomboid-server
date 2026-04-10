@@ -109,7 +109,7 @@ const props = defineProps<{
                   <div class="grid gap-3 lg:grid-cols-[120px_minmax(0,1fr)_160px_auto] lg:items-end">
                     <div class="space-y-2">
                       <Label>Step</Label>
-                      <Input v-model.number="step.stepOrder" type="number" min="1" />
+                      <NumericInput v-model="step.stepOrder" :min="1" />
                     </div>
                     <div class="space-y-2">
                       <Label>Event Key</Label>
@@ -117,7 +117,7 @@ const props = defineProps<{
                     </div>
                     <div class="space-y-2">
                       <Label>Within Seconds</Label>
-                      <Input v-model="step.withinSeconds" type="number" min="1" placeholder="Optional" />
+                      <NumericInput v-model="step.withinSeconds" value-type="string" :min="1" placeholder="Optional" />
                     </div>
                     <Button variant="ghost" size="sm" @click="props.onRemoveStep(workflowIndex, stepIndex)">
                       Remove step

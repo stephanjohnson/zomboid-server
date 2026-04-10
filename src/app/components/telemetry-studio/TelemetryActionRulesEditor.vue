@@ -78,11 +78,11 @@ const props = defineProps<{
             <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div class="space-y-2">
                 <Label>Money Amount</Label>
-                <Input v-model.number="rule.moneyAmount" type="number" min="0" />
+                <NumericInput v-model="rule.moneyAmount" :min="0" />
               </div>
               <div class="space-y-2">
                 <Label>Total XP</Label>
-                <Input v-model.number="rule.xpAmount" type="number" min="0" />
+                <NumericInput v-model="rule.xpAmount" :min="0" />
               </div>
               <div class="space-y-2">
                 <Label>XP Category</Label>
@@ -90,7 +90,7 @@ const props = defineProps<{
               </div>
               <div class="space-y-2">
                 <Label>Category XP</Label>
-                <Input v-model.number="rule.xpCategoryAmount" type="number" min="0" />
+                <NumericInput v-model="rule.xpCategoryAmount" :min="0" />
               </div>
             </div>
 

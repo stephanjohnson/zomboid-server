@@ -77,17 +77,17 @@ async function handleSubmit() {
           <div class="grid gap-4 xl:grid-cols-3">
             <div class="space-y-2">
               <Label for="game-port">Game Port</Label>
-              <Input id="game-port" v-model.number="form.gamePort" type="number" />
+              <NumericInput id="game-port" v-model="form.gamePort" />
             </div>
 
             <div class="space-y-2">
               <Label for="direct-port">Direct Port</Label>
-              <Input id="direct-port" v-model.number="form.directPort" type="number" />
+              <NumericInput id="direct-port" v-model="form.directPort" />
             </div>
 
             <div class="space-y-2">
               <Label for="rcon-port">RCON Port</Label>
-              <Input id="rcon-port" v-model.number="form.rconPort" type="number" />
+              <NumericInput id="rcon-port" v-model="form.rconPort" />
             </div>
           </div>
 
@@ -109,7 +109,7 @@ async function handleSubmit() {
 
             <div class="space-y-2">
               <Label for="max-players">Max Players</Label>
-              <Input id="max-players" v-model.number="form.maxPlayers" type="number" min="1" max="128" />
+              <NumericInput id="max-players" v-model="form.maxPlayers" :min="1" :max="128" />
             </div>
           </div>
 

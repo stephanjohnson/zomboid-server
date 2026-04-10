@@ -57,10 +57,9 @@ function toggleSelection(collection: string[], id: string) {
 
       <div class="grid gap-2">
         <Label for="product-sort">Sort order</Label>
-        <Input
+        <NumericInput
           id="product-sort"
-          v-model.number="form.sortOrder"
-          type="number"
+          v-model="form.sortOrder"
           min="0"
         />
         <p class="text-xs text-muted-foreground">

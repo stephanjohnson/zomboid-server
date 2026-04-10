@@ -181,27 +181,27 @@ function updateVariantActive(index: number, value: CheckboxState) {
             <div class="grid gap-4 md:grid-cols-5">
               <div class="grid gap-2">
                 <Label :for="`variant-price-${variantIndex}`">Price</Label>
-                <Input :id="`variant-price-${variantIndex}`" v-model.number="variant.price" type="number" min="0" />
+                <NumericInput :id="`variant-price-${variantIndex}`" v-model="variant.price" :min="0" />
                 <p class="text-xs text-muted-foreground">Base price in points.</p>
               </div>
               <div class="grid gap-2">
                 <Label :for="`variant-compare-${variantIndex}`">Compare at</Label>
-                <Input :id="`variant-compare-${variantIndex}`" v-model.number="variant.compareAtPrice" type="number" min="0" />
+                <NumericInput :id="`variant-compare-${variantIndex}`" v-model="variant.compareAtPrice" :min="0" :empty-value="undefined" />
                 <p class="text-xs text-muted-foreground">Original price for sale display.</p>
               </div>
               <div class="grid gap-2">
                 <Label :for="`variant-qty-${variantIndex}`">Quantity</Label>
-                <Input :id="`variant-qty-${variantIndex}`" v-model.number="variant.quantity" type="number" min="1" />
+                <NumericInput :id="`variant-qty-${variantIndex}`" v-model="variant.quantity" :min="1" />
                 <p class="text-xs text-muted-foreground">Items per purchase.</p>
               </div>
               <div class="grid gap-2">
                 <Label :for="`variant-stock-${variantIndex}`">Stock</Label>
-                <Input :id="`variant-stock-${variantIndex}`" v-model.number="variant.stock" type="number" min="0" placeholder="Unlimited" />
+                <NumericInput :id="`variant-stock-${variantIndex}`" v-model="variant.stock" :min="0" placeholder="Unlimited" :empty-value="undefined" />
                 <p class="text-xs text-muted-foreground">Leave empty for unlimited.</p>
               </div>
               <div class="grid gap-2">
                 <Label :for="`variant-weight-${variantIndex}`">Weight</Label>
-                <Input :id="`variant-weight-${variantIndex}`" v-model.number="variant.weight" type="number" min="0" step="0.01" />
+                <NumericInput :id="`variant-weight-${variantIndex}`" v-model="variant.weight" :min="0" :step="0.01" :empty-value="undefined" />
                 <p class="text-xs text-muted-foreground">Weight in kilograms.</p>
               </div>
             </div>

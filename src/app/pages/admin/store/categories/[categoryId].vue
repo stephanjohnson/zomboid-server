@@ -144,7 +144,7 @@ async function handleSubmit() {
           </div>
           <div class="grid gap-2">
             <Label for="category-sort">Sort order</Label>
-            <Input id="category-sort" v-model.number="form.sortOrder" type="number" min="0" />
+            <NumericInput id="category-sort" v-model="form.sortOrder" :min="0" />
             <p class="text-xs text-muted-foreground">Lower values appear first.</p>
           </div>
         </div>

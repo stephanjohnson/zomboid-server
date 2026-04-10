@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { buildEditorDisplayValues, groupConfigEntries } from '../../shared/config-settings'
 import {
   buildServerIniEditorSettings,
   normalizeSandboxEditorSettings,
@@ -55,6 +56,7 @@ describe('splitServerIniEditorSettings', () => {
       PVP: 'false',
       Public: 'true',
       PauseEmpty: 'false',
+      DoLuaChecksum: 'true',
       Mods: 'Brita;Arsenal26GunFighter;ZomboidManager',
       WorkshopItems: '2200148440;3685323705',
     })
@@ -70,8 +72,41 @@ describe('splitServerIniEditorSettings', () => {
     })
 
     expect(result.overrideSettings).toEqual({
+      DoLuaChecksum: 'true',
       PauseEmpty: 'false',
     })
+  })
+})
+
+describe('server.ini config metadata coverage', () => {
+  it('surfaces the expanded server setting catalog with defaults and group placement', () => {
+    const values = buildEditorDisplayValues('server-ini', {})
+
+    expect(values.GlobalChat).toBe('true')
+    expect(values.ChatStreams).toBe('s,r,a,w,y,sh,f,all')
+    expect(values.DoLuaChecksum).toBe('false')
+    expect(values.BadWordPolicy).toBe('3')
+    expect(values.SteamScoreboard).toBe('false')
+    expect(values.PublicDescription).toBe('')
+
+    const groups = groupConfigEntries('server-ini', {
+      PublicDescription: values.PublicDescription,
+      GlobalChat: values.GlobalChat,
+      SafetySystem: values.SafetySystem,
+      Faction: values.Faction,
+      AntiCheatSafety: values.AntiCheatSafety,
+    })
+
+    const entriesByGroup = Object.fromEntries(groups.map(group => [
+      group.group,
+      group.entries.map(entry => entry.key),
+    ]))
+
+    expect(entriesByGroup['Access & Visibility']).toContain('PublicDescription')
+    expect(entriesByGroup['Chat & Identity']).toContain('GlobalChat')
+    expect(entriesByGroup['PvP & Safety']).toContain('SafetySystem')
+    expect(entriesByGroup['Safehouses & Factions']).toContain('Faction')
+    expect(entriesByGroup['Anti-Cheat']).toContain('AntiCheatSafety')
   })
 })
 
@@ -97,5 +132,52 @@ describe('normalizeSandboxEditorSettings', () => {
       FoodLoot: 4,
       XpMultiplier: 2.5,
     })
+  })
+})
+
+describe('sandbox config metadata coverage', () => {
+  it('surfaces sibling-derived sandbox settings with defaults and expected groups', () => {
+    const values = buildEditorDisplayValues('sandbox', {})
+
+    expect(values.StartMonth).toBe('7')
+    expect(values.Zombies).toBe('3')
+    expect(values['ZombieConfig.PopulationStartMultiplier']).toBe('1')
+    expect(values['ZombieLore.Decomp']).toBe('1')
+    expect(values.WaterShut).toBe('2')
+    expect(values.ElecShut).toBe('2')
+
+    const groups = groupConfigEntries('sandbox', {
+      StartMonth: values.StartMonth,
+      Zombies: values.Zombies,
+      'ZombieLore.Decomp': values['ZombieLore.Decomp'],
+      WaterShut: values.WaterShut,
+    })
+
+    expect(groups).toEqual([
+      {
+        group: 'World Time',
+        entries: [
+          expect.objectContaining({ key: 'StartMonth' }),
+        ],
+      },
+      {
+        group: 'Zombie Population',
+        entries: [
+          expect.objectContaining({ key: 'Zombies' }),
+        ],
+      },
+      {
+        group: 'Zombie Behavior',
+        entries: [
+          expect.objectContaining({ key: 'ZombieLore.Decomp' }),
+        ],
+      },
+      {
+        group: 'Climate & Utilities',
+        entries: [
+          expect.objectContaining({ key: 'WaterShut' }),
+        ],
+      },
+    ])
   })
 })

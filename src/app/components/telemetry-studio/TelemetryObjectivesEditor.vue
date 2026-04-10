@@ -352,7 +352,7 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
                     <div class="grid gap-3 lg:grid-cols-[96px_minmax(0,1fr)_160px_auto] lg:items-end">
                       <div class="space-y-2">
                         <Label>Step</Label>
-                        <Input v-model.number="step.stepOrder" type="number" min="1" />
+                        <NumericInput v-model="step.stepOrder" :min="1" />
                       </div>
                       <div class="space-y-2">
                         <Label>Event Key</Label>
@@ -360,7 +360,7 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
                       </div>
                       <div class="space-y-2">
                         <Label>Within Seconds</Label>
-                        <Input v-model="step.withinSeconds" type="number" min="1" placeholder="Optional" />
+                        <NumericInput v-model="step.withinSeconds" value-type="string" :min="1" placeholder="Optional" />
                       </div>
                       <Button variant="ghost" size="sm" @click="props.onRemoveStep(card.workflowIndex, stepIndex)">
                         Remove step
@@ -424,11 +424,11 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
                   <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     <div class="space-y-2">
                       <Label>Money</Label>
-                      <Input v-model.number="card.rewardRule.moneyAmount" type="number" min="0" />
+                      <NumericInput v-model="card.rewardRule.moneyAmount" :min="0" />
                     </div>
                     <div class="space-y-2">
                       <Label>Total XP</Label>
-                      <Input v-model.number="card.rewardRule.xpAmount" type="number" min="0" />
+                      <NumericInput v-model="card.rewardRule.xpAmount" :min="0" />
                     </div>
                     <div class="space-y-2">
                       <Label>XP Category</Label>
@@ -436,7 +436,7 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
                     </div>
                     <div class="space-y-2">
                       <Label>Category XP</Label>
-                      <Input v-model.number="card.rewardRule.xpCategoryAmount" type="number" min="0" />
+                      <NumericInput v-model="card.rewardRule.xpCategoryAmount" :min="0" />
                     </div>
                   </div>
 

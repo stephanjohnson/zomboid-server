@@ -26,6 +26,19 @@ const isProfileBacked = computed(() => props.definition?.persistence === 'profil
 const defaultRawValue = computed(() => getDefaultRawValue(props.definition))
 const listItems = computed(() => props.value.split(';').map(item => item.trim()).filter(Boolean))
 const advancedInputId = computed(() => `advanced-${props.domain}-${props.settingKey.replace(/[^a-zA-Z0-9_-]/g, '-')}`)
+const numericValue = computed(() => {
+  if (props.definition?.control !== 'number') {
+    return undefined
+  }
+
+  const nextValue = props.value.trim()
+  if (!nextValue) {
+    return undefined
+  }
+
+  const parsedValue = Number(nextValue)
+  return Number.isFinite(parsedValue) ? parsedValue : undefined
+})
 
 const companionLink = computed(() => {
   if (isManaged.value && props.definition?.managedTarget === 'mods') {
@@ -45,8 +58,17 @@ const companionLink = computed(() => {
   return null
 })
 
-function updateValue(nextValue: string) {
-  emit('update:value', nextValue)
+function updateValue(nextValue: unknown) {
+  emit('update:value', nextValue === null ? '' : String(nextValue))
+}
+
+function updateNumberValue(nextValue: number | null | undefined) {
+  if (nextValue === null || nextValue === undefined || Number.isNaN(nextValue)) {
+    emit('update:value', '')
+    return
+  }
+
+  emit('update:value', String(nextValue))
 }
 
 function updateBooleanValue(nextValue: boolean | 'indeterminate') {
@@ -67,66 +89,64 @@ function resetToDefault() {
 </script>
 
 <template>
-  <Card class="h-full border-border/70">
-    <CardHeader class="gap-4 pb-4">
-      <div class="flex items-start justify-between gap-4">
-        <div class="space-y-2">
-          <div class="flex flex-wrap items-center gap-2">
-            <CardTitle class="text-base leading-tight">
-              {{ label }}
-            </CardTitle>
+  <article class="flex h-full flex-col gap-4 rounded bg-background p-4">
+    <div class="flex items-start justify-between gap-4">
+      <div class="space-y-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-base font-semibold leading-tight text-foreground">
+            {{ label }}
+          </h3>
 
-            <Badge v-if="dirty" variant="secondary">Unsaved</Badge>
-            <Badge v-if="isManaged" variant="outline">Managed</Badge>
-            <Badge v-else-if="isProfileBacked" variant="outline">Profile-backed</Badge>
-          </div>
-
-          <CardDescription class="text-sm leading-relaxed text-muted-foreground">
-            {{ definition?.description ?? 'No description yet. Open Advanced to edit the raw value directly.' }}
-          </CardDescription>
-
-          <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <NuxtLink
-              v-if="definition?.docsUrl"
-              :to="definition.docsUrl"
-              external
-              target="_blank"
-              class="inline-flex items-center gap-1 hover:text-foreground"
-            >
-              Wiki
-              <ExternalLink class="size-3" />
-            </NuxtLink>
-
-            <NuxtLink
-              v-if="companionLink"
-              :to="companionLink.href"
-              class="hover:text-foreground"
-            >
-              {{ companionLink.label }}
-            </NuxtLink>
-          </div>
+          <Badge v-if="dirty" variant="secondary">Unsaved</Badge>
+          <Badge v-if="isManaged" variant="outline">Managed</Badge>
+          <Badge v-else-if="isProfileBacked" variant="outline">Profile-backed</Badge>
         </div>
 
-        <Button
-          type="button"
-          variant="ghost"
-          class="h-8 px-2 text-xs"
-          @click="showAdvanced = !showAdvanced"
-        >
-          {{ showAdvanced ? 'Hide Advanced' : 'Advanced' }}
-        </Button>
-      </div>
-    </CardHeader>
+        <p class="text-sm leading-relaxed text-muted-foreground">
+          {{ definition?.description ?? 'No description yet. Open Advanced to edit the raw value directly.' }}
+        </p>
 
-    <CardContent class="space-y-4 pt-0">
-      <div v-if="definition?.control === 'list'" class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+        <div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          <NuxtLink
+            v-if="definition?.docsUrl"
+            :to="definition.docsUrl"
+            external
+            target="_blank"
+            class="inline-flex items-center gap-1 hover:text-foreground"
+          >
+            Wiki
+            <ExternalLink class="size-3" />
+          </NuxtLink>
+
+          <NuxtLink
+            v-if="companionLink"
+            :to="companionLink.href"
+            class="hover:text-foreground"
+          >
+            {{ companionLink.label }}
+          </NuxtLink>
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        class="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
+        @click="showAdvanced = !showAdvanced"
+      >
+        {{ showAdvanced ? 'Hide Advanced' : 'Advanced' }}
+      </Button>
+    </div>
+
+    <div class="space-y-4">
+      <div v-if="definition?.control === 'list'" class="flex min-h-10 flex-wrap items-center gap-2">
         <Badge v-for="item in listItems" :key="item" variant="secondary">
           {{ item }}
         </Badge>
         <span v-if="listItems.length === 0" class="text-sm text-muted-foreground">No entries</span>
       </div>
 
-      <div v-else-if="definition?.control === 'switch'" class="flex min-h-10 items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
+      <div v-else-if="definition?.control === 'switch'" class="flex min-h-10 items-center justify-between gap-4">
         <p class="text-sm font-medium">
           {{ value === 'true' ? 'Enabled' : 'Disabled' }}
         </p>
@@ -158,18 +178,31 @@ function resetToDefault() {
         </SelectContent>
       </Select>
 
-      <Input
-        v-else
-        :model-value="value"
-        :type="definition?.control === 'number' ? 'number' : (definition?.sensitive ? 'password' : 'text')"
+      <NumberField
+        v-else-if="definition?.control === 'number'"
+        :model-value="numericValue"
         :disabled="isManaged"
         :min="definition?.min"
         :max="definition?.max"
         :step="definition?.step"
+        @update:model-value="updateNumberValue"
+      >
+        <NumberFieldContent>
+          <NumberFieldDecrement />
+          <NumberFieldInput class="h-10" />
+          <NumberFieldIncrement />
+        </NumberFieldContent>
+      </NumberField>
+
+      <Input
+        v-else
+        :model-value="value"
+        :type="definition?.sensitive ? 'password' : 'text'"
+        :disabled="isManaged"
         @update:model-value="updateValue"
       />
 
-      <div v-if="showAdvanced" class="space-y-3 rounded-lg border bg-muted/25 p-3">
+      <div v-if="showAdvanced" class="space-y-3 border-t border-border/60 pt-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="space-y-1">
             <Label :for="advancedInputId">Raw Value</Label>
@@ -207,6 +240,6 @@ function resetToDefault() {
           Default raw value: {{ defaultRawValue }}
         </p>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </article>
 </template>

@@ -22,6 +22,7 @@ const DEFAULT_SERVER_INI_SETTINGS: Record<string, string> = {
   Map: 'Muldraugh, KY',
   Mods: '',
   WorkshopItems: '',
+  DoLuaChecksum: 'false',
   Password: '',
   Public: 'true',
   PauseEmpty: 'true',
@@ -390,7 +391,6 @@ export async function prepareGameServerRuntimeFiles(profile: RuntimeProfile, rco
     PVP: profile.pvp ? 'true' : 'false',
     RCONPort: String(profile.rconPort),
     RCONPassword: rconPassword,
-    DoLuaChecksum: 'false',
   }
 
   serverIni.Mods = appendEntries(serverIni.Mods, modSettings.modIds)

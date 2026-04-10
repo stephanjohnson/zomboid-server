@@ -228,10 +228,9 @@ async function handleSubmit() {
 
           <div class="grid gap-2">
             <Label for="bundle-sort">Sort order</Label>
-            <Input
+            <NumericInput
               id="bundle-sort"
-              v-model.number="form.sortOrder"
-              type="number"
+              v-model="form.sortOrder"
               min="0"
             />
             <p class="text-xs text-muted-foreground">
@@ -328,10 +327,9 @@ async function handleSubmit() {
           <div class="grid gap-5">
             <div class="grid gap-2">
               <Label for="bundle-discount">Discount percent</Label>
-              <Input
+              <NumericInput
                 id="bundle-discount"
-                v-model.number="form.discountPercent"
-                type="number"
+                v-model="form.discountPercent"
                 min="0"
                 max="100"
                 :disabled="form.pricingMode === 'manual'"
@@ -343,22 +341,22 @@ async function handleSubmit() {
 
             <div class="grid gap-2">
               <Label for="bundle-price">Manual price</Label>
-              <Input
+              <NumericInput
                 id="bundle-price"
-                v-model.number="form.price"
-                type="number"
+                v-model="form.price"
                 min="0"
                 :disabled="form.pricingMode === 'discount'"
+                :empty-value="undefined"
               />
             </div>
 
             <div class="grid gap-2">
               <Label for="bundle-compare">Compare-at price</Label>
-              <Input
+              <NumericInput
                 id="bundle-compare"
-                v-model.number="form.compareAtPrice"
-                type="number"
+                v-model="form.compareAtPrice"
                 min="0"
+                :empty-value="undefined"
               />
               <p class="text-xs text-muted-foreground">
                 Shown as a strike-through price. Auto-calculated from items if blank.
@@ -411,10 +409,9 @@ async function handleSubmit() {
               </div>
               <div class="grid gap-2">
                 <Label :for="`item-qty-${itemIndex}`">Qty</Label>
-                <Input
+                <NumericInput
                   :id="`item-qty-${itemIndex}`"
-                  v-model.number="item.quantity"
-                  type="number"
+                  v-model="item.quantity"
                   min="1"
                 />
               </div>

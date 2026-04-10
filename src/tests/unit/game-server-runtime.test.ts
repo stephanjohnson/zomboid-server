@@ -57,6 +57,23 @@ describe('buildServerIniSettings', () => {
     expect(result.Mods).toBe('TsarsCommonLibrary;Brita;Arsenal26GunFighter;ZomboidManager')
     expect(result.WorkshopItems).toBe('2392709985;2200148440;3685323705')
   })
+
+  it('preserves a DoLuaChecksum override instead of forcing it off', () => {
+    const result = buildServerIniSettings({
+      servername: 'weekend-survivors',
+      gamePort: 17261,
+      directPort: 17262,
+      rconPort: 28015,
+      mapName: 'Riverside, KY',
+      maxPlayers: 24,
+      pvp: false,
+      serverIniOverrides: {
+        DoLuaChecksum: 'true',
+      },
+    }, 'secret-rcon')
+
+    expect(result.DoLuaChecksum).toBe('true')
+  })
 })
 
 describe('buildSandboxVarsSettings', () => {

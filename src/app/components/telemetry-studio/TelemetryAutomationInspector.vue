@@ -55,20 +55,6 @@ const conditionChecks = computed({
   },
 })
 
-function parseNullableNumber(value: string | number) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null
-  }
-
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return null
-  }
-
-  const parsed = Number(trimmed)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
 function updateGraph(patch: Partial<AutomationStudioGraph>) {
   if (!props.graph) {
     return
@@ -258,12 +244,12 @@ function updateSelectedNodeLabel(label: string) {
 
             <div class="space-y-2">
               <Label>Cooldown Seconds</Label>
-              <Input
+              <NumericInput
                 :model-value="selectedTrigger.data.cooldownSeconds ?? ''"
-                type="number"
                 min="0"
                 placeholder="Optional"
-                @update:model-value="updateTriggerData({ cooldownSeconds: parseNullableNumber($event) })"
+                :empty-value="null"
+                @update:model-value="updateTriggerData({ cooldownSeconds: typeof $event === 'number' ? $event : null })"
               />
             </div>
           </div>
@@ -355,12 +341,12 @@ function updateSelectedNodeLabel(label: string) {
 
             <div v-if="selectedAction.data.actionKind !== 'setFlag' && selectedAction.data.actionKind !== 'unsetFlag'" class="space-y-2">
               <Label>Amount</Label>
-              <Input
+              <NumericInput
                 :model-value="selectedAction.data.amount ?? ''"
-                type="number"
                 min="0"
                 placeholder="0"
-                @update:model-value="updateActionData({ amount: parseNullableNumber($event) })"
+                :empty-value="null"
+                @update:model-value="updateActionData({ amount: typeof $event === 'number' ? $event : null })"
               />
             </div>
 
@@ -384,12 +370,12 @@ function updateSelectedNodeLabel(label: string) {
 
             <div v-if="selectedAction.data.actionKind === 'assignLoot'" class="space-y-2">
               <Label>Quantity</Label>
-              <Input
+              <NumericInput
                 :model-value="selectedAction.data.quantity ?? ''"
-                type="number"
                 min="1"
                 placeholder="1"
-                @update:model-value="updateActionData({ quantity: parseNullableNumber($event) })"
+                :empty-value="null"
+                @update:model-value="updateActionData({ quantity: typeof $event === 'number' ? $event : null })"
               />
             </div>
 
