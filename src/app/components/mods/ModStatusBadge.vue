@@ -9,7 +9,6 @@ import {
 
 import type { ProfileModRuntimeStatus } from '@/composables/useProfileModStatuses'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 
 const props = defineProps<{
   status?: ProfileModRuntimeStatus | null
@@ -38,18 +37,17 @@ const normalizedStatus = computed(() => {
   } as const
 })
 
-const badgeClass = computed(() => {
+const badgeVariant = computed(() => {
   switch (normalizedStatus.value.state) {
     case 'ok':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'default'
     case 'installing':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
     case 'faulty':
-      return 'border-orange-200 bg-orange-50 text-orange-700'
+      return 'outline'
     case 'error':
-      return 'border-red-200 bg-red-50 text-red-700'
+      return 'destructive'
     default:
-      return 'border-slate-200 bg-slate-50 text-slate-700'
+      return 'secondary'
   }
 })
 </script>
@@ -57,7 +55,7 @@ const badgeClass = computed(() => {
 <template>
   <Tooltip>
     <TooltipTrigger as-child>
-      <Badge variant="outline" :class="cn('w-fit cursor-help', badgeClass)">
+      <Badge :variant="badgeVariant" class="w-fit cursor-help">
         <CheckCircle2 v-if="normalizedStatus.state === 'ok'" class="size-3.5" />
         <Loader2 v-else-if="normalizedStatus.state === 'installing'" class="size-3.5 animate-spin" />
         <AlertTriangle v-else-if="normalizedStatus.state === 'faulty'" class="size-3.5" />

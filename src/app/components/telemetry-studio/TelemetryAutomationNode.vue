@@ -19,14 +19,14 @@ const title = computed(() => typeof props.label === 'string' ? props.label : 'Ru
 
 const toneClass = computed(() => {
   if (props.type === 'trigger') {
-    return 'border-sky-300/70 bg-sky-50/95'
+    return 'border-primary/30 bg-card/95'
   }
 
   if (props.type === 'condition') {
-    return 'border-amber-300/70 bg-amber-50/95'
+    return 'border-accent/70 bg-card/95'
   }
 
-  return 'border-emerald-300/70 bg-emerald-50/95'
+  return 'border-secondary bg-card/95'
 })
 
 const kindLabel = computed(() => {
@@ -96,10 +96,10 @@ const metaChips = computed(() => {
 
 <template>
   <div
-    class="relative min-w-[240px] rounded-[22px] border px-4 py-3 shadow-sm transition-transform duration-150"
+    class="relative min-w-60 rounded-xl border px-4 py-3 shadow-sm transition-transform duration-200"
     :class="[
       toneClass,
-      props.selected ? 'scale-[1.01] shadow-lg ring-2 ring-slate-900/10' : 'shadow-sm',
+      props.selected ? 'scale-[1.01] shadow-lg ring-2 ring-border' : 'shadow-sm',
     ]"
   >
     <Handle
@@ -107,22 +107,22 @@ const metaChips = computed(() => {
       type="target"
       :position="Position.Left"
       :connectable="props.connectable"
-      class="!h-3 !w-3 !border-2 !border-slate-950/20 !bg-white"
+      class="!h-3 !w-3 !border-2 !border-border !bg-background"
     />
 
     <div class="space-y-3">
       <div class="flex items-center justify-between gap-3">
-        <Badge variant="secondary" class="border border-white/70 bg-white/80 text-[11px] uppercase tracking-[0.2em] text-slate-700">
+        <Badge variant="secondary" class="border border-card/70 bg-card/80 text-xs uppercase tracking-[0.35em] text-foreground">
           {{ kindLabel }}
         </Badge>
-        <span class="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+        <span class="text-xs uppercase tracking-[0.35em] text-muted-foreground">
           {{ props.id.slice(-4) }}
         </span>
       </div>
 
       <div class="space-y-1.5">
-        <p class="text-sm font-semibold text-slate-950">{{ title }}</p>
-        <p class="text-xs leading-5 text-slate-600">{{ summary }}</p>
+        <p class="text-sm font-semibold text-foreground">{{ title }}</p>
+        <p class="text-xs leading-5 text-muted-foreground">{{ summary }}</p>
       </div>
 
       <div class="flex flex-wrap gap-1.5">
@@ -130,7 +130,7 @@ const metaChips = computed(() => {
           v-for="chip in metaChips"
           :key="chip"
           variant="outline"
-          class="border-slate-950/10 bg-white/60 text-[11px] text-slate-700"
+          class="border-border bg-card/60 text-xs text-foreground"
         >
           {{ chip }}
         </Badge>
@@ -143,17 +143,17 @@ const metaChips = computed(() => {
         type="source"
         :position="Position.Right"
         :connectable="props.connectable"
-        class="!top-[38%] !h-3 !w-3 !border-2 !border-emerald-500 !bg-white"
+        class="!top-[38%] !h-3 !w-3 !border-2 !border-primary !bg-background"
       />
       <Handle
         id="false"
         type="source"
         :position="Position.Right"
         :connectable="props.connectable"
-        class="!top-[72%] !h-3 !w-3 !border-2 !border-rose-500 !bg-white"
+        class="!top-[72%] !h-3 !w-3 !border-2 !border-destructive !bg-background"
       />
-      <span class="pointer-events-none absolute right-4 top-[30%] text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-700">True</span>
-      <span class="pointer-events-none absolute right-4 top-[64%] text-[10px] font-semibold uppercase tracking-[0.24em] text-rose-700">False</span>
+      <span class="pointer-events-none absolute right-4 top-[30%] text-xs font-semibold uppercase tracking-[0.35em] text-primary">True</span>
+      <span class="pointer-events-none absolute right-4 top-[64%] text-xs font-semibold uppercase tracking-[0.35em] text-destructive">False</span>
     </template>
 
     <Handle
@@ -161,7 +161,7 @@ const metaChips = computed(() => {
       type="source"
       :position="Position.Right"
       :connectable="props.connectable"
-      class="!h-3 !w-3 !border-2 !border-slate-950/20 !bg-white"
+      class="!h-3 !w-3 !border-2 !border-border !bg-background"
     />
   </div>
 </template>

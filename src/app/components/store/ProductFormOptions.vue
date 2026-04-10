@@ -58,21 +58,20 @@ function removeOptionValue(groupIndex: number, valueIndex: number) {
     </div>
 
     <div v-if="form.optionGroups.length" class="grid gap-4">
-      <Card
+      <div
         v-for="(group, groupIndex) in form.optionGroups"
         :key="`group-${groupIndex}`"
+        class="grid gap-4 rounded-lg bg-muted/10 p-4"
       >
-        <CardHeader class="pb-4">
-          <div class="flex items-center justify-between gap-3">
-            <CardTitle class="text-sm font-medium">
-              Option group {{ groupIndex + 1 }}
-            </CardTitle>
-            <Button variant="ghost" size="sm" type="button" @click="removeOptionGroup(groupIndex)">
-              Remove
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent class="space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-sm font-medium">
+            Option group {{ groupIndex + 1 }}
+          </h3>
+          <Button variant="ghost" size="sm" type="button" @click="removeOptionGroup(groupIndex)">
+            Remove
+          </Button>
+        </div>
+
           <div class="grid gap-4 md:grid-cols-3">
             <div class="grid gap-2">
               <Label :for="`group-name-${groupIndex}`">Name</Label>
@@ -86,18 +85,19 @@ function removeOptionValue(groupIndex: number, valueIndex: number) {
             </div>
             <div class="grid gap-2">
               <Label :for="`group-display-${groupIndex}`">Display type</Label>
-              <select
-                :id="`group-display-${groupIndex}`"
-                v-model="group.displayType"
-                class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="TEXT">
-                  Text
-                </option>
-                <option value="COLOR">
-                  Color
-                </option>
-              </select>
+              <Select v-model="group.displayType">
+                <SelectTrigger :id="`group-display-${groupIndex}`">
+                  <SelectValue placeholder="Select display type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TEXT">
+                    Text
+                  </SelectItem>
+                  <SelectItem value="COLOR">
+                    Color
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <p class="text-xs text-muted-foreground">How options are presented.</p>
             </div>
           </div>
@@ -120,8 +120,7 @@ function removeOptionValue(groupIndex: number, valueIndex: number) {
           <Button variant="outline" size="sm" type="button" @click="addOptionValue(groupIndex)">
             Add value
           </Button>
-        </CardContent>
-      </Card>
+      </div>
     </div>
 
     <p v-else class="text-sm text-muted-foreground">

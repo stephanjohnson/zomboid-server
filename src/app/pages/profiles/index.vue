@@ -94,8 +94,8 @@ async function deleteProfile(profileId: string) {
             size="sm"
             as-child
           >
-            <NuxtLink :to="`/profiles/${profile.id}/telemetry`">
-              Studio
+            <NuxtLink :to="`/profiles/${profile.id}/automations`">
+              Automations
             </NuxtLink>
           </Button>
           <Button

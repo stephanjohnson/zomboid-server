@@ -2,9 +2,6 @@
 import { useIntervalFn } from '@vueuse/core'
 import { ArrowDownToLine, ArrowUpDown, RefreshCw, Trash2 } from 'lucide-vue-next'
 
-const route = useRoute()
-const profileId = route.params.profileId as string
-
 const { data: logs, refresh: refreshLogs, pending: logsLoading } = useLazyFetch('/api/zomboid/logs', {
   default: () => ({ containerLogs: '', serverConsole: '', previousConsole: null as string | null }),
 })
@@ -13,7 +10,7 @@ const activeTab = ref('console')
 const follow = ref(true)
 const reverse = ref(false)
 
-const { pause, resume } = useIntervalFn(() => {
+const { pause } = useIntervalFn(() => {
   refreshLogs()
 }, 5000, { immediate: true })
 
@@ -45,7 +42,7 @@ async function deletePreviousLog() {
             <Button
               variant="outline"
               size="sm"
-              :class="follow ? 'border-emerald-600 text-emerald-600 hover:bg-emerald-600/10' : ''"
+              :class="follow ? 'border-primary text-primary hover:bg-primary/10' : ''"
               @click="follow = !follow"
             >
               <ArrowDownToLine class="size-4" />
@@ -59,7 +56,7 @@ async function deletePreviousLog() {
             <Button
               variant="outline"
               size="sm"
-              :class="reverse ? 'border-blue-600 text-blue-600 hover:bg-blue-600/10' : ''"
+              :class="reverse ? 'border-primary text-primary hover:bg-primary/10' : ''"
               @click="reverse = !reverse"
             >
               <ArrowUpDown class="size-4" />

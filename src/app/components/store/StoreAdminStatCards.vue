@@ -43,7 +43,7 @@ const totalVariantCount = computed(() =>
           Products
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
-          <span class="size-2 rounded-full" :class="activeProductCount > 0 ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+          <span class="size-2 rounded-full" :class="activeProductCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.products.length }}
         </CardTitle>
       </CardHeader>
@@ -61,7 +61,7 @@ const totalVariantCount = computed(() =>
           Bundles
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
-          <span class="size-2 rounded-full" :class="activeBundleCount > 0 ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+          <span class="size-2 rounded-full" :class="activeBundleCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.bundles.length }}
         </CardTitle>
       </CardHeader>
@@ -79,7 +79,7 @@ const totalVariantCount = computed(() =>
           Categories
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
-          <span class="size-2 rounded-full" :class="activeCategoryCount > 0 ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+          <span class="size-2 rounded-full" :class="activeCategoryCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.categories.length }}
         </CardTitle>
       </CardHeader>
@@ -97,7 +97,7 @@ const totalVariantCount = computed(() =>
           Catalog
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
-          <span class="size-2 rounded-full" :class="bootstrap.catalog.total > 0 ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+          <span class="size-2 rounded-full" :class="bootstrap.catalog.total > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.catalog.total }}
         </CardTitle>
       </CardHeader>

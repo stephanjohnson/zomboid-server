@@ -137,13 +137,13 @@ function addBundleToCart() {
         <CardDescription>Every item delivered by this bundle purchase.</CardDescription>
       </CardHeader>
 
-      <CardContent class="grid gap-4">
-        <Card
-          v-for="item in bundle.items"
-          :key="`${item.variantId}-${item.quantity}`"
-          class="shadow-none"
-        >
-          <CardContent class="flex items-center justify-between gap-4 p-5">
+      <CardContent class="p-0">
+        <div class="divide-y divide-border">
+          <div
+            v-for="item in bundle.items"
+            :key="`${item.variantId}-${item.quantity}`"
+            class="flex items-center justify-between gap-4 px-6 py-5"
+          >
             <div class="space-y-1">
               <p class="text-sm font-medium">
                 {{ item.productName }} / {{ item.variantName }}
@@ -161,8 +161,8 @@ function addBundleToCart() {
                 {{ item.quantity }}
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </CardContent>
     </Card>
   </div>

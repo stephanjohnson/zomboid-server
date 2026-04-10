@@ -74,7 +74,7 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
 
 <template>
   <div class="space-y-5">
-    <Card class="border-slate-300/70 bg-gradient-to-br from-white via-slate-50 to-amber-50/70 shadow-sm">
+    <Card class="border-border/70 bg-gradient-to-t from-primary/5 to-card shadow-sm">
       <CardHeader class="space-y-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div class="space-y-2">
@@ -96,19 +96,19 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
 
         <div class="grid gap-3 md:grid-cols-3">
           <div class="rounded-2xl border border-border/70 bg-background/80 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">World objectives</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">World objectives</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">
               Build named activities like checkpoint runs, extractions, zone captures, or delivery chains.
             </p>
           </div>
           <div class="rounded-2xl border border-border/70 bg-background/80 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Achievement UX</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Achievement UX</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">
               Add badge IDs, platform labels, and trophy tiers without forcing admins to edit raw JSON first.
             </p>
           </div>
           <div class="rounded-2xl border border-border/70 bg-background/80 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Rewards</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Rewards</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">
               Attach wallet, XP, category XP, and unlock metadata directly to the objective flow.
             </p>
@@ -123,7 +123,7 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
         :key="`${card.workflow.key}-${card.workflowIndex}`"
         class="overflow-hidden border-border/70 shadow-sm"
       >
-        <CardHeader class="border-b border-border/70 bg-slate-50/70">
+        <CardHeader class="border-b border-border/70 bg-muted">
           <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div class="space-y-3">
               <div class="flex flex-wrap items-center gap-2">
@@ -347,7 +347,7 @@ function updateRewardDetails(workflowIndex: number, patch: ObjectiveRewardDetail
                   <div
                     v-for="(step, stepIndex) in card.workflow.steps"
                     :key="`${card.workflow.key}-${stepIndex}`"
-                    class="rounded-2xl border border-border/70 bg-slate-50/60 p-4"
+                    class="rounded-2xl border border-border/70 bg-muted p-4"
                   >
                     <div class="grid gap-3 lg:grid-cols-[96px_minmax(0,1fr)_160px_auto] lg:items-end">
                       <div class="space-y-2">

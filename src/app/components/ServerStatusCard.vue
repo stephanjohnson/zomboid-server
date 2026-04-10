@@ -23,7 +23,7 @@ defineProps<{
           <div class="flex items-center gap-2">
             <span
               class="h-2.5 w-2.5 rounded-full"
-              :class="status?.container?.running ? 'bg-green-500' : status?.container?.exists ? 'bg-yellow-500' : 'bg-slate-400'"
+              :class="status?.container?.running ? 'bg-primary' : status?.container?.exists ? 'bg-accent' : 'bg-muted-foreground'"
             />
             <span class="font-medium">{{ status?.container?.statusLabel || 'Unknown' }}</span>
           </div>
@@ -46,7 +46,7 @@ defineProps<{
           <div class="flex items-center gap-2">
             <span
               class="h-2.5 w-2.5 rounded-full"
-              :class="status?.rcon ? 'bg-green-500' : 'bg-yellow-500'"
+              :class="status?.rcon ? 'bg-primary' : 'bg-accent'"
             />
             <span class="font-medium">{{ status?.rcon ? 'Connected' : 'Disconnected' }}</span>
           </div>

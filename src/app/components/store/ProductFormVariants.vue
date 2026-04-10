@@ -107,42 +107,41 @@ function updateVariantActive(index: number, value: CheckboxState) {
 
 <template>
   <section class="grid gap-6 rounded-xl border border-border/70 bg-card/80 p-6 shadow-xs md:p-7">
-      <div class="flex items-start justify-between gap-4">
-        <div class="space-y-1">
-          <h2 class="text-base font-semibold">
-            Variants
-          </h2>
-          <p class="text-sm text-muted-foreground">
-            Each variant maps to a Project Zomboid item code and has its own price and stock.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" type="button" @click="addVariant">
-          Add variant
-        </Button>
+    <div class="flex items-start justify-between gap-4">
+      <div class="space-y-1">
+        <h2 class="text-base font-semibold">
+          Variants
+        </h2>
+        <p class="text-sm text-muted-foreground">
+          Each variant maps to a Project Zomboid item code and has its own price and stock.
+        </p>
       </div>
+      <Button variant="outline" size="sm" type="button" @click="addVariant">
+        Add variant
+      </Button>
+    </div>
 
-      <div class="grid gap-4">
-        <Card
-          v-for="(variant, variantIndex) in form.variants"
-          :key="`variant-${variantIndex}`"
-        >
-          <CardHeader class="pb-4">
-            <div class="flex items-center justify-between gap-3">
-              <CardTitle class="text-sm font-medium">
-                Variant {{ variantIndex + 1 }}
-              </CardTitle>
-              <Button
-                v-if="form.variants.length > 1"
-                variant="ghost"
-                size="sm"
-                type="button"
-                @click="removeVariant(variantIndex)"
-              >
-                Remove
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent class="space-y-4">
+    <div class="grid gap-4">
+      <div
+        v-for="(variant, variantIndex) in form.variants"
+        :key="`variant-${variantIndex}`"
+        class="grid gap-4 rounded-lg bg-muted/10 p-4"
+      >
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-sm font-medium">
+            Variant {{ variantIndex + 1 }}
+          </h3>
+          <Button
+            v-if="form.variants.length > 1"
+            variant="ghost"
+            size="sm"
+            type="button"
+            @click="removeVariant(variantIndex)"
+          >
+            Remove
+          </Button>
+        </div>
+
             <div class="grid gap-4 md:grid-cols-2">
               <div class="grid gap-2">
                 <Label :for="`variant-name-${variantIndex}`">Variant name</Label>
@@ -262,22 +261,23 @@ function updateVariantActive(index: number, value: CheckboxState) {
                 class="grid gap-2"
               >
                 <Label>{{ group.name || `Option ${gIdx + 1}` }}</Label>
-                <select
-                  v-model="variant.selections[groupKey(group, gIdx)]"
-                  class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option
-                    v-for="(val, vIdx) in group.values"
-                    :key="`opt-${vIdx}`"
-                    :value="optionValueKey(val, vIdx)"
-                  >
-                    {{ val.label || `Value ${vIdx + 1}` }}
-                  </option>
-                </select>
+                <Select v-model="variant.selections[groupKey(group, gIdx)]">
+                  <SelectTrigger>
+                    <SelectValue :placeholder="`Select ${group.name || `Option ${gIdx + 1}`}`" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="(val, vIdx) in group.values"
+                      :key="`opt-${vIdx}`"
+                      :value="optionValueKey(val, vIdx)"
+                    >
+                      {{ val.label || `Value ${vIdx + 1}` }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </CardContent>
-        </Card>
       </div>
-    </section>
+    </div>
+  </section>
 </template>

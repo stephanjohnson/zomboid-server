@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { StoreCategorySummary, StoreProductDetail, StoreBundleSummary } from '@/lib/store'
 import { Check, Minus, Search } from 'lucide-vue-next'
-import { CheckboxIndicator, CheckboxRoot } from 'reka-ui'
 
 interface CatalogSearchResult {
   fullType: string
@@ -362,20 +361,17 @@ async function importSelectedItems() {
     <CardContent class="p-0">
       <div class="flex items-center justify-between border-b px-4 py-3">
         <div class="flex items-center gap-3">
-          <CheckboxRoot
+          <Checkbox
             v-if="catalogSearch.items.length"
             data-catalog-checkbox
-            :model-value="selectAllCheckedState"
+            :checked="selectAllCheckedState"
             aria-label="Select all visible items"
-            class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
             @click.stop
-            @update:model-value="setAllVisibleSelection($event)"
+            @update:checked="setAllVisibleSelection($event)"
           >
-            <CheckboxIndicator class="grid place-content-center text-current">
-              <Minus v-if="selectAllCheckedState === 'indeterminate'" class="h-4 w-4" />
-              <Check v-else class="h-4 w-4" />
-            </CheckboxIndicator>
-          </CheckboxRoot>
+            <Minus v-if="selectAllCheckedState === 'indeterminate'" class="size-4" />
+            <Check v-else class="size-4" />
+          </Checkbox>
           <p class="text-sm text-muted-foreground">
             <span :class="catalogSearchError ? 'text-destructive' : undefined">{{ catalogStatusMessage }}</span>
           </p>
@@ -421,18 +417,13 @@ async function importSelectedItems() {
           @click="handleItemRowClick($event, item.fullType)"
         >
           <div class="flex min-w-0 items-center gap-x-4">
-            <CheckboxRoot
+            <Checkbox
               data-catalog-checkbox
-              :model-value="isItemSelected(item.fullType)"
+              :checked="isItemSelected(item.fullType)"
               :aria-label="`Select ${item.name}`"
-              class="grid size-4 cursor-pointer place-content-center rounded-sm border border-primary bg-background text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
               @click.stop
-              @update:model-value="setItemSelection(item.fullType, $event)"
-            >
-              <CheckboxIndicator class="grid place-content-center text-current">
-                <Check class="h-4 w-4" />
-              </CheckboxIndicator>
-            </CheckboxRoot>
+              @update:checked="setItemSelection(item.fullType, $event)"
+            />
             <div class="flex size-10 flex-none items-center justify-center overflow-hidden rounded-lg border bg-muted">
               <img
                 v-if="item.iconUrl"

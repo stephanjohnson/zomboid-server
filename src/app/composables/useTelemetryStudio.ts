@@ -840,13 +840,13 @@ export async function useTelemetryStudio(profileId: string) {
         method: 'PUT',
         body: payload,
       })
-      saveSuccess.value = 'Telemetry studio saved successfully'
+      saveSuccess.value = 'Telemetry configuration saved successfully'
       await refresh()
     }
     catch (error) {
       saveError.value = error instanceof Error
         ? error.message
-        : (error as { data?: { message?: string } })?.data?.message || 'Failed to save telemetry studio'
+        : (error as { data?: { message?: string } })?.data?.message || 'Failed to save telemetry configuration'
     }
     finally {
       saving.value = false

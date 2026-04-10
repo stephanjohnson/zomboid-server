@@ -111,22 +111,25 @@ async function handleSubmit() {
               </Select>
             </div>
 
-            <div class="space-y-2">
-              <Label for="pvp">Player vs Player</Label>
-              <div class="flex items-center justify-between rounded-md border p-4">
-                <div class="space-y-1">
-                  <p class="text-sm font-medium leading-none">Enable PvP</p>
-                  <p class="text-sm text-muted-foreground">
-                    Allow players to damage each other on this profile.
-                  </p>
-                </div>
-
-                <Switch
-                  id="pvp"
-                  :checked="form.pvp"
-                  @update:checked="form.pvp = $event"
-                />
-              </div>
+            <div>
+              <FieldSet>
+                <FieldLegend>Player vs Player</FieldLegend>
+                <FieldLabel for="pvp">
+                  <Field orientation="horizontal">
+                    <FieldContent>
+                      <FieldTitle>Enable PvP</FieldTitle>
+                      <FieldDescription>
+                        Allow players to damage each other on this profile.
+                      </FieldDescription>
+                    </FieldContent>
+                    <Switch
+                      id="pvp"
+                      :checked="form.pvp"
+                      @update:checked="form.pvp = $event"
+                    />
+                  </Field>
+                </FieldLabel>
+              </FieldSet>
             </div>
           </div>
 

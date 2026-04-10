@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import TelemetryAutomationStudio from '@/components/telemetry-studio/TelemetryAutomationStudio.vue'
-
 const route = useRoute()
 const profileId = route.params.profileId as string
 
@@ -9,14 +7,13 @@ if (!isAdmin.value) {
   await navigateTo('/profiles')
 }
 
-const tab = shallowRef<'studio' | 'overview' | 'objectives' | 'listeners' | 'workflows' | 'actions'>('studio')
+const tab = shallowRef<'overview' | 'objectives' | 'listeners' | 'workflows' | 'actions'>('overview')
 
 const {
   profile,
   listeners,
   workflows,
   actionRules,
-  automationStudio,
   topXpPlayers,
   objectiveCards,
   objectiveCount,
@@ -49,11 +46,11 @@ const {
   <div class="space-y-6">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="space-y-2">
-        <p class="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
           Profile Automation
         </p>
         <div class="space-y-1">
-          <h1 class="text-3xl font-semibold tracking-tight">
+          <h1 class="text-2xl font-bold">
             {{ profile?.name ?? 'Telemetry Studio' }}
           </h1>
           <p class="max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -74,11 +71,16 @@ const {
             Edit profile
           </NuxtLink>
         </Button>
+        <Button variant="outline" as-child>
+          <NuxtLink :to="`/profiles/${profileId}/automations`">
+            Automations
+          </NuxtLink>
+        </Button>
         <Button variant="outline" :disabled="pending || saving" @click="refresh()">
           {{ pending ? 'Reloading...' : 'Reload' }}
         </Button>
         <Button :disabled="!canSave" @click="save()">
-          {{ saving ? 'Saving...' : 'Save studio' }}
+          {{ saving ? 'Saving...' : 'Save telemetry config' }}
         </Button>
       </div>
     </div>
@@ -96,22 +98,14 @@ const {
       </CardContent>
     </Card>
 
-    <Tabs v-else v-model="tab" default-value="studio" class="space-y-4">
+    <Tabs v-else v-model="tab" default-value="overview" class="space-y-4">
       <TabsList class="flex h-auto flex-wrap gap-2 bg-transparent p-0">
-        <TabsTrigger value="studio">Studio</TabsTrigger>
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="objectives">Objectives</TabsTrigger>
         <TabsTrigger value="listeners">Listeners</TabsTrigger>
         <TabsTrigger value="workflows">Workflows</TabsTrigger>
         <TabsTrigger value="actions">Actions</TabsTrigger>
       </TabsList>
-
-      <TabsContent value="studio">
-        <TelemetryAutomationStudio
-          v-model="automationStudio"
-          :profile-name="profile?.name ?? 'Profile'"
-        />
-      </TabsContent>
 
       <TabsContent value="overview">
         <TelemetryStudioOverview

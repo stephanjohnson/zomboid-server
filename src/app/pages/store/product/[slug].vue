@@ -211,20 +211,18 @@ function addCurrentVariantToCart() {
             </div>
           </div>
 
-          <Card class="shadow-none">
-            <CardHeader class="p-4">
-              <CardDescription>Selected variant</CardDescription>
-              <CardTitle class="text-lg">
-                {{ activeVariant?.name || 'Unavailable combination' }}
-              </CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-1 p-4 pt-0 text-sm text-muted-foreground">
+          <div class="rounded-lg bg-muted/10 p-4">
+            <p class="text-sm text-muted-foreground">Selected variant</p>
+            <p class="mt-1 text-lg font-semibold text-foreground">
+              {{ activeVariant?.name || 'Unavailable combination' }}
+            </p>
+            <div class="mt-3 space-y-1 text-sm text-muted-foreground">
               <p>Item code: {{ activeVariant?.itemCode || 'No valid item code for this combination yet.' }}</p>
               <p v-if="activeVariant?.gameCategory">Game category: {{ activeVariant.gameCategory }}</p>
               <p v-if="typeof activeVariant?.weight === 'number'">Weight: {{ activeVariant.weight }}</p>
               <p>Gives {{ activeVariant?.quantity || 0 }} in-game item{{ activeVariant?.quantity === 1 ? '' : 's' }} per purchase.</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <Button
             class="w-full"
@@ -256,17 +254,15 @@ function addCurrentVariantToCart() {
 
           <div
             v-if="Array.isArray(product.featureBullets) && product.featureBullets.length"
-            class="grid gap-3"
+            class="space-y-2"
           >
-            <Card
+            <div
               v-for="(feature, index) in product.featureBullets"
               :key="`${feature}-${index}`"
-              class="shadow-none"
+              class="rounded-lg bg-muted/10 p-4 text-sm"
             >
-              <CardContent class="p-4 text-sm">
-                {{ String(feature) }}
-              </CardContent>
-            </Card>
+              {{ String(feature) }}
+            </div>
           </div>
         </CardContent>
       </Card>

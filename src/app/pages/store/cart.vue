@@ -29,14 +29,13 @@ const { items, subtotal, savings, updateQuantity, removeItem, clear } = useStore
           </div>
         </CardHeader>
 
-        <CardContent class="space-y-4">
-          <div v-if="items.length" class="space-y-4">
-            <Card
+        <CardContent class="p-0">
+          <div v-if="items.length" class="divide-y divide-border">
+            <div
               v-for="item in items"
               :key="item.key"
-              class="shadow-none"
+              class="space-y-4 px-6 py-6"
             >
-              <CardContent class="space-y-4 p-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div class="space-y-1">
                     <Badge variant="outline">
@@ -70,15 +69,12 @@ const { items, subtotal, savings, updateQuantity, removeItem, clear } = useStore
                   <span class="text-muted-foreground">{{ formatStoreMoney(item.unitPrice) }} each</span>
                   <span class="font-medium">{{ formatStoreMoney(item.unitPrice * item.quantity) }}</span>
                 </div>
-              </CardContent>
-            </Card>
+            </div>
           </div>
 
-          <Card v-else class="border-dashed shadow-none">
-            <CardContent class="p-10 text-center text-sm text-muted-foreground">
-              Your cart is empty.
-            </CardContent>
-          </Card>
+          <div v-else class="p-10 text-center text-sm text-muted-foreground">
+            Your cart is empty.
+          </div>
         </CardContent>
       </Card>
 

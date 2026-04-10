@@ -351,29 +351,27 @@ async function handleSubmit() {
         </div>
 
         <div class="grid gap-4">
-          <Card
+          <div
             v-for="(item, itemIndex) in form.items"
             :key="`bundle-item-${itemIndex}`"
+            class="grid gap-4 rounded-lg bg-muted/10 p-4 md:grid-cols-[1fr_120px_auto]"
           >
-            <CardContent class="grid gap-4 pt-6 md:grid-cols-[1fr_120px_auto]">
               <div class="grid gap-2">
                 <Label :for="`item-variant-${itemIndex}`">Variant</Label>
-                <select
-                  :id="`item-variant-${itemIndex}`"
-                  v-model="item.variantId"
-                  class="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">
-                    Select variant…
-                  </option>
-                  <option
-                    v-for="variantOption in bootstrap.variantOptions"
-                    :key="variantOption.id"
-                    :value="variantOption.id"
-                  >
-                    {{ variantOption.label }} — {{ formatStoreMoney(variantOption.price) }}
-                  </option>
-                </select>
+                <Select v-model="item.variantId">
+                  <SelectTrigger :id="`item-variant-${itemIndex}`">
+                    <SelectValue placeholder="Select variant…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="variantOption in bootstrap.variantOptions"
+                      :key="variantOption.id"
+                      :value="variantOption.id"
+                    >
+                      {{ variantOption.label }} — {{ formatStoreMoney(variantOption.price) }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div class="grid gap-2">
                 <Label :for="`item-qty-${itemIndex}`">Qty</Label>
@@ -394,8 +392,7 @@ async function handleSubmit() {
                   Remove
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+          </div>
         </div>
 
         <p v-if="!bootstrap.variantOptions.length" class="text-sm text-muted-foreground">

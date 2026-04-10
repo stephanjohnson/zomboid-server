@@ -45,7 +45,7 @@ const presets: Array<{
 
 <template>
   <div class="space-y-6">
-    <Card class="border-slate-300/70 bg-gradient-to-br from-slate-50 via-white to-amber-50/50">
+    <Card class="border-border/70 bg-gradient-to-t from-primary/5 to-card">
       <CardHeader class="space-y-3">
         <div class="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{{ props.profileName }}</Badge>
@@ -67,25 +67,25 @@ const presets: Array<{
       <CardContent>
         <div class="grid gap-4 md:grid-cols-3">
           <div class="rounded-xl border border-border/70 bg-background/80 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Rule Graphs</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Rule Graphs</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">
               Design branching trigger and reward logic visually, then drop back to the raw editors when you need lower-level control.
             </p>
           </div>
           <div class="rounded-xl border border-border/70 bg-background/80 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Objectives</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Objectives</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">
               Model server activities as ordered steps like claim flag, reach zone, deliver item, or survive wave.
             </p>
           </div>
           <div class="rounded-xl border border-border/70 bg-background/80 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Achievements</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Achievements</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">
               Mark workflows as achievements to power trophy, badge, or platform-style unlock metadata later.
             </p>
           </div>
           <div class="rounded-xl border border-border/70 bg-background/80 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Economy + XP</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Economy + XP</p>
             <p class="mt-2 text-sm leading-6 text-muted-foreground">
               Award wallet balance, universal XP, category XP, or achievement progression from the same trigger pipeline.
             </p>

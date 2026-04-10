@@ -183,7 +183,7 @@ function updateSelectedNodeLabel(label: string) {
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-sm font-medium text-foreground">Selected Node</p>
-            <p class="text-xs uppercase tracking-[0.2em] text-muted-foreground">{{ props.selectedNode.type }}</p>
+            <p class="text-xs uppercase tracking-[0.35em] text-muted-foreground">{{ props.selectedNode.type }}</p>
           </div>
           <Button variant="ghost" size="sm" @click="emit('remove-node', props.selectedNode.id)">
             Remove node

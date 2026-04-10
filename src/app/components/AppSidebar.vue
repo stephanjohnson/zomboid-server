@@ -78,12 +78,12 @@ const phaseLabel = computed(() => {
 
 const phaseDotClass = computed(() => {
   const state = status.value?.phase?.state
-  if (state === 'ready') return 'bg-emerald-500'
-  if (state === 'error') return 'bg-red-500'
-  if (state === 'updating' || state === 'initializing' || state === 'starting') return 'bg-yellow-500'
-  if (status.value?.container?.running) return 'bg-emerald-500'
-  if (status.value?.container?.exists) return 'bg-yellow-500'
-  return 'bg-muted-foreground/50'
+  if (state === 'ready') return 'bg-primary'
+  if (state === 'error') return 'bg-destructive'
+  if (state === 'updating' || state === 'initializing' || state === 'starting') return 'bg-accent'
+  if (status.value?.container?.running) return 'bg-primary'
+  if (status.value?.container?.exists) return 'bg-accent'
+  return 'bg-muted-foreground'
 })
 </script>
 

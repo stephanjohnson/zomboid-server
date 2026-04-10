@@ -91,7 +91,6 @@ async function serverAction(action: string) {
         <Button
           v-if="!status?.container?.running"
           size="sm"
-          class="bg-emerald-600 hover:bg-emerald-700 text-white"
           :disabled="actionLoading === 'start'"
           @click="serverAction('start')"
         >
@@ -112,7 +111,6 @@ async function serverAction(action: string) {
           v-if="status?.container?.running"
           variant="outline"
           size="sm"
-          class="border-yellow-600 text-yellow-600 hover:bg-yellow-600/10"
           :disabled="actionLoading === 'restart'"
           @click="serverAction('restart')"
         >
@@ -172,7 +170,7 @@ async function serverAction(action: string) {
                 :title="`Copy ${item.label}`"
                 @click="copyToClipboard(item.value, item.key)"
               >
-                <Check v-if="copiedField === item.key" class="size-3 text-emerald-500" />
+                <Check v-if="copiedField === item.key" class="size-3 text-primary" />
                 <Clipboard v-else class="size-3" />
               </button>
             </div>
@@ -200,8 +198,8 @@ async function serverAction(action: string) {
               class="flex items-center justify-between gap-x-6 py-4 first:pt-0 last:pb-0"
             >
               <div class="flex min-w-0 gap-x-3">
-                <div class="flex size-10 flex-none items-center justify-center rounded-full bg-emerald-500/10">
-                  <span class="text-sm font-medium text-emerald-600">{{ player.slice(0, 2).toUpperCase() }}</span>
+                <div class="flex size-10 flex-none items-center justify-center rounded-full bg-primary/10">
+                  <span class="text-sm font-medium text-primary">{{ player.slice(0, 2).toUpperCase() }}</span>
                 </div>
                 <div class="min-w-0 flex-auto">
                   <p class="text-sm font-semibold">
@@ -213,8 +211,8 @@ async function serverAction(action: string) {
                 </div>
               </div>
               <div class="flex shrink-0 items-center gap-x-1.5">
-                <div class="flex-none rounded-full bg-emerald-500/20 p-1">
-                  <div class="size-1.5 rounded-full bg-emerald-500" />
+                <div class="flex-none rounded-full bg-primary/20 p-1">
+                  <div class="size-1.5 rounded-full bg-primary" />
                 </div>
                 <p class="text-xs text-muted-foreground">
                   Online

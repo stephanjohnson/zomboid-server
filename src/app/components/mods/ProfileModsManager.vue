@@ -92,18 +92,18 @@ const hasMods = computed(() => (mods.value?.length ?? 0) > 0)
 
 function runtimeServerBadgeClass(state: string) {
   if (state === 'ready') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    return 'default'
   }
 
   if (state === 'error') {
-    return 'border-red-200 bg-red-50 text-red-700'
+    return 'destructive'
   }
 
   if (state === 'stopped' || state === 'not_created') {
-    return 'border-slate-200 bg-slate-50 text-slate-700'
+    return 'secondary'
   }
 
-  return 'border-amber-200 bg-amber-50 text-amber-700'
+  return 'outline'
 }
 
 function modRuntimeStatus(workshopId: string) {
@@ -413,7 +413,7 @@ async function revalidateMod(modId: string) {
                     <p v-if="candidate.modIds.length" class="text-xs text-muted-foreground">
                       Mod ID(s): {{ candidate.modIds.join('; ') }}
                     </p>
-                    <p v-else class="text-xs text-amber-600">
+                    <p v-else class="text-xs text-accent-foreground">
                       Mod ID(s) could not be resolved automatically.
                     </p>
 
@@ -485,7 +485,7 @@ async function revalidateMod(modId: string) {
                   <p v-if="activeCandidate.modIds.length" class="text-xs text-muted-foreground">
                     Resolved Mod ID(s): {{ activeCandidate.modIds.join('; ') }}
                   </p>
-                  <p v-for="warning in activeCandidate.warnings" :key="warning" class="text-xs text-amber-600">
+                  <p v-for="warning in activeCandidate.warnings" :key="warning" class="text-xs text-accent-foreground">
                     {{ warning }}
                   </p>
                 </div>
@@ -547,7 +547,7 @@ async function revalidateMod(modId: string) {
         </CardDescription>
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div class="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" :class="runtimeServerBadgeClass(runtimeServer.state)">
+            <Badge :variant="runtimeServerBadgeClass(runtimeServer.state)">
               {{ runtimeServer.label }}
             </Badge>
             <p class="text-xs text-muted-foreground">

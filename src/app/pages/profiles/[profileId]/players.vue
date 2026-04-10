@@ -68,7 +68,7 @@ async function banPlayer(player: string) {
         class="rounded-lg border p-3 flex items-center justify-between"
       >
         <div class="flex items-center gap-3">
-          <span class="h-2.5 w-2.5 rounded-full bg-green-500" />
+          <span class="size-2 rounded-full bg-primary" />
           <span class="font-medium">{{ player }}</span>
         </div>
         <div v-if="isModerator" class="flex gap-2">

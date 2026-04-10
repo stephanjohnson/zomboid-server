@@ -52,7 +52,6 @@ async function serverAction(action: string) {
         <Button
           v-if="!status?.container?.running"
           :disabled="loading === 'start'"
-          class="bg-green-600 hover:bg-green-700"
           @click="serverAction('start')"
         >
           {{ loading === 'start' ? 'Starting...' : status?.container?.exists ? 'Start Server' : 'Create & Start Server' }}
@@ -67,7 +66,7 @@ async function serverAction(action: string) {
         </Button>
         <Button
           v-if="status?.container?.running"
-          class="bg-yellow-600 hover:bg-yellow-700"
+          variant="outline"
           :disabled="loading === 'restart'"
           @click="serverAction('restart')"
         >

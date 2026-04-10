@@ -210,7 +210,7 @@ onMounted(handleReady)
           class="absolute right-2 top-2 z-10 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
           @click="copyLogs"
         >
-          <Check v-if="copied" class="size-3.5 text-green-500" />
+          <Check v-if="copied" class="size-3.5 text-primary" />
           <Clipboard v-else class="size-3.5" />
         </Button>
       </TooltipTrigger>

@@ -46,15 +46,6 @@ const serverStateLabel = computed(() => {
 
 const phaseState = computed(() => props.status?.phase?.state)
 
-const phaseDetail = computed(() => {
-  if (!props.status?.phase) return null
-  const { detail, progress } = props.status.phase
-  if (typeof progress === 'number' && detail) {
-    return `${detail} (${progress.toFixed(2)}%)`
-  }
-  return detail ?? null
-})
-
 const serverRunning = computed(() => props.status?.container?.running)
 </script>
 
@@ -70,17 +61,17 @@ const serverRunning = computed(() => props.status?.container?.running)
           <template v-if="status?.phase">
             <LoaderCircle
               v-if="phaseState === 'updating' || phaseState === 'initializing' || phaseState === 'starting'"
-              class="size-4 animate-spin text-amber-500"
+              class="size-4 animate-spin text-accent"
             />
             <span
               v-else
               class="size-2 rounded-full"
-              :class="phaseState === 'ready' ? 'bg-emerald-500' : phaseState === 'error' ? 'bg-red-500' : 'bg-muted-foreground'"
+              :class="phaseState === 'ready' ? 'bg-primary' : phaseState === 'error' ? 'bg-destructive' : 'bg-muted-foreground'"
             />
             {{ status.phase.detail ?? status.phase.label }}
           </template>
           <template v-else>
-            <span class="size-2 rounded-full" :class="serverRunning ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+            <span class="size-2 rounded-full" :class="serverRunning ? 'bg-primary' : 'bg-muted-foreground'" />
             {{ serverStateLabel }}
           </template>
         </CardTitle>
@@ -100,7 +91,7 @@ const serverRunning = computed(() => props.status?.container?.running)
           Players Online
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
-          <span class="size-2 rounded-full" :class="playerCount > 0 ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+          <span class="size-2 rounded-full" :class="playerCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ playerCount }}
         </CardTitle>
       </CardHeader>
@@ -118,7 +109,7 @@ const serverRunning = computed(() => props.status?.container?.running)
           RCON
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
-          <span class="size-2 rounded-full" :class="status?.rcon ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+          <span class="size-2 rounded-full" :class="status?.rcon ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ status?.rcon ? 'Connected' : 'Disconnected' }}
         </CardTitle>
       </CardHeader>
@@ -136,7 +127,7 @@ const serverRunning = computed(() => props.status?.container?.running)
           Uptime
         </CardDescription>
         <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
-          <span class="size-2 rounded-full" :class="uptime ? 'bg-emerald-500' : 'bg-muted-foreground'" />
+          <span class="size-2 rounded-full" :class="uptime ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ uptime ?? '--' }}
         </CardTitle>
       </CardHeader>
