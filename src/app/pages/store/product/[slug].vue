@@ -149,7 +149,7 @@ function addCurrentVariantToCart() {
         <CardContent class="grid gap-4 sm:grid-cols-3">
           <div class="space-y-1">
             <p class="text-sm text-muted-foreground">Live price</p>
-            <p class="text-3xl font-semibold">
+            <p class="text-3xl font-semibold tracking-tight">
               {{ formatStoreMoney(activeVariant?.price || product.pricing.min) }}
             </p>
             <p
@@ -303,7 +303,7 @@ function addCurrentVariantToCart() {
       class="space-y-6"
     >
       <div class="space-y-1">
-        <h2 class="text-2xl font-semibold">
+        <h2 class="text-2xl font-semibold tracking-tight">
           Recommended add-ons
         </h2>
         <p class="text-sm text-muted-foreground">

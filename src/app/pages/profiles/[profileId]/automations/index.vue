@@ -18,11 +18,11 @@ const {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+    <div class="flex flex-col gap-6 py-4 md:gap-8 md:py-6">
     <div class="px-4 lg:px-6">
       <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div class="min-w-0 flex-1 space-y-1">
-          <h2 class="text-2xl font-bold">
+          <h2 class="text-2xl font-semibold tracking-tight">
             {{ profile?.name ?? 'Automation workflows' }}
           </h2>
           <p class="max-w-3xl text-sm text-balance text-muted-foreground">

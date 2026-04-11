@@ -72,7 +72,7 @@ const products = computed(() => data.value.products as StoreProductSummary[])
 
     <section class="space-y-6">
       <div class="space-y-1">
-        <h2 class="text-2xl font-semibold">
+        <h2 class="text-2xl font-semibold tracking-tight">
           Catalog
         </h2>
         <p class="text-sm text-muted-foreground">

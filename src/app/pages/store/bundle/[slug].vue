@@ -105,7 +105,7 @@ function addBundleToCart() {
         </CardHeader>
         <CardContent class="space-y-4">
           <div class="space-y-1">
-            <p class="text-3xl font-semibold">
+            <p class="text-3xl font-semibold tracking-tight">
               {{ formatStoreMoney(bundle.price) }}
             </p>
             <p

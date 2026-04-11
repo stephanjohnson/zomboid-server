@@ -182,7 +182,7 @@ async function handleDelete() {
         <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
           Automation Workflows
         </p>
-        <h2 class="text-2xl font-bold">
+        <h2 class="text-2xl font-semibold tracking-tight">
           {{ pageTitle }}
         </h2>
         <p class="max-w-3xl text-sm text-balance text-muted-foreground">

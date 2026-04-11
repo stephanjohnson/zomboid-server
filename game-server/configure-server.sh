@@ -7,6 +7,8 @@ set -e
 
 SERVER_DIR="/home/steam/Zomboid/Server"
 INI_FILE="${SERVER_DIR}/${SERVERNAME}.ini"
+BRIDGE_DIR="/home/steam/Zomboid/Lua"
+BRIDGE_ENV_FILE="${BRIDGE_DIR}/bridge_env.json"
 
 # Preserve previous console log before it gets overwritten by the new server process
 CONSOLE_LOG="/home/steam/Zomboid/server-console.txt"
@@ -50,8 +52,13 @@ ensure_ini_list_value() {
     fi
 }
 
+json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
 # Ensure directories exist
 mkdir -p "$SERVER_DIR"
+mkdir -p "$BRIDGE_DIR"
 
 ZM_WORKSHOP_ID="3685323705"
 ZM_SOURCE_DIR="${ZM_SOURCE_DIR:-/opt/ZomboidManager-source}"
@@ -72,6 +79,13 @@ if [ ! -f "$INI_FILE" ]; then
     echo "[configure] Creating initial ${SERVERNAME}.ini..."
     touch "$INI_FILE"
 fi
+
+BRIDGE_SERVER_NAME="${SERVERNAME:-servertest}"
+BRIDGE_API_BASE_URL="${ZM_API_BASE_URL:-http://nitro-app:3000/api/mod}"
+cat > "$BRIDGE_ENV_FILE" <<EOF
+{"serverName":"$(json_escape "$BRIDGE_SERVER_NAME")","apiBaseUrl":"$(json_escape "$BRIDGE_API_BASE_URL")"}
+EOF
+echo "[configure] Wrote bridge environment file."
 
 echo "[configure] Applying settings to ${SERVERNAME}.ini..."
 

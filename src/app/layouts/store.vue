@@ -19,7 +19,7 @@ const { itemCount } = useStoreCart()
               <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Commerce
               </p>
-              <p class="font-semibold">
+              <p class="font-semibold tracking-tight">
                 Survivor Supply
               </p>
             </div>

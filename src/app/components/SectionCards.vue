@@ -33,14 +33,14 @@ const serverRunning = computed(() => props.status?.container?.running)
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-4 px-4 lg:px-6 xl:grid-cols-2 2xl:grid-cols-4">
+  <div class="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
     <Card>
       <CardHeader>
         <CardDescription class="flex items-center gap-2">
           <Icon name="lucide:server" class="size-3.5 text-muted-foreground" />
           Server Status
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <template v-if="status?.phase">
             <icon
               name="lucide:loader-circle"
@@ -74,7 +74,7 @@ const serverRunning = computed(() => props.status?.container?.running)
           <Icon name="lucide:users" class="size-3.5 text-muted-foreground" />
           Players Online
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <span class="size-2 rounded-full" :class="playerCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ playerCount }}
         </CardTitle>
@@ -92,7 +92,7 @@ const serverRunning = computed(() => props.status?.container?.running)
           <Icon :name="status?.rcon ? 'lucide:wifi' : 'lucide:wifi-off'" class="size-3.5 text-muted-foreground" />
           RCON
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <span class="size-2 rounded-full" :class="status?.rcon ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ status?.rcon ? 'Connected' : 'Disconnected' }}
         </CardTitle>
@@ -110,7 +110,7 @@ const serverRunning = computed(() => props.status?.container?.running)
           <Icon name="lucide:clock" class="size-3.5 text-muted-foreground" />
           Uptime
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <span class="size-2 rounded-full" :class="uptime ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ uptime ?? '--' }}
         </CardTitle>

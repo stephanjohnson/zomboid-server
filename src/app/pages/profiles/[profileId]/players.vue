@@ -37,9 +37,9 @@ async function banPlayer(player: string) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold">
+      <h1 class="text-2xl font-semibold tracking-tight">
         Players ({{ playerData?.count ?? 0 }})
       </h1>
       <Button
@@ -51,46 +51,49 @@ async function banPlayer(player: string) {
       </Button>
     </div>
 
-    <div v-if="playersPending" class="space-y-2">
-      <div v-for="i in 3" :key="i" class="rounded-lg border p-3 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <Skeleton class="h-2.5 w-2.5 rounded-full" />
-          <Skeleton class="h-5 w-32" />
-        </div>
-        <Skeleton class="h-8 w-16" />
-      </div>
+    <div v-if="playersPending" class="space-y-3">
+      <Card v-for="i in 3" :key="i">
+        <CardContent class="flex items-center justify-between py-3">
+          <div class="flex items-center gap-3">
+            <Skeleton class="h-2.5 w-2.5 rounded-full" />
+            <Skeleton class="h-5 w-32" />
+          </div>
+          <Skeleton class="h-8 w-16" />
+        </CardContent>
+      </Card>
     </div>
 
-    <div v-else-if="playerData?.players?.length" class="space-y-2">
-      <div
+    <div v-else-if="playerData?.players?.length" class="space-y-3">
+      <Card
         v-for="player in playerData.players"
         :key="player"
-        class="rounded-lg border p-3 flex items-center justify-between"
       >
-        <div class="flex items-center gap-3">
-          <span class="size-2 rounded-full bg-primary" />
-          <span class="font-medium">{{ player }}</span>
-        </div>
-        <div v-if="isModerator" class="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="actionLoading === `kick-${player}`"
-            @click="kickPlayer(player)"
-          >
-            Kick
-          </Button>
-          <Button
-            v-if="isAdmin"
-            variant="destructive"
-            size="sm"
-            :disabled="actionLoading === `ban-${player}`"
-            @click="banPlayer(player)"
-          >
-            Ban
-          </Button>
-        </div>
-      </div>
+        <CardContent class="flex items-center justify-between py-3">
+          <div class="flex items-center gap-3">
+            <span class="size-2 rounded-full bg-primary" />
+            <span class="text-sm font-medium">{{ player }}</span>
+          </div>
+          <div v-if="isModerator" class="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="actionLoading === `kick-${player}`"
+              @click="kickPlayer(player)"
+            >
+              Kick
+            </Button>
+            <Button
+              v-if="isAdmin"
+              variant="destructive"
+              size="sm"
+              :disabled="actionLoading === `ban-${player}`"
+              @click="banPlayer(player)"
+            >
+              Ban
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
 
     <Alert v-if="playerData?.offline">

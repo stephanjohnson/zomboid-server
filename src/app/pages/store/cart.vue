@@ -94,7 +94,7 @@ const { items, subtotal, savings, updateQuantity, removeItem, clear } = useStore
           </div>
           <div class="flex items-center justify-between border-t pt-4">
             <span class="text-sm text-muted-foreground">Estimated total</span>
-            <span class="text-2xl font-semibold">{{ formatStoreMoney(subtotal) }}</span>
+            <span class="text-2xl font-semibold tracking-tight">{{ formatStoreMoney(subtotal) }}</span>
           </div>
 
           <Alert>

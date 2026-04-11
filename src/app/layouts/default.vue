@@ -36,7 +36,7 @@ const pageTitle = computed(() => {
           </div>
         </header>
         <div class="flex flex-1 flex-col overflow-hidden">
-          <div class="@container/main flex flex-1 flex-col gap-2 overflow-hidden p-4">
+          <div class="@container/main flex flex-1 flex-col gap-2 overflow-y-auto p-4 lg:p-6">
             <slot />
           </div>
         </div>

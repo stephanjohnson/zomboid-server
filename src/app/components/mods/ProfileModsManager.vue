@@ -295,9 +295,9 @@ async function revalidateMod(modId: string) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <div class="space-y-1">
-      <h1 class="text-2xl font-bold">
+      <h1 class="text-2xl font-semibold tracking-tight">
         Mod Management
       </h1>
       <p class="text-sm text-muted-foreground text-balance">

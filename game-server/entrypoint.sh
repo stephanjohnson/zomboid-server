@@ -26,9 +26,17 @@ fi
 
 CONFIGURE_SCRIPT="/home/steam/configure-server.sh"
 
+if [ -d "/home/steam/pzserver/steamapps" ]; then
+	GAME_INSTALL_DIR="/home/steam/pzserver"
+elif [ -d "/home/steam/ZomboidDedicatedServer/steamapps" ]; then
+	GAME_INSTALL_DIR="/home/steam/ZomboidDedicatedServer"
+else
+	GAME_INSTALL_DIR="/home/steam/pzserver"
+fi
+
 # Clean up previously injected ZM files from base game dir.
 # ZomboidManager is loaded from Workshop cache, not the base game directory.
-for dir in /home/steam/ZomboidDedicatedServer/media/lua/server /home/steam/ZomboidDedicatedServer/media/lua/client; do
+for dir in "$GAME_INSTALL_DIR"/media/lua/server "$GAME_INSTALL_DIR"/media/lua/client; do
     if ls "$dir"/ZM_*.lua 1>/dev/null 2>&1; then
         rm -f "$dir"/ZM_*.lua
         echo "[entrypoint] Cleaned up old injected ZM files from $dir"
@@ -36,7 +44,7 @@ for dir in /home/steam/ZomboidDedicatedServer/media/lua/server /home/steam/Zombo
 done
 
 # Remove any stale ZomboidManager from install dir (shadows Workshop version)
-rm -rf /home/steam/ZomboidDedicatedServer/mods/ZomboidManager
+rm -rf "$GAME_INSTALL_DIR"/mods/ZomboidManager
 
 # Patch run_server.sh to run configure-server.sh before server launch
 if [ -f "$CONFIGURE_SCRIPT" ] && [ -f /home/steam/run_server.sh ] && ! grep -q "configure-server.sh" /home/steam/run_server.sh; then

@@ -26,10 +26,10 @@ async function deletePreviousLog() {
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-4 min-h-0">
+  <div class="flex flex-1 flex-col gap-6 min-h-0">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-lg font-semibold">
+        <h1 class="text-lg font-semibold tracking-tight">
           Server Logs
         </h1>
         <p class="text-sm text-muted-foreground">

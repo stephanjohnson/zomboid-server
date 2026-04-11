@@ -76,7 +76,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+  <div class="flex flex-col gap-6 py-4 md:gap-8 md:py-6">
     <div class="flex items-center gap-4 px-4 lg:px-6">
       <Button variant="ghost" size="sm" as-child>
         <NuxtLink to="/admin/store/categories">
@@ -88,7 +88,7 @@ async function handleSubmit() {
 
     <form class="flex flex-col gap-6 px-4 lg:px-6" @submit.prevent="handleSubmit">
       <div class="flex flex-col gap-1">
-        <h1 class="text-2xl font-bold">
+        <h1 class="text-2xl font-semibold tracking-tight">
           Edit category
         </h1>
         <p class="text-sm text-muted-foreground text-balance">

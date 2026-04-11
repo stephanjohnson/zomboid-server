@@ -42,7 +42,7 @@ const totalVariantCount = computed(() =>
           <ShoppingBag class="size-3.5 text-muted-foreground" />
           Products
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <span class="size-2 rounded-full" :class="activeProductCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.products.length }}
         </CardTitle>
@@ -60,7 +60,7 @@ const totalVariantCount = computed(() =>
           <Package class="size-3.5 text-muted-foreground" />
           Bundles
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <span class="size-2 rounded-full" :class="activeBundleCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.bundles.length }}
         </CardTitle>
@@ -78,7 +78,7 @@ const totalVariantCount = computed(() =>
           <Tag class="size-3.5 text-muted-foreground" />
           Categories
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <span class="size-2 rounded-full" :class="activeCategoryCount > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.categories.length }}
         </CardTitle>
@@ -96,7 +96,7 @@ const totalVariantCount = computed(() =>
           <Database class="size-3.5 text-muted-foreground" />
           Catalog
         </CardDescription>
-        <CardTitle class="flex items-center gap-2 text-lg font-semibold tabular-nums">
+        <CardTitle class="flex items-center gap-2 text-lg font-semibold tracking-tight tabular-nums">
           <span class="size-2 rounded-full" :class="bootstrap.catalog.total > 0 ? 'bg-primary' : 'bg-muted-foreground'" />
           {{ bootstrap.catalog.total }}
         </CardTitle>

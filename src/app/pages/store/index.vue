@@ -118,7 +118,7 @@ const filteredProducts = computed(() => {
           </div>
 
           <div class="space-y-2">
-            <CardTitle class="text-3xl">
+            <CardTitle class="text-3xl tracking-tight">
               Survivor Supply
             </CardTitle>
             <CardDescription class="max-w-2xl text-base leading-7">
@@ -146,7 +146,7 @@ const filteredProducts = computed(() => {
         <Card>
           <CardHeader class="space-y-1">
             <CardDescription>Wallet</CardDescription>
-            <CardTitle class="text-3xl">
+            <CardTitle class="text-3xl tracking-tight">
               {{ formatStoreMoney(data.viewer?.walletBalance) }}
             </CardTitle>
           </CardHeader>
@@ -158,7 +158,7 @@ const filteredProducts = computed(() => {
         <Card>
           <CardHeader class="space-y-1">
             <CardDescription>Featured bundles</CardDescription>
-            <CardTitle class="text-3xl">
+            <CardTitle class="text-3xl tracking-tight">
               {{ featuredBundles.length }}
             </CardTitle>
           </CardHeader>
@@ -170,7 +170,7 @@ const filteredProducts = computed(() => {
         <Card>
           <CardHeader class="space-y-1">
             <CardDescription>Categories</CardDescription>
-            <CardTitle class="text-3xl">
+            <CardTitle class="text-3xl tracking-tight">
               {{ categories.length }}
             </CardTitle>
           </CardHeader>
@@ -182,7 +182,7 @@ const filteredProducts = computed(() => {
         <Card>
           <CardHeader class="space-y-1">
             <CardDescription>Catalog items</CardDescription>
-            <CardTitle class="text-3xl">
+            <CardTitle class="text-3xl tracking-tight">
               {{ products.length }}
             </CardTitle>
           </CardHeader>
@@ -196,7 +196,7 @@ const filteredProducts = computed(() => {
     <section class="space-y-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="space-y-1">
-          <h2 class="text-2xl font-semibold">
+          <h2 class="text-2xl font-semibold tracking-tight">
             Browse by category
           </h2>
           <p class="text-sm text-muted-foreground">
@@ -238,7 +238,7 @@ const filteredProducts = computed(() => {
 
     <section v-if="featuredBundles.length" class="space-y-6">
       <div class="space-y-1">
-        <h2 class="text-2xl font-semibold">
+        <h2 class="text-2xl font-semibold tracking-tight">
           Bundle offers
         </h2>
         <p class="text-sm text-muted-foreground">
@@ -258,7 +258,7 @@ const filteredProducts = computed(() => {
     <section class="space-y-6">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div class="space-y-1">
-          <h2 class="text-2xl font-semibold">
+          <h2 class="text-2xl font-semibold tracking-tight">
             Storefront
           </h2>
           <p class="text-sm text-muted-foreground">

@@ -2,12 +2,41 @@ require("ZM_JSON")
 
 ZM_Utils = {}
 
-local API_BASE_URL = os.getenv("ZM_API_BASE_URL") or "http://nitro-app:3000/api/mod"
+local BRIDGE_ENV_PATH = "/home/steam/Zomboid/Lua/bridge_env.json"
+local TEMP_UPLOAD_PATH = "/home/steam/Zomboid/Lua/bridge_payload.json"
+local TEMP_CONFIG_PATH = "/home/steam/Zomboid/Lua/bridge_config.json"
+
+local function readFile(path)
+    local file = io.open(path, "r")
+    if not file then
+        return nil
+    end
+
+    local content = file:read("*a")
+    file:close()
+    return content
+end
+
+local function loadBridgeEnv()
+    local rawConfig = readFile(BRIDGE_ENV_PATH)
+    if not rawConfig or rawConfig == "" then
+        return {}
+    end
+
+    local ok, decoded = pcall(ZM_JSON.decode, rawConfig)
+    if ok and type(decoded) == "table" then
+        return decoded
+    end
+
+    print("[ZomboidManager] Failed to decode bridge environment config")
+    return {}
+end
+
+local bridgeEnv = loadBridgeEnv()
+local API_BASE_URL = tostring(bridgeEnv.apiBaseUrl or "http://nitro-app:3000/api/mod")
 local API_TELEMETRY_URL = API_BASE_URL .. "/telemetry"
 local API_CONFIG_URL = API_BASE_URL .. "/config"
 local API_RUNTIME_URL = API_BASE_URL .. "/runtime"
-local TEMP_UPLOAD_PATH = "/home/steam/Zomboid/Lua/bridge_payload.json"
-local TEMP_CONFIG_PATH = "/home/steam/Zomboid/Lua/bridge_config.json"
 
 local DEFAULT_CONFIG = {
     refreshSeconds = 60,
@@ -64,19 +93,8 @@ local function urlEncode(value)
     end)
 end
 
-local function readFile(path)
-    local file = io.open(path, "r")
-    if not file then
-        return nil
-    end
-
-    local content = file:read("*a")
-    file:close()
-    return content
-end
-
 local function getServerName()
-    return os.getenv("SERVERNAME") or "servertest"
+    return tostring(bridgeEnv.serverName or "servertest")
 end
 
 local function getUnixTime()

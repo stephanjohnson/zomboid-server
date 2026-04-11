@@ -39,9 +39,9 @@ function formatSize(bytes: number | bigint): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold">
+      <h1 class="text-2xl font-semibold tracking-tight">
         Backups
       </h1>
       <Button
@@ -53,42 +53,45 @@ function formatSize(bytes: number | bigint): string {
       </Button>
     </div>
 
-    <div v-if="backupsPending" class="space-y-2">
-      <div v-for="i in 3" :key="i" class="rounded-lg border p-3 flex items-center justify-between">
-        <div class="space-y-2">
-          <Skeleton class="h-5 w-48" />
-          <Skeleton class="h-4 w-64" />
-        </div>
-        <Skeleton class="h-8 w-20" />
-      </div>
+    <div v-if="backupsPending" class="space-y-3">
+      <Card v-for="i in 3" :key="i">
+        <CardContent class="flex items-center justify-between py-3">
+          <div class="space-y-2">
+            <Skeleton class="h-5 w-48" />
+            <Skeleton class="h-4 w-64" />
+          </div>
+          <Skeleton class="h-8 w-20" />
+        </CardContent>
+      </Card>
     </div>
 
-    <div v-else class="space-y-2">
-      <div
+    <div v-else class="space-y-3">
+      <Card
         v-for="backup in backups"
         :key="backup.id"
-        class="rounded-lg border p-3 flex items-center justify-between"
       >
-        <div>
-          <p class="font-medium">
-            {{ backup.fileName }}
-          </p>
-          <p class="text-sm text-muted-foreground">
-            {{ formatSize(backup.sizeBytes) }}
-            &bull; {{ new Date(backup.createdAt).toLocaleString() }}
-            <span v-if="backup.gameVersion">&bull; v{{ backup.gameVersion }}</span>
-          </p>
-        </div>
-        <Button
-          v-if="isAdmin"
-          variant="outline"
-          size="sm"
-          :disabled="restoring === backup.id"
-          @click="restoreBackup(backup.id)"
-        >
-          {{ restoring === backup.id ? 'Restoring...' : 'Restore' }}
-        </Button>
-      </div>
+        <CardContent class="flex items-center justify-between py-3">
+          <div>
+            <p class="text-sm font-medium">
+              {{ backup.fileName }}
+            </p>
+            <p class="text-sm text-muted-foreground">
+              {{ formatSize(backup.sizeBytes) }}
+              &bull; {{ new Date(backup.createdAt).toLocaleString() }}
+              <span v-if="backup.gameVersion">&bull; v{{ backup.gameVersion }}</span>
+            </p>
+          </div>
+          <Button
+            v-if="isAdmin"
+            variant="outline"
+            size="sm"
+            :disabled="restoring === backup.id"
+            @click="restoreBackup(backup.id)"
+          >
+            {{ restoring === backup.id ? 'Restoring...' : 'Restore' }}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
 
     <p v-if="!backupsPending && !backups?.length" class="text-muted-foreground text-center py-8">

@@ -50,7 +50,7 @@ const {
           Profile Automation
         </p>
         <div class="space-y-1">
-          <h1 class="text-2xl font-bold">
+          <h1 class="text-2xl font-semibold tracking-tight">
             {{ profile?.name ?? 'Telemetry Studio' }}
           </h1>
           <p class="max-w-3xl text-sm leading-6 text-muted-foreground">

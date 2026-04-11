@@ -29,7 +29,7 @@ async function handleLogin() {
   <form class="flex flex-col gap-6" @submit.prevent="handleLogin">
     <Card>
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
+        <CardTitle class="text-xl tracking-tight">Welcome back</CardTitle>
         <CardDescription>Access the server manager dashboard</CardDescription>
       </CardHeader>
       <CardContent>

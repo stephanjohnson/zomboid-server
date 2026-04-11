@@ -359,7 +359,7 @@ async function handleSubmit() {
                 <ArrowLeft class="size-4" />
               </NuxtLink>
             </Button>
-            <h1 class="truncate text-lg font-semibold">
+            <h1 class="truncate text-lg font-semibold tracking-tight">
               {{ form.name || 'Edit product' }}
             </h1>
           </div>

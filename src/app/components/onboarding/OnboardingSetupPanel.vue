@@ -75,7 +75,7 @@ async function handleSubmit() {
       <p class="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
         First-Run Setup
       </p>
-      <h1 class="text-2xl font-bold">
+      <h1 class="text-2xl font-semibold tracking-tight">
         Create your server workspace
       </h1>
       <p class="text-muted-foreground text-sm text-balance">

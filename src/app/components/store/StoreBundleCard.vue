@@ -33,7 +33,7 @@ defineProps<{
         <div class="flex items-end justify-between gap-4">
           <div class="space-y-1">
             <p class="text-sm text-muted-foreground">Bundle price</p>
-            <p class="text-2xl font-semibold">
+            <p class="text-2xl font-semibold tracking-tight">
               {{ formatStoreMoney(bundle.price) }}
             </p>
             <p

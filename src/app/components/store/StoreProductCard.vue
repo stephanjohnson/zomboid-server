@@ -50,7 +50,7 @@ defineProps<{
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="space-y-1">
             <p class="text-sm text-muted-foreground">Price</p>
-            <p class="text-2xl font-semibold">
+            <p class="text-2xl font-semibold tracking-tight">
               {{ formatStorePriceRange(product.pricing) }}
             </p>
             <p
