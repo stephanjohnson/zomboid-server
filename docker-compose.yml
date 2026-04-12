@@ -50,6 +50,8 @@ services:
     build:
       context: ./src
       dockerfile: Dockerfile
+      args:
+        NITRO_BUILD_MAX_OLD_SPACE_SIZE: ${NITRO_BUILD_MAX_OLD_SPACE_SIZE:-4096}
     container_name: pzm-nitro-app
     restart: unless-stopped
     mem_limit: ${NITRO_APP_MEM_LIMIT:-768m}

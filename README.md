@@ -31,6 +31,8 @@ make up
 
 If `.env` does not exist yet, `make up` will create it from `.env.example` automatically.
 
+If the Nuxt image build fails during `nuxt build` with `Reached heap limit`, increase `NITRO_BUILD_MAX_OLD_SPACE_SIZE` in `.env`. This controls the Node heap used while building the image; `NITRO_APP_MEM_LIMIT` and `NITRO_APP_MEM_RESERVATION` only apply after the container starts.
+
 Then open `http://localhost:3000` and complete the first-run onboarding flow. The app applies database migrations during startup, and onboarding creates the first admin account plus the default active server profile.
 
 ### Local Development

@@ -9,10 +9,11 @@ RUN npm install
 
 # --- Build ---
 FROM base AS build
+ARG NITRO_BUILD_MAX_OLD_SPACE_SIZE=4096
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN NODE_OPTIONS="--max-old-space-size=${NITRO_BUILD_MAX_OLD_SPACE_SIZE}" npm run build
 
 # --- Production ---
 FROM node:20-alpine AS production

@@ -2,23 +2,98 @@ require("ZM_JSON")
 
 ZM_Utils = {}
 
-local BRIDGE_ENV_PATH = "/home/steam/Zomboid/Lua/bridge_env.json"
-local TEMP_UPLOAD_PATH = "/home/steam/Zomboid/Lua/bridge_payload.json"
-local TEMP_CONFIG_PATH = "/home/steam/Zomboid/Lua/bridge_config.json"
+local ZOMBOID_DATA_DIR = "/home/steam/Zomboid"
+local BRIDGE_ENV_FILE = "Lua/bridge_env.json"
+local BRIDGE_ENV_PATH = ZOMBOID_DATA_DIR .. "/" .. BRIDGE_ENV_FILE
+local TEMP_UPLOAD_FILE = "Lua/bridge_payload.json"
+local TEMP_UPLOAD_PATH = ZOMBOID_DATA_DIR .. "/" .. TEMP_UPLOAD_FILE
+local TEMP_CONFIG_FILE = "Lua/bridge_config.json"
+local TEMP_CONFIG_PATH = ZOMBOID_DATA_DIR .. "/" .. TEMP_CONFIG_FILE
 
-local function readFile(path)
-    local file = io.open(path, "r")
-    if not file then
+local function openManagedReader(fileName)
+    if not getFileReader then
         return nil
     end
 
-    local content = file:read("*a")
-    file:close()
-    return content
+    local ok, reader = pcall(function()
+        return getFileReader(fileName, true)
+    end)
+    if ok and reader then
+        return reader
+    end
+
+    ok, reader = pcall(function()
+        return getFileReader(fileName, false)
+    end)
+    if ok and reader then
+        return reader
+    end
+
+    return nil
+end
+
+local function readManagedFile(fileName)
+    local reader = openManagedReader(fileName)
+    if not reader then
+        return nil
+    end
+
+    local lines = {}
+    while true do
+        local line = reader:readLine()
+        if line == nil then
+            break
+        end
+
+        table.insert(lines, line)
+    end
+
+    reader:close()
+    return table.concat(lines, "\n")
+end
+
+local function writeManagedFile(fileName, content)
+    if not getFileWriter then
+        return false, "getFileWriter unavailable"
+    end
+
+    local ok, writer = pcall(function()
+        return getFileWriter(fileName, true, false)
+    end)
+    if (not ok or not writer) then
+        ok, writer = pcall(function()
+            return getFileWriter(fileName, false, false)
+        end)
+    end
+    if not ok or not writer then
+        return false, "failed to open writer"
+    end
+
+    local writeOk, writeErr = pcall(function()
+        writer:write(content)
+    end)
+    writer:close()
+
+    if not writeOk then
+        return false, writeErr
+    end
+
+    return true
+end
+
+local function removeManagedFile(path)
+    if os and os.remove then
+        pcall(os.remove, path)
+    end
+end
+
+local function shellQuote(value)
+    local text = tostring(value or "")
+    return "'" .. text:gsub("'", "'\"'\"'") .. "'"
 end
 
 local function loadBridgeEnv()
-    local rawConfig = readFile(BRIDGE_ENV_PATH)
+    local rawConfig = readManagedFile(BRIDGE_ENV_FILE)
     if not rawConfig or rawConfig == "" then
         return {}
     end
@@ -93,7 +168,41 @@ local function urlEncode(value)
     end)
 end
 
-local function getServerName()
+local function getResolvedServerName()
+    local runtimeServerName = safeCall(function()
+        if getServerName then
+            return getServerName()
+        end
+
+        return nil
+    end, nil)
+    if runtimeServerName and tostring(runtimeServerName) ~= "" then
+        return tostring(runtimeServerName)
+    end
+
+    local publicName = safeCall(function()
+        local options = getServerOptions and getServerOptions() or nil
+        if not options then
+            return nil
+        end
+
+        if options.getOption then
+            return options:getOption("PublicName")
+        end
+
+        if options.getOptionByName then
+            local option = options:getOptionByName("PublicName")
+            if option and option.getValue then
+                return option:getValue()
+            end
+        end
+
+        return nil
+    end, nil)
+    if publicName and tostring(publicName) ~= "" then
+        return tostring(publicName)
+    end
+
     return tostring(bridgeEnv.serverName or "servertest")
 end
 
@@ -305,29 +414,26 @@ local function postJsonPayload(payload, url, tempPath)
         return false
     end
 
-    local file = io.open(tempPath, "w")
-    if not file then
-        print("[ZomboidManager] Failed to open temporary upload file: " .. tostring(tempPath))
+    local writeOk, writeErr = writeManagedFile(TEMP_UPLOAD_FILE, json)
+    if not writeOk then
+        print("[ZomboidManager] Failed to write temporary upload file: " .. tostring(writeErr))
         return false
     end
 
-    file:write(json)
-    file:close()
-
     local command = string.format(
         "curl -fsS -m 10 -X POST -H \"Content-Type: application/json\" --data-binary @%s %s >/dev/null 2>&1",
-        tempPath,
-        url
+        shellQuote(tempPath),
+        shellQuote(url)
     )
 
     local result = os.execute(command)
-    os.remove(tempPath)
+    removeManagedFile(tempPath)
 
     return result == true or result == 0
 end
 
 function ZM_Utils.postTelemetry(payload)
-    payload.serverName = payload.serverName or getServerName()
+    payload.serverName = payload.serverName or getResolvedServerName()
 
     if postJsonPayload(payload, API_TELEMETRY_URL, TEMP_UPLOAD_PATH) then
         return true
@@ -340,7 +446,7 @@ end
 function ZM_Utils.postRuntimeHandshake(reason)
     local runtimeState = ZM_Utils.collectActivatedMods()
     local payload = {
-        serverName = getServerName(),
+        serverName = getResolvedServerName(),
         reportedAt = ZM_Utils.getTimestamp(),
         reason = reason or "heartbeat",
         activeModIds = runtimeState.activeModIds,
@@ -364,12 +470,12 @@ function ZM_Utils.fetchRuntimeConfig(force)
         end
     end
 
-    local serverName = urlEncode(getServerName())
+    local serverName = urlEncode(getResolvedServerName())
     local command = string.format(
         "curl -fsS -m 10 \"%s?serverName=%s\" -o %s >/dev/null 2>&1",
         API_CONFIG_URL,
         serverName,
-        TEMP_CONFIG_PATH
+        shellQuote(TEMP_CONFIG_PATH)
     )
 
     local result = os.execute(command)
@@ -378,8 +484,8 @@ function ZM_Utils.fetchRuntimeConfig(force)
         return runtimeConfig
     end
 
-    local rawConfig = readFile(TEMP_CONFIG_PATH)
-    os.remove(TEMP_CONFIG_PATH)
+    local rawConfig = readManagedFile(TEMP_CONFIG_FILE)
+    removeManagedFile(TEMP_CONFIG_PATH)
     if not rawConfig or rawConfig == "" then
         return runtimeConfig
     end
